@@ -206,6 +206,19 @@ tr:hover td{background:#F6F8FA}
   .toolbar select{flex:1 1 100%}
 }
 </style>
+<!-- ===== PWA (app instalável) ===== -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0f2747">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Controlo Custos">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<script>
+if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.protocol==='http:')){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});
+}
+</script>
 </head>
 <body>
 <div id="login-gate" style="position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#11365E 0%,#0E2C50 60%,#0A2240 100%);display:flex;align-items:center;justify-content:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
@@ -257,7 +270,7 @@ tr:hover td{background:#F6F8FA}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v73</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v82</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -269,6 +282,9 @@ tr:hover td{background:#F6F8FA}
         <hr>
         <button onclick="appBackup()"><i class="ti ti-download"></i> Backup</button>
         <button onclick="closeUserMenu();document.getElementById('app-restore-input').click()"><i class="ti ti-upload"></i> Restaurar</button>
+        <hr>
+        <button onclick="closeUserMenu();carregarExemplos()"><i class="ti ti-flask"></i> Carregar dados de exemplo</button>
+        <button onclick="closeUserMenu();removerExemplos()"><i class="ti ti-eraser"></i> Remover dados de exemplo</button>
         <button onclick="abrirModalCloud()"><i class="ti ti-cloud"></i> Cloud (partilha)</button>
         <hr>
         <button id="btn-limpar-dados" onclick="closeUserMenu();limparDados()" style="display:none;color:#c0392b"><i class="ti ti-trash"></i> Limpar dados (manter definições)</button>
@@ -289,6 +305,7 @@ tr:hover td{background:#F6F8FA}
   <button class="nav-btn" onclick="showTab('relatorios',this)"><i class="ti ti-report"></i>Relatórios</button>
   <button class="nav-btn" id="nav-rh" onclick="showTab('rh',this)"><i class="ti ti-users"></i>RH</button>
   <button class="nav-btn" onclick="showTab('compras',this)"><i class="ti ti-shopping-cart"></i>Compras</button>
+  <button class="nav-btn" onclick="showTab('pagamentos',this)"><i class="ti ti-cash"></i>Pagamentos</button>
   <button class="nav-btn" onclick="showTab('caucoes',this)"><i class="ti ti-shield-lock"></i>Cauções</button>
   <button class="nav-btn" onclick="showTab('precos',this)"><i class="ti ti-database"></i>Base de Preços</button>
   <button class="nav-btn" onclick="showTab('definicoes',this)"><i class="ti ti-settings"></i>Definições</button>
@@ -776,6 +793,15 @@ tr:hover td{background:#F6F8FA}
 
 <!-- ═══════════════════════════════ DEFINIÇÕES ═══════════════════════════════ -->
 <div class="tab" id="tab-definicoes">
+  <div class="card">
+    <div class="section-title">Email automático (Cloud)</div>
+    <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Os avisos automáticos são enviados pela função de email no Supabase. Usa o teste abaixo para confirmar que está a funcionar antes de ligar os automatismos.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;max-width:560px">
+      <div style="flex:1;min-width:240px"><label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">Enviar email de teste para</label><input id="email-teste-dest" type="email" placeholder="o.teu.email@sa-machado.com" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px"></div>
+      <button class="btn primary" onclick="enviarEmailTeste()"><i class="ti ti-send"></i>Enviar teste</button>
+    </div>
+    <div id="email-teste-res" style="margin-top:8px;font-size:12px"></div>
+  </div>
   <div class="two-col">
     <!-- Tipos de Obra -->
     <div class="card">
@@ -1198,6 +1224,56 @@ tr:hover td{background:#F6F8FA}
       <div class="card"><div class="section-title">Situação dos processos</div><div class="chart-wrap" style="height:230px"><canvas id="chartComprasSit"></canvas></div></div>
     </div>
     <div class="card" style="padding:0"><div class="table-wrap" id="cp-an-tabela"></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ PAGAMENTOS ═══════════════════════════════ -->
+<div class="tab" id="tab-pagamentos">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    <h2 style="margin:0"><i class="ti ti-cash"></i> Pagamentos a fornecedores</h2>
+    <span class="muted" style="font-size:11px">Agrega os custos lançados por fornecedor e obra. Registo de pagamentos (parciais), prazos e avisos de atraso.</span>
+  </div>
+  <div id="pg-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+  <div id="pg-alertas"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+    <select id="pg-f-obra" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)"><option value="">Todas as obras</option></select>
+    <input type="search" id="pg-f-forn" placeholder="Filtrar fornecedor..." oninput="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);min-width:180px">
+    <select id="pg-f-estado" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)">
+      <option value="">Todos os estados</option>
+      <option value="porpagar">Por pagar</option>
+      <option value="parcial">Parcial</option>
+      <option value="vencido">Vencido</option>
+      <option value="pago">Pago</option>
+    </select>
+    <button class="btn" onclick="exportarPagamentos()"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+    <div style="flex:1;min-width:300px;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:10px;height:240px"><canvas id="pg-graf-aging"></canvas></div>
+    <div style="flex:1;min-width:300px;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:10px;height:240px"><canvas id="pg-graf-forn"></canvas></div>
+  </div>
+  <div class="table-wrap" id="pg-tabela" style="max-height:420px;overflow:auto"></div>
+  <details style="margin-top:14px">
+    <summary style="cursor:pointer;font-weight:600;font-size:13px"><i class="ti ti-clock"></i> Prazos de pagamento por fornecedor</summary>
+    <div class="muted" style="font-size:11px;margin:6px 0">Define o prazo padrão (dias após a data do documento) usado para calcular o vencimento de novos custos.</div>
+    <div id="pg-prazos"></div>
+  </details>
+</div>
+
+<!-- ══════════════ MODAL PAGAMENTO ══════════════ -->
+<div class="modal-backdrop" id="modal-pagamento">
+  <div class="modal">
+    <div class="modal-header"><h3><i class="ti ti-cash"></i> Registar pagamento</h3><button class="modal-close" onclick="closeModal('modal-pagamento')">&times;</button></div>
+    <div id="pg-pay-info" style="font-size:13px;background:var(--bg,#f8fafc);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Data do pagamento</label><input type="date" id="pg-pay-data"></div>
+      <div class="form-group"><label>Valor pago</label><input type="number" id="pg-pay-valor" step="0.01" placeholder="0"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="pg-pay-obs" placeholder="ex: transferência, cheque nº..."></div>
+    </div>
+    <div id="pg-pay-lista" style="margin-top:10px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-pagamento')">Fechar</button>
+      <button class="btn primary" onclick="confirmarPagamento()"><i class="ti ti-check"></i>Registar pagamento</button>
+    </div>
   </div>
 </div>
 
@@ -1670,7 +1746,8 @@ tr:hover td{background:#F6F8FA}
         </select>
       </div>
       <div class="form-group"><label>Ano</label><input type="number" id="cf-ano" placeholder="2020" min="2000" max="2099"></div>
-      <div class="form-group"><label>Data do documento</label><input type="date" id="cf-data"></div>
+      <div class="form-group"><label>Data do documento</label><input type="date" id="cf-data" onchange="autoVenc()"></div>
+      <div class="form-group"><label>Vencimento <span class="muted" style="font-size:10px">(auto)</span></label><input type="date" id="cf-venc"></div>
       <div class="form-group"><label>Família de Custo</label><select id="cf-familia"></select></div>
       <div class="form-group"><label>Categoria</label>
         <select id="cf-categoria">
@@ -1678,7 +1755,7 @@ tr:hover td{background:#F6F8FA}
           <option value="admin">Administrativo</option><option value="operacional">Operacional</option>
         </select>
       </div>
-      <div class="form-group"><label>Fornecedor</label><input type="text" id="cf-fornecedor" list="dl-fornecedores" placeholder="Nome do fornecedor" autocomplete="off"><datalist id="dl-fornecedores"></datalist></div>
+      <div class="form-group"><label>Fornecedor</label><input type="text" id="cf-fornecedor" list="dl-fornecedores" placeholder="Nome do fornecedor" autocomplete="off" oninput="autoVenc()"><datalist id="dl-fornecedores"></datalist></div>
       <div class="form-group"><label>Colaborador RH (opcional)</label><select id="cf-colab"><option value="">— nenhum —</option></select></div>
       <div class="form-group"><label>Centro de Custo (opcional)</label><select id="cf-centro"><option value="">— nenhum —</option></select></div>
       <div class="form-group"><label>Documento (nº fatura)</label><input type="text" id="cf-documento" placeholder="ex: FT 2020/123"></div>
@@ -1959,6 +2036,86 @@ function marcarGuardado(estado){
 // BACKUP em ficheiro .json (cópia de segurança fora do navegador)
 function pedirFlushAutos(){ try{ var fr=document.getElementById('frame-autosmed'); if(fr&&fr.contentWindow&&fr.contentWindow.__autosPronto){ fr.contentWindow.postMessage({tipo:'autosmed:flush'},'*'); } }catch(e){} }
 // ===== BACKUP / RESTAURO DA APP — mesmo método do separador Autos (que funciona) =====
+
+// ══════════════════════════════════════════════════════════════
+// DADOS DE EXEMPLO (demo) — marcados com _demo:true para remoção limpa (v81)
+// ══════════════════════════════════════════════════════════════
+function _demoISO(offDias){var d=new Date();d.setDate(d.getDate()+offDias);return d.toISOString().split('T')[0];}
+function _temExemplos(){try{
+  if(typeof obras!=='undefined'&&obras.some(o=>o._demo))return true;
+  if(typeof custos!=='undefined'&&custos.some(c=>c._demo))return true;
+  if(typeof compras!=='undefined'&&compras.some(c=>c._demo))return true;
+}catch(e){}return false;}
+
+function carregarExemplos(){
+  if(_temExemplos()){alert('Os dados de exemplo já estão carregados. Use "Remover dados de exemplo" primeiro se quiser recarregar.');return;}
+  if(!confirm('Vou adicionar obras, custos e compras de EXEMPLO (marcados como demo) para poder testar.\n\nOs seus dados reais não são tocados. Pode removê-los todos de uma vez em "Remover dados de exemplo".\n\nContinuar?'))return;
+  try{
+    // ---- OBRAS ----
+    var obrasDemo=[
+      {num:'D001',nome:'[DEMO] Reabilitação Edifício Rua do Sol',dono:'Condomínio Rua do Sol',localidade:'Porto',tipoObra:'',tipoCliente:'',adj:120000,orcamentoCusto:95000,revPrecos:0,trabalhosMais:0,errosOmissoes:0,autos:0,custos:0,estado:'Em curso',prazoMeses:10,prazoAtualMeses:10,consignacao:_demoISO(-120)},
+      {num:'D002',nome:'[DEMO] Moradia Unifamiliar',dono:'Sr. António Silva',localidade:'Vila do Conde',tipoObra:'',tipoCliente:'',adj:250000,orcamentoCusto:200000,revPrecos:0,trabalhosMais:0,errosOmissoes:0,autos:0,custos:0,estado:'Em curso',prazoMeses:14,prazoAtualMeses:14,consignacao:_demoISO(-200)},
+      {num:'D003',nome:'[DEMO] Arranjos Exteriores',dono:'Câmara Municipal da Póvoa',localidade:'Póvoa de Varzim',tipoObra:'',tipoCliente:'',adj:80000,orcamentoCusto:65000,revPrecos:0,trabalhosMais:0,errosOmissoes:0,autos:0,custos:0,estado:'Concluída',prazoMeses:6,prazoAtualMeses:6,consignacao:_demoISO(-300)}
+    ];
+    obrasDemo.forEach(function(o){
+      Object.assign(o,{gastosGerais:0,mesesPassados:0,mesesMensais:[],trabMaisHist:[],errosHist:[],_demo:true});
+      if(typeof ensureFin==='function')ensureFin(o);
+      if(typeof obras!=='undefined')obras.push(o);
+    });
+    // ---- CUSTOS (com vencimentos e pagamentos variados) ----
+    function _mk(obraNum,forn,valor,iva,docOff,vencOff,pagamentos,desc,doc){
+      var di=_demoISO(docOff);var dd=new Date(di);
+      return {id:Date.now()+Math.random(),obraNum:obraNum,mesNum:dd.getMonth()+1,ano:dd.getFullYear(),data:di,
+        familiaId:'',categoria:'direto',tipoCusto:'direto',fornecedor:forn,documento:doc||'',desc:desc,
+        valor:valor,iva:iva,obs:'',pagamentos:pagamentos||[],dataVenc:_demoISO(vencOff),_demo:true};
+    }
+    var custosDemo=[
+      _mk('D001','Cimentos do Norte Lda',2000,0.23,-50,-20,[],'Cimento e agregados','FT 2026/118'),
+      _mk('D001','Ferros & Aços SA',3500,0.23,-80,-50,[],'Aço para estrutura','FT 2026/090'),
+      _mk('D001','Ferros & Aços SA',900,0.23,-5,25,[],'Varão adicional','FT 2026/151'),
+      _mk('D002','Tintas Portugal',800,0.23,-120,-95,[],'Tintas e vernizes','FT 2026/040'),
+      _mk('D002','Alumínios Costa',1500,0.23,-10,20,[],'Caixilharia alumínio','FT 2026/149'),
+      _mk('D003','Britas e Areias',1200,0.06,-40,-10,[{data:_demoISO(-8),valor:500,obs:'transferência'}],'Britas','FT 2026/100'),
+      _mk('D003','Cimentos do Norte Lda',600,0.23,-60,-30,[{data:_demoISO(-25),valor:738,obs:'pago integral'}],'Cimento pavimento','FT 2026/072')
+    ];
+    if(typeof custos!=='undefined')custosDemo.forEach(function(c){custos.push(c);});
+    // ---- COMPRAS ----
+    if(typeof compras!=='undefined'){
+      compras.push({id:Date.now()+Math.random(),obra:'D001',nome:'[DEMO] Fornecimento de betão',tipo:'subempreitada',resp:'Eng. Carlos',situacao:'adjudicado',fornecedor:'Betões Unidos',artigos:[],propostas:[],dataAdj:_demoISO(-40),custo:5000,adjud:4800,desvio:200,obs:'',ano:new Date().getFullYear(),_demo:true});
+      compras.push({id:Date.now()+Math.random(),obra:'D002',nome:'[DEMO] Caixilharia alumínio',tipo:'fornecimento',resp:'Eng. Carlos',situacao:'em curso',fornecedor:'Alumínios Costa',artigos:[],propostas:[],dataAdj:_demoISO(-15),custo:8200,adjud:8000,desvio:200,obs:'',ano:new Date().getFullYear(),_demo:true});
+    }
+    // ---- recalcular e gravar ----
+    if(typeof agregarCustosNasObras==='function')agregarCustosNasObras();
+    if(typeof aplicarCustos==='function')aplicarCustos();
+    if(typeof guardarCompras==='function')guardarCompras();
+    if(typeof renderCompras==='function')renderCompras();
+    if(typeof filterObras==='function')filterObras();
+    if(typeof agendarGravacao==='function')agendarGravacao();
+    if(typeof regAudit==='function')regAudit('Sistema','Carregou dados de exemplo (demo)');
+    if(typeof tabAtual!=='undefined'&&tabAtual==='pagamentos'&&typeof renderPagamentos==='function')renderPagamentos();
+    alert('Dados de exemplo carregados:\n\n• 3 obras (D001, D002, D003)\n• 7 custos com vencimentos e pagamentos (vencidos, parcial, pago)\n• 2 compras\n\nAbra o separador Pagamentos para ver. Para apagar tudo de uma vez, use "Remover dados de exemplo".');
+  }catch(e){alert('Erro ao carregar exemplos: '+(e&&e.message||e));}
+}
+
+function removerExemplos(){
+  if(!_temExemplos()){alert('Não há dados de exemplo para remover.');return;}
+  if(!confirm('Remover TODOS os dados de exemplo (demo)? Os seus dados reais não são afetados.'))return;
+  try{
+    if(typeof obras!=='undefined')for(var i=obras.length-1;i>=0;i--)if(obras[i]._demo)obras.splice(i,1);
+    if(typeof custos!=='undefined')for(var j=custos.length-1;j>=0;j--)if(custos[j]._demo)custos.splice(j,1);
+    if(typeof compras!=='undefined')for(var k=compras.length-1;k>=0;k--)if(compras[k]._demo)compras.splice(k,1);
+    if(typeof agregarCustosNasObras==='function')agregarCustosNasObras();
+    if(typeof aplicarCustos==='function')aplicarCustos();
+    if(typeof guardarCompras==='function')guardarCompras();
+    if(typeof renderCompras==='function')renderCompras();
+    if(typeof filterObras==='function')filterObras();
+    if(typeof agendarGravacao==='function')agendarGravacao();
+    if(typeof regAudit==='function')regAudit('Sistema','Removeu dados de exemplo (demo)');
+    if(typeof tabAtual!=='undefined'&&tabAtual==='pagamentos'&&typeof renderPagamentos==='function')renderPagamentos();
+    alert('Dados de exemplo removidos. A aplicação ficou só com os seus dados reais.');
+  }catch(e){alert('Erro ao remover exemplos: '+(e&&e.message||e));}
+}
+
 function appBackup(){
   // 1) montar os dados PRINCIPAIS a partir da MEMÓRIA (o que está no ecrã), não só do armazenamento
   try{ if(typeof guardarTudo==='function') guardarTudo(); }catch(e){}
@@ -3503,6 +3660,7 @@ function showTab(id,btn){
   if(id==='importacao')initImportTab();
   if(id==='rh')switchRHTab('colab');
   if(id==='compras')switchComprasTab('lista');
+  if(id==='pagamentos')renderPagamentos();
   if(id==='precos')renderPrecos();
   setTimeout(function(){try{ativarArrastoColunas(document);}catch(e){}},220);
   if(id==='autosmed'){const fr=document.getElementById('frame-autosmed');if(fr&&!fr.dataset.loaded){try{fr.srcdoc=decodeURIComponent(escape(atob(window.AUTOS_B64)));}catch(e){fr.srcdoc='<p style=\"font-family:sans-serif;padding:20px\">Não foi possível carregar o módulo de Autos.</p>';}fr.dataset.loaded='1';}setTimeout(sincronizarAutos,400);}
@@ -6971,6 +7129,7 @@ function abrirModalCusto(id){
       document.getElementById('cf-mes').value=c.mesNum||1;
       document.getElementById('cf-ano').value=c.ano||new Date().getFullYear();
       document.getElementById('cf-data').value=c.data||'';
+      if(document.getElementById('cf-venc'))document.getElementById('cf-venc').value=c.dataVenc||'';
       document.getElementById('cf-familia').value=c.familiaId||'';
       document.getElementById('cf-categoria').value=c.categoria||'direto';
       document.getElementById('cf-fornecedor').value=c.fornecedor||'';
@@ -6987,6 +7146,7 @@ function abrirModalCusto(id){
     document.getElementById('cf-mes').value=new Date().getMonth()+1;
     document.getElementById('cf-ano').value=new Date().getFullYear();
     document.getElementById('cf-data').value=new Date().toISOString().split('T')[0];
+    if(document.getElementById('cf-venc'))document.getElementById('cf-venc').value='';
     document.getElementById('cf-fornecedor').value='';
     document.getElementById('cf-documento').value='';
     document.getElementById('cf-desc').value='';
@@ -7018,6 +7178,7 @@ function saveCusto(){
     mesNum:parseInt(document.getElementById('cf-mes').value,10)||1,
     ano:parseInt(document.getElementById('cf-ano').value,10)||new Date().getFullYear(),
     data:document.getElementById('cf-data').value,
+    dataVenc:(document.getElementById('cf-venc')?document.getElementById('cf-venc').value:''),
     familiaId:document.getElementById('cf-familia').value||'',
     categoria:document.getElementById('cf-categoria').value,
     tipoCusto:document.getElementById('cf-categoria').value, // alinhado com categoria
@@ -7031,7 +7192,7 @@ function saveCusto(){
     centroNome:document.getElementById('cf-centro')?document.getElementById('cf-centro').value:'',
   };
   if(editCustoId){const idx=custos.findIndex(c=>c.id===editCustoId);if(idx>=0)Object.assign(custos[idx],data);}
-  else{data.id=Date.now()+Math.floor(Math.random()*1000);custos.push(data);}
+  else{data.id=Date.now()+Math.floor(Math.random()*1000);data.pagamentos=[];custos.push(data);}
   closeModal('modal-custo');
   aplicarCustos();
 }
@@ -7048,6 +7209,248 @@ function aplicarCustos(){
   if(window._obraAberta&&typeof _refreshCustosObra==='function')_refreshCustosObra(window._obraAberta);
   if(typeof agendarGravacao==='function')agendarGravacao();
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// PAGAMENTOS A FORNECEDORES (v81)
+// ══════════════════════════════════════════════════════════════
+let prazosFornecedor = {};
+try{prazosFornecedor=JSON.parse(localStorage.getItem('prazos_fornecedor_v1')||'{}')||{};}catch(e){prazosFornecedor={};}
+function savePrazos(){try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(prazosFornecedor));}catch(e){}}
+const PRAZOS_OPCOES=[0,15,30,60,90];
+let _pgChartAging=null,_pgChartForn=null;
+
+function pgEUR(v){v=(+v||0);return v.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
+function pgFmtD(d){if(!d)return '—';var x=(d instanceof Date)?d:new Date(d);if(isNaN(x))return '—';return ('0'+x.getDate()).slice(-2)+'/'+('0'+(x.getMonth()+1)).slice(-2)+'/'+x.getFullYear();}
+function pgUsers(){try{return JSON.parse(localStorage.getItem('gc_utilizadores_v1')||'[]')||[];}catch(e){return [];}}
+function _nomeObraPg(num){try{var arr=(typeof obras!=='undefined'?obras:[]);var o=arr.find(x=>String(x.num)===String(num));if(o)return o.nome||o.designacao||o.descricao||o.cliente||('Obra '+num);}catch(e){}return 'Obra '+num;}
+
+function _dataBaseCusto(c){
+  if(c.data && /^\d{4}-\d{2}-\d{2}/.test(c.data)){var d=new Date(c.data);if(!isNaN(d))return d;}
+  var ano=parseInt(c.ano)||new Date().getFullYear();var m=parseInt(c.mesNum)||1;
+  return new Date(ano,m-1,1);
+}
+function _prazoForn(nome){var p=prazosFornecedor[(nome||'').trim()];return (p===undefined||p===null||p==='')?30:(parseInt(p)||0);}
+function _totalComIva(c){var v=parseFloat(c.valor)||0;var iva=parseFloat(c.iva)||0;return v*(1+iva);}
+function _pagoCusto(c){if(!Array.isArray(c.pagamentos))return 0;return c.pagamentos.reduce((a,p)=>a+(parseFloat(p.valor)||0),0);}
+function _faltaCusto(c){return Math.max(0,_totalComIva(c)-_pagoCusto(c));}
+function _vencCusto(c){
+  if(c.dataVenc && /^\d{4}-\d{2}-\d{2}/.test(c.dataVenc)){var d=new Date(c.dataVenc);if(!isNaN(d))return d;}
+  var base=_dataBaseCusto(c);var d2=new Date(base);d2.setDate(d2.getDate()+_prazoForn(c.fornecedor));return d2;
+}
+function _estadoCusto(c){var f=_faltaCusto(c);if(f<=0.005)return 'pago';if(_pagoCusto(c)>0.005)return 'parcial';return 'porpagar';}
+function _diasAtraso(c){if(_estadoCusto(c)==='pago')return -99999;var h=new Date();h.setHours(0,0,0,0);var v=_vencCusto(c);v.setHours(0,0,0,0);return Math.floor((h-v)/86400000);}
+function _contasPagaveis(){return custos.filter(function(c){var fn=(c.fornecedor||'').trim().toLowerCase();return !c.origemRH && fn && fn!=='rh (interno)' && fn!=='rh' && _totalComIva(c)>0.005;});}
+
+// preenche o campo vencimento no modal de custo a partir do prazo do fornecedor
+function autoVenc(){
+  var elV=document.getElementById('cf-venc'),elD=document.getElementById('cf-data'),elF=document.getElementById('cf-fornecedor');
+  if(!elV||!elD)return;
+  if(elV.dataset && elV.dataset.manual==='1')return; // utilizador editou manualmente
+  var base=elD.value?new Date(elD.value):new Date();
+  if(isNaN(base))base=new Date();
+  var prazo=_prazoForn(elF?elF.value:'');
+  var d=new Date(base);d.setDate(d.getDate()+prazo);
+  elV.value=d.toISOString().split('T')[0];
+}
+document.addEventListener('DOMContentLoaded',function(){var v=document.getElementById('cf-venc');if(v)v.addEventListener('input',function(){v.dataset.manual='1';});});
+
+function _estadoBadge(c){
+  var e=_estadoCusto(c),dias=_diasAtraso(c);
+  if(e==='pago')return '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Pago</span>';
+  if(dias>0){var cor=dias>90?'#7f1d1d':dias>60?'#b91c1c':dias>30?'#dc2626':'#ea580c';return '<span style="background:#fee2e2;color:'+cor+';padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Vencido '+dias+'d</span>';}
+  if(e==='parcial')return '<span style="background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Parcial</span>';
+  return '<span style="background:#e2e8f0;color:#334155;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Por pagar</span>';
+}
+
+function renderPagamentos(){
+  var contas=_contasPagaveis();
+  // filtros
+  var fObra=(document.getElementById('pg-f-obra')||{}).value||'';
+  var fForn=((document.getElementById('pg-f-forn')||{}).value||'').trim().toLowerCase();
+  var fEst=(document.getElementById('pg-f-estado')||{}).value||'';
+  // popular filtro obras (nums distintos)
+  var selO=document.getElementById('pg-f-obra');
+  if(selO){var nums=[...new Set(contas.map(c=>String(c.obraNum)))];var cur=selO.value;selO.innerHTML='<option value="">Todas as obras</option>'+nums.map(n=>'<option value="'+n+'">'+(n+' · '+_nomeObraPg(n)).replace(/"/g,'')+'</option>').join('');selO.value=cur;}
+
+  // ---- KPIs (sobre TODAS as contas, sem filtro) ----
+  var totDiv=0,totVenc=0,totSemana=0,pagoMes=0;var fornsDiv={};
+  var mesAtual=new Date().getMonth(),anoAtual=new Date().getFullYear();
+  contas.forEach(function(c){
+    var falta=_faltaCusto(c),dias=_diasAtraso(c);
+    if(_estadoCusto(c)!=='pago'){totDiv+=falta;if(dias>0)totVenc+=falta;if(dias<=0&&dias>=-7)totSemana+=falta;if(falta>0.005)fornsDiv[(c.fornecedor||'').trim()]=1;}
+    if(Array.isArray(c.pagamentos))c.pagamentos.forEach(function(p){if(p.data){var pd=new Date(p.data);if(!isNaN(pd)&&pd.getMonth()===mesAtual&&pd.getFullYear()===anoAtual)pagoMes+=(parseFloat(p.valor)||0);}});
+  });
+  var kpis=[
+    ['Total em dívida',pgEUR(totDiv),'#0ea5e9'],
+    ['Vencido',pgEUR(totVenc),'#dc2626'],
+    ['A vencer ≤7 dias',pgEUR(totSemana),'#ea580c'],
+    ['Pago este mês',pgEUR(pagoMes),'#16a34a'],
+    ['Fornecedores em dívida',String(Object.keys(fornsDiv).length),'#7c3aed']
+  ];
+  var kbox=document.getElementById('pg-kpis');
+  if(kbox)kbox.innerHTML=kpis.map(function(k){return '<div style="flex:1;min-width:150px;background:var(--card,#fff);border:1px solid var(--border);border-left:4px solid '+k[2]+';border-radius:10px;padding:10px 14px"><div class="muted" style="font-size:11px">'+k[0]+'</div><div style="font-size:19px;font-weight:700;color:'+k[2]+'">'+k[1]+'</div></div>';}).join('');
+
+  // ---- alertas financeiro ----
+  var v30=contas.filter(c=>_diasAtraso(c)>30&&_estadoCusto(c)!=='pago');
+  var v60=contas.filter(c=>_diasAtraso(c)>60&&_estadoCusto(c)!=='pago');
+  var v90=contas.filter(c=>_diasAtraso(c)>90&&_estadoCusto(c)!=='pago');
+  var albox=document.getElementById('pg-alertas');
+  if(albox){
+    if(v30.length){
+      var s90=v90.reduce((a,c)=>a+_faltaCusto(c),0),s60=v60.reduce((a,c)=>a+_faltaCusto(c),0),s30=v30.reduce((a,c)=>a+_faltaCusto(c),0);
+      albox.innerHTML='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+        +'<i class="ti ti-alert-triangle" style="color:#dc2626;font-size:22px"></i>'
+        +'<div style="flex:1;min-width:240px"><b style="color:#991b1b">Pagamentos em atraso</b><div class="muted" style="font-size:12px">'
+        +'+30 dias: '+v30.length+' ('+pgEUR(s30)+') &nbsp;·&nbsp; +60 dias: '+v60.length+' ('+pgEUR(s60)+') &nbsp;·&nbsp; +90 dias: '+v90.length+' ('+pgEUR(s90)+')</div></div>'
+        +'<button class="btn primary" onclick="avisarFinanceiroPagamentos()"><i class="ti ti-mail"></i>Avisar financeiro</button></div>';
+    } else { albox.innerHTML='<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;margin-bottom:12px;color:#166534;font-size:13px"><i class="ti ti-circle-check"></i> Sem pagamentos em atraso além do prazo.</div>'; }
+  }
+
+  // ---- aplicar filtros para a tabela ----
+  var lista=contas.filter(function(c){
+    if(fObra && String(c.obraNum)!==fObra)return false;
+    if(fForn && (c.fornecedor||'').toLowerCase().indexOf(fForn)<0)return false;
+    var e=_estadoCusto(c),dias=_diasAtraso(c);
+    if(fEst==='porpagar' && e!=='porpagar')return false;
+    if(fEst==='parcial' && e!=='parcial')return false;
+    if(fEst==='pago' && e!=='pago')return false;
+    if(fEst==='vencido' && !(dias>0 && e!=='pago'))return false;
+    return true;
+  });
+  // ordenar: vencidos primeiro (mais atraso no topo), depois por vencimento
+  lista.sort(function(a,b){var pa=_estadoCusto(a)==='pago'?1:0,pb=_estadoCusto(b)==='pago'?1:0;if(pa!==pb)return pa-pb;return _diasAtraso(b)-_diasAtraso(a);});
+
+  var rows=lista.map(function(c){
+    return '<tr>'
+      +'<td style="font-size:12px">'+(c.obraNum||'')+'</td>'
+      +'<td style="font-weight:600;font-size:12px">'+((c.fornecedor||'')+'').replace(/</g,'&lt;')+'</td>'
+      +'<td style="font-size:12px">'+((c.documento||'')+'').replace(/</g,'&lt;')+'</td>'
+      +'<td style="font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+((c.desc||'')+'').replace(/"/g,'')+'">'+((c.desc||'')+'').replace(/</g,'&lt;')+'</td>'
+      +'<td style="font-size:12px;white-space:nowrap">'+pgFmtD(_vencCusto(c))+'</td>'
+      +'<td style="text-align:right;font-size:12px;white-space:nowrap">'+pgEUR(_totalComIva(c))+'</td>'
+      +'<td style="text-align:right;font-size:12px;white-space:nowrap;color:#16a34a">'+pgEUR(_pagoCusto(c))+'</td>'
+      +'<td style="text-align:right;font-size:12px;white-space:nowrap;font-weight:700">'+pgEUR(_faltaCusto(c))+'</td>'
+      +'<td style="text-align:center">'+_estadoBadge(c)+'</td>'
+      +'<td style="text-align:center;white-space:nowrap">'+(_estadoCusto(c)==='pago'?'<button class="btn" style="padding:3px 8px;font-size:11px" onclick="abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-eye"></i></button>':'<button class="btn primary" style="padding:3px 8px;font-size:11px" onclick="abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-cash"></i> Pagar</button>')+'</td>'
+      +'</tr>';
+  }).join('');
+  var totF=lista.reduce((a,c)=>a+_faltaCusto(c),0);
+  var tbl=document.getElementById('pg-tabela');
+  if(tbl)tbl.innerHTML='<table style="width:100%"><thead><tr>'
+    +'<th>Obra</th><th>Fornecedor</th><th>Documento</th><th>Descrição</th><th>Venc.</th><th style="text-align:right">Total c/IVA</th><th style="text-align:right">Pago</th><th style="text-align:right">Falta</th><th style="text-align:center">Estado</th><th></th></tr></thead>'
+    +'<tbody>'+(rows||'<tr><td colspan="10" class="muted" style="text-align:center;padding:18px">Sem contas a mostrar.</td></tr>')+'</tbody>'
+    +'<tfoot><tr style="font-weight:700;border-top:2px solid var(--border)"><td colspan="7" style="text-align:right">Falta pagar (filtro):</td><td style="text-align:right">'+pgEUR(totF)+'</td><td colspan="2"></td></tr></tfoot></table>';
+
+  renderPrazosForn(contas);
+  _pgGraficos(contas);
+}
+
+function renderPrazosForn(contas){
+  var div=document.getElementById('pg-prazos');if(!div)return;
+  var forns=[...new Set(contas.map(c=>(c.fornecedor||'').trim()).filter(Boolean))].sort();
+  if(!forns.length){div.innerHTML='<p class="muted" style="font-size:12px">Sem fornecedores.</p>';return;}
+  div.innerHTML='<table style="width:100%;margin-top:8px"><thead><tr><th>Fornecedor</th><th style="width:140px">Prazo (dias)</th></tr></thead><tbody>'
+    +forns.map(function(f){
+      var p=_prazoForn(f);
+      var opts=PRAZOS_OPCOES.map(function(o){return '<option value="'+o+'"'+(o===p?' selected':'')+'>'+(o===0?'Pronto pagamento':o+' dias')+'</option>';}).join('');
+      return '<tr><td style="font-size:12px">'+f.replace(/</g,'&lt;')+'</td><td><select onchange="definirPrazoForn('+JSON.stringify(f)+',this.value)" style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border);width:100%">'+opts+'</select></td></tr>';
+    }).join('')+'</tbody></table>';
+}
+function definirPrazoForn(nome,valor){prazosFornecedor[(nome||'').trim()]=parseInt(valor)||0;savePrazos();renderPagamentos();}
+
+function _pgGraficos(contas){
+  if(typeof Chart==='undefined')return;
+  var npag=contas.filter(c=>_estadoCusto(c)!=='pago');
+  var bal={aVencer:0,d30:0,d60:0,d90:0,d90p:0};
+  npag.forEach(function(c){var d=_diasAtraso(c),f=_faltaCusto(c);if(d<=0)bal.aVencer+=f;else if(d<=30)bal.d30+=f;else if(d<=60)bal.d60+=f;else if(d<=90)bal.d90+=f;else bal.d90p+=f;});
+  var ca=document.getElementById('pg-graf-aging');
+  if(ca){if(_pgChartAging)_pgChartAging.destroy();_pgChartAging=new Chart(ca,{type:'bar',data:{labels:['A vencer','1-30 d','31-60 d','61-90 d','+90 d'],datasets:[{label:'Em dívida (€)',data:[bal.aVencer,bal.d30,bal.d60,bal.d90,bal.d90p],backgroundColor:['#0ea5e9','#f59e0b','#f97316','#dc2626','#7f1d1d']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Dívida por antiguidade'}},scales:{y:{beginAtZero:true}}}});}
+  // timing real de pagamento por fornecedor (media dias documento->pagamento), top 8 por valor pago
+  var agg={};
+  contas.forEach(function(c){if(!Array.isArray(c.pagamentos))return;var base=_dataBaseCusto(c);var fn=(c.fornecedor||'').trim();if(!fn)return;c.pagamentos.forEach(function(p){if(!p.data)return;var pd=new Date(p.data);if(isNaN(pd))return;var dias=Math.max(0,Math.floor((pd-base)/86400000));var val=parseFloat(p.valor)||0;if(!agg[fn])agg[fn]={somaDias:0,n:0,val:0};agg[fn].somaDias+=dias;agg[fn].n++;agg[fn].val+=val;});});
+  var arr=Object.keys(agg).map(function(f){return {f:f,media:agg[f].n?agg[f].somaDias/agg[f].n:0,val:agg[f].val};}).filter(x=>x.n!==0||x.val>0).sort((a,b)=>b.val-a.val).slice(0,8);
+  var cf=document.getElementById('pg-graf-forn');
+  if(cf){if(_pgChartForn)_pgChartForn.destroy();
+    if(arr.length){_pgChartForn=new Chart(cf,{type:'bar',data:{labels:arr.map(x=>x.f.length>16?x.f.slice(0,15)+'…':x.f),datasets:[{label:'Dias médios até pagamento',data:arr.map(x=>Math.round(x.media)),backgroundColor:'#6366f1'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Prazo médio real de pagamento (dias)'}},scales:{x:{beginAtZero:true}}}});}
+    else{cf.getContext('2d').clearRect(0,0,cf.width,cf.height);}
+  }
+}
+
+// ---- modal de pagamento ----
+var _pgCustoId=null;
+function abrirPagamento(id){
+  var c=custos.find(x=>x.id===id);if(!c)return;
+  _pgCustoId=id;
+  if(!Array.isArray(c.pagamentos))c.pagamentos=[];
+  var info=document.getElementById('pg-pay-info');
+  if(info)info.innerHTML='<b>'+((c.fornecedor||'')+'').replace(/</g,'&lt;')+'</b> · '+(c.documento||'(s/ doc)')+'<br>Obra '+(c.obraNum||'')+' · Total c/IVA: <b>'+pgEUR(_totalComIva(c))+'</b> · Vencimento: '+pgFmtD(_vencCusto(c))+'<br>Já pago: '+pgEUR(_pagoCusto(c))+' · <b>Falta: '+pgEUR(_faltaCusto(c))+'</b>';
+  var dd=document.getElementById('pg-pay-data');if(dd)dd.value=new Date().toISOString().split('T')[0];
+  var vv=document.getElementById('pg-pay-valor');if(vv)vv.value=(_faltaCusto(c)||0).toFixed(2);
+  var ob=document.getElementById('pg-pay-obs');if(ob)ob.value='';
+  _renderPagListaModal();
+  openModal('modal-pagamento');
+}
+function _renderPagListaModal(){
+  var c=custos.find(x=>x.id===_pgCustoId);var box=document.getElementById('pg-pay-lista');if(!box)return;
+  if(!c||!Array.isArray(c.pagamentos)||!c.pagamentos.length){box.innerHTML='<p class="muted" style="font-size:12px;margin:6px 0">Ainda sem pagamentos registados.</p>';return;}
+  box.innerHTML='<div style="font-size:12px;font-weight:600;margin:6px 0">Pagamentos registados</div>'
+    +'<table style="width:100%"><tbody>'+c.pagamentos.map(function(p,i){return '<tr><td style="font-size:12px">'+pgFmtD(p.data)+'</td><td style="font-size:12px;color:#16a34a;text-align:right">'+pgEUR(p.valor)+'</td><td style="font-size:11px;color:var(--muted)">'+((p.obs||'')+'').replace(/</g,'&lt;')+'</td><td style="text-align:right"><button class="btn" style="padding:2px 6px;font-size:11px" onclick="removerPagamento('+i+')"><i class="ti ti-trash"></i></button></td></tr>';}).join('')+'</tbody></table>';
+}
+function confirmarPagamento(){
+  var c=custos.find(x=>x.id===_pgCustoId);if(!c)return;
+  if(!Array.isArray(c.pagamentos))c.pagamentos=[];
+  var data=(document.getElementById('pg-pay-data')||{}).value||'';
+  var valor=parseFloat((document.getElementById('pg-pay-valor')||{}).value)||0;
+  var obs=((document.getElementById('pg-pay-obs')||{}).value||'').trim();
+  if(!data){alert('Indique a data do pagamento.');return;}
+  if(valor<=0){alert('Indique um valor de pagamento válido.');return;}
+  c.pagamentos.push({data:data,valor:valor,obs:obs});
+  if(typeof regAudit==='function')regAudit('Pagamentos','Registou pagamento de '+pgEUR(valor)+' a '+(c.fornecedor||'')+(c.documento?(' ('+c.documento+')'):''));
+  if(typeof agendarGravacao==='function')agendarGravacao();
+  document.getElementById('pg-pay-valor').value=(_faltaCusto(c)||0).toFixed(2);
+  document.getElementById('pg-pay-obs').value='';
+  _renderPagListaModal();
+  var info=document.getElementById('pg-pay-info');
+  if(info)info.innerHTML='<b>'+((c.fornecedor||'')+'').replace(/</g,'&lt;')+'</b> · '+(c.documento||'(s/ doc)')+'<br>Obra '+(c.obraNum||'')+' · Total c/IVA: <b>'+pgEUR(_totalComIva(c))+'</b> · Vencimento: '+pgFmtD(_vencCusto(c))+'<br>Já pago: '+pgEUR(_pagoCusto(c))+' · <b>Falta: '+pgEUR(_faltaCusto(c))+'</b>';
+  renderPagamentos();
+}
+function removerPagamento(i){
+  var c=custos.find(x=>x.id===_pgCustoId);if(!c||!Array.isArray(c.pagamentos))return;
+  if(!confirm('Remover este pagamento?'))return;
+  c.pagamentos.splice(i,1);
+  if(typeof agendarGravacao==='function')agendarGravacao();
+  _renderPagListaModal();renderPagamentos();
+  abrirPagamento(_pgCustoId);
+}
+
+// ---- avisos por email ao financeiro ----
+async function avisarFinanceiroPagamentos(){
+  var contas=_contasPagaveis().filter(c=>_diasAtraso(c)>30&&_estadoCusto(c)!=='pago');
+  if(!contas.length){alert('Não há pagamentos com mais de 30 dias de atraso.');return;}
+  var dests=pgUsers().filter(u=>['financeiro','dep_financeiro','admin'].indexOf(u.perfil)>=0 && u.activo!==false && u.email).map(u=>u.email);
+  dests=[...new Set(dests)];
+  if(!dests.length){alert('Defina o email do Dep. Financeiro / Administrador em Gestão de Utilizadores para enviar o aviso.');return;}
+  contas.sort((a,b)=>_diasAtraso(b)-_diasAtraso(a));
+  var linhas=contas.map(c=>'• '+(c.fornecedor||'')+' | Obra '+(c.obraNum||'')+' | '+(c.documento||'s/doc')+' | Venc. '+pgFmtD(_vencCusto(c))+' | Atraso '+_diasAtraso(c)+'d | Falta '+pgEUR(_faltaCusto(c))).join('\n');
+  var total=contas.reduce((a,c)=>a+_faltaCusto(c),0);
+  var corpo='Pagamentos a fornecedores em atraso (mais de 30 dias):\n\n'+linhas+'\n\nTOTAL EM ATRASO: '+pgEUR(total)+'\n\nMensagem automática do Controlo de Custos — Sá Machado.';
+  if(typeof window.cloudEnviarEmail!=='function'){alert('Envio por email indisponível (sem ligação à cloud).');return;}
+  var r=await window.cloudEnviarEmail(dests.join(','),'[Controlo de Custos] Pagamentos em atraso',corpo);
+  if(r&&r.ok){alert('Aviso enviado ao financeiro ('+r.enviados+' destinatário(s)).');if(typeof regAudit==='function')regAudit('Pagamentos','Enviou aviso de pagamentos em atraso ao financeiro');}
+  else{alert('Falha no envio: '+((r&&r.erro)||'erro desconhecido'));}
+}
+
+// ---- exportar ----
+function exportarPagamentos(){
+  if(typeof XLSX==='undefined'){alert('Exportação indisponível.');return;}
+  var contas=_contasPagaveis();
+  var aoa=[['Obra','Fornecedor','Documento','Descrição','Vencimento','Total c/IVA','Pago','Falta','Estado','Dias atraso']];
+  contas.forEach(function(c){aoa.push([c.obraNum||'',c.fornecedor||'',c.documento||'',c.desc||'',pgFmtD(_vencCusto(c)),+_totalComIva(c).toFixed(2),+_pagoCusto(c).toFixed(2),+_faltaCusto(c).toFixed(2),_estadoCusto(c),(_diasAtraso(c)>-9000?_diasAtraso(c):'')]);});
+  var ws=XLSX.utils.aoa_to_sheet(aoa);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Pagamentos');
+  XLSX.writeFile(wb,'Pagamentos_'+new Date().toISOString().split('T')[0]+'.xlsx');
+}
+
 
 // ---- tabela de custos discriminados de UMA obra (usada no detalhe) ----
 let custoObraOrd={campo:'data',dir:'desc'};
@@ -9502,6 +9905,25 @@ function confirmarLancamento(){
     window.location.href='mailto:'+encodeURIComponent(dests.join(','))+'?subject='+encodeURIComponent('[Cauções] Libertações a tratar')+'&body='+encodeURIComponent(corpo);
     if(typeof regAudit==='function')regAudit('Cauções','Enviou aviso de libertações por email');
   };
+  /* ---- aviso AUTOMÁTICO (cloud) de libertações de caução vencidas ---- */
+  function _avisosAutoLer(){try{return JSON.parse(localStorage.getItem('gc_avisos_auto_v1')||'{}')||{};}catch(e){return {};}}
+  function _avisosAutoGravar(o){try{localStorage.setItem('gc_avisos_auto_v1',JSON.stringify(o));}catch(e){}}
+  window.cauVarrerVencidasAuto=function(){
+    if(!window.cloudEnviarEmail)return;
+    var dests=emailsLib();if(!dests.length)return;
+    var venc=[];
+    Object.keys(cli).forEach(function(k){var r=cli[k];if(r.arquivada)return;var p=proxLib(r);if(p&&p.vencida){venc.push({id:'lib:cli:'+k+':a'+p.ano,ref:(r.cod||'')+' '+(r.nome||''),data:p.data,valor:p.valor});}});
+    Object.keys(forn).forEach(function(k){var r=forn[k];if(r.arquivada)return;var p=proxLib(r);if(p&&p.vencida){venc.push({id:'lib:forn:'+k+':a'+p.ano,ref:'Forn. '+(r._nome||k),data:p.data,valor:p.valor});}});
+    var st=_avisosAutoLer();if(!st.enviados)st.enviados={};
+    var novas=venc.filter(function(v){return !st.enviados[v.id];});
+    if(!novas.length)return;
+    var linhas=novas.map(function(v){return '- '+v.ref+' (venceu em '+fmtData(v.data)+', '+eur(v.valor)+')';}).join('\n');
+    var corpo='As seguintes obras tem a data de libertacao de caucao ultrapassada:\n\n'+linhas+'\n\nFavor desencadear os pedidos de libertacao junto das entidades.\n\n(Aviso automatico do Controlo de Custos)';
+    window.cloudEnviarEmail(dests,'[Caucoes] Libertacao de caucao vencida',corpo).then(function(r){
+      if(r&&r.ok){novas.forEach(function(v){st.enviados[v.id]=Date.now();});_avisosAutoGravar(st);if(typeof regAudit==='function')regAudit('Caucoes','Aviso automatico de libertacao vencida ('+novas.length+' obra/s)');}
+    });
+  };
+  setTimeout(function(){try{window.cauVarrerVencidasAuto();}catch(e){}},4500);
   function cauLibertacoesPendentes(escopo){
     var out=[];
     if(escopo!=='forn'){Object.keys(cli).forEach(function(k){var r=cli[k];if(r.arquivada)return;var p=proxLib(r);if(p&&p.data&&p.dias!=null&&p.dias<=30){out.push({ref:(r.cod||'')+' '+(r.nome||''),quando:(p.vencida?'VENCIDA ':'')+fmtData(p.data),valor:p.valor,dias:p.dias});}});}
@@ -9626,7 +10048,7 @@ function confirmarLancamento(){
         if(c.t==='num')return celNum(ch,c.k,(r[c.k]!=null?r[c.k]:''),'ccCellEl');
         var val=r[c.k]!=null?r[c.k]:'';
         if(c.t==='pct')val=(val!==''&&val!=null)?(num(val)*100):'';
-        if(c.t==='sel')return '<td style="text-align:center"><select onchange="ccCell(\''+ch+'\',\''+c.k+'\',this.value,\'sel\')" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center">'+c.op.map(function(o){return '<option'+(String(val)===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></td>';
+        if(c.t==='sel'){var _selV=val,_onch='ccCell(\''+ch+'\',\''+c.k+'\',this.value,\'sel\')';if(c.k==='estado'){var _ob=acharObra(r);var _ef=(_ob&&_ob.estado)?_ob.estado:(r.estado||'');_selV=_ef?(window.grpEstadoNorm?window.grpEstadoNorm(_ef):_ef):'';_onch='ccSetEstadoObra(\''+ch+'\',this.value)';}return '<td style="text-align:center"><select onchange="'+_onch+'" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center">'+c.op.map(function(o){return '<option'+(String(_selV)===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></td>';}
         return '<td style="text-align:center"><input value="'+escA(val)+'" onchange="ccCell(\''+ch+'\',\''+c.k+'\',this.value,\''+c.t+'\')" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center" '+(o&&c.k==='cod'?'title="Ligada à obra '+esc(o.num)+'"':'')+'></td>';
       }).join('')+'</tr>';
     }
@@ -10430,8 +10852,8 @@ function confirmarLancamento(){
 <script>
 /* ===== CLOUD (Supabase) - partilha de dados [v73] ===== */
 (function(){
-  var SB_URL='https://lbybblxebztzmzbonuyq.supabase.co';
-  var SB_KEY='sb_publishable_Y2nYKYZq1qjGc7qCy8lPsw_LErig2jc';
+  var SB_URL='https://wlmtjcnyjhajqoheovqx.supabase.co';
+  var SB_KEY='sb_publishable_nxiuao8A9GBYc054JRS_Jg_AHPBOcaZ';
   var sb=null;
   function client(){
     if(sb)return sb;
@@ -10452,6 +10874,23 @@ function confirmarLancamento(){
   window.cloudUtilizador=async function(){
     var c=client();if(!c)return null;
     try{var r=await c.auth.getUser();return r&&r.data&&r.data.user?r.data.user.email:null;}catch(e){return null;}
+  };
+  window.cloudEnviarEmail=async function(para,assunto,corpo,html){
+    var c=client();if(!c)return {erro:'Sem ligacao a cloud (verifica a internet e recarrega).'};
+    try{
+      var r=await c.functions.invoke('dynamic-endpoint',{body:{para:para,assunto:assunto,corpo:corpo,html:html||null},headers:{'x-app-secret':'3b96b30b43088c28b2a6f019dd87f7e1'}});
+      if(r.error){var msg=r.error.message||String(r.error);try{if(r.error.context&&typeof r.error.context.json==='function'){var j=await r.error.context.json();if(j&&j.erro)msg=j.erro;}}catch(e){}return {erro:msg};}
+      if(r.data&&r.data.ok)return {ok:true,enviados:r.data.enviados};
+      return {erro:(r.data&&r.data.erro)||'Resposta inesperada da funcao.'};
+    }catch(e){return {erro:String(e&&e.message||e)};}
+  };
+  window.enviarEmailTeste=async function(){
+    var di=document.getElementById('email-teste-dest');var dest=di?di.value.trim():'';
+    var box=document.getElementById('email-teste-res');
+    if(!dest){if(box)box.innerHTML='<span style="color:#c0392b">Indica um email de destino.</span>';return;}
+    if(box)box.innerHTML='<span style="color:var(--muted)">A enviar...</span>';
+    var r=await window.cloudEnviarEmail(dest,'[Controlo de Custos] Email de teste','Este e um email de teste enviado pela aplicacao Controlo de Custos.\n\nSe recebeste esta mensagem, o envio automatico esta a funcionar.');
+    if(box){if(r.ok){box.innerHTML='<span style="color:#166534"><i class="ti ti-circle-check"></i> Enviado com sucesso ('+r.enviados+'). Verifica a caixa de entrada.</span>';}else{box.innerHTML='<span style="color:#c0392b"><i class="ti ti-alert-triangle"></i> Falhou: '+String(r.erro||'').replace(/</g,'&lt;')+'</span>';}}
   };
   window.cloudEnviarObras=async function(){
     var c=client();if(!c)return {erro:'Sem ligacao a cloud.'};
