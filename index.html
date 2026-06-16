@@ -221,7 +221,13 @@ table td{vertical-align:middle}
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <script>
 if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.protocol==='http:')){
-  window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').then(function(reg){ try{reg.update();}catch(_){} }).catch(function(){});
+    var _swRefrescou=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(_swRefrescou)return; _swRefrescou=true; window.location.reload();
+    });
+  });
 }
 </script>
 </head>
@@ -275,7 +281,7 @@ if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.proto
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v92</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v93</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -6839,6 +6845,8 @@ function valorOrdenacaoFat(item,campo){
   }
 }
 let modoFatArquivo=false;
+let fatColapsado={};
+function toggleFatGrupo(g){fatColapsado[g]=!fatColapsado[g];renderFacturacao();}
 function toggleFatArquivo(){modoFatArquivo=!modoFatArquivo;var b=document.getElementById('fact-arq-btn');if(b)b.innerHTML='<i class="ti ti-'+(modoFatArquivo?'briefcase':'archive')+'"></i>'+(modoFatArquivo?'Ver ativas':'Ver arquivo');renderFacturacao();}
 function renderFacturacao(){
   const q=(document.getElementById('fact-search').value||'').toLowerCase();
@@ -6939,8 +6947,10 @@ function renderFacturacao(){
   _ordem.forEach(function(g){
     var arr=_porEst[g];if(!arr||!arr.length)return;
     var inf=(typeof GRUPO_STYLE!=='undefined'&&GRUPO_STYLE[g])?GRUPO_STYLE[g]:{cor:'#334155',bg:'#eef2f7',icone:'ti-folder'};
-    _htmlF+='<tr><td colspan="13" style="background:'+inf.bg+';color:'+inf.cor+';font-weight:700;font-size:12px;padding:6px 10px"><i class="ti '+inf.icone+'"></i> '+g+' <span style="font-weight:400;opacity:.7">('+arr.length+')</span></td></tr>';
-    _htmlF+=arr.map(_linhaFat).join('');
+    var _col=!!fatColapsado[g];
+    var _seta=_col?'ti-chevron-right':'ti-chevron-down';
+    _htmlF+='<tr style="cursor:pointer" onclick="toggleFatGrupo('+JSON.stringify(g)+')" title="Clique para minimizar/expandir"><td colspan="13" style="background:'+inf.bg+';color:'+inf.cor+';font-weight:700;font-size:12px;padding:6px 10px"><i class="ti '+_seta+'" style="margin-right:2px"></i><i class="ti '+inf.icone+'"></i> '+g+' <span style="font-weight:400;opacity:.7">('+arr.length+')</span></td></tr>';
+    if(!_col)_htmlF+=arr.map(_linhaFat).join('');
   });
   document.getElementById('fact-tbody').innerHTML=_htmlF||'<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:20px">Sem obras neste separador.</td></tr>';
 }
