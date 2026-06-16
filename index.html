@@ -220,15 +220,28 @@ table td{vertical-align:middle}
 <meta name="apple-mobile-web-app-title" content="Controlo Custos">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <script>
-if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.protocol==='http:')){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('./sw.js').then(function(reg){ try{reg.update();}catch(_){} }).catch(function(){});
-    var _swRefrescou=false;
-    navigator.serviceWorker.addEventListener('controllerchange',function(){
-      if(_swRefrescou)return; _swRefrescou=true; window.location.reload();
+/* Auto-limpa unico: mata service worker antigo + caches presas (corre 1x por dispositivo) */
+(function(){
+  try{
+    if(('serviceWorker' in navigator) && !localStorage.getItem('_limpezaSW_v94')){
+      localStorage.setItem('_limpezaSW_v94','1');
+      var _lim=[];
+      _lim.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){}));
+      if(window.caches){_lim.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).catch(function(){}));}
+      Promise.all(_lim).then(function(){ setTimeout(function(){ location.reload(); },300); });
+      return;
+    }
+  }catch(e){}
+  if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.protocol==='http:')){
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('./sw.js').then(function(reg){ try{reg.update();}catch(_){} }).catch(function(){});
+      var _swRefrescou=false;
+      navigator.serviceWorker.addEventListener('controllerchange',function(){
+        if(_swRefrescou)return; _swRefrescou=true; window.location.reload();
+      });
     });
-  });
-}
+  }
+})();
 </script>
 </head>
 <body>
@@ -281,7 +294,7 @@ if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.proto
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v93</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v95</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1251,9 +1264,9 @@ if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.proto
   <div id="pg-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="pg-alertas"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-    <select id="pg-f-obra" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)"><option value="">Todas as obras</option></select>
-    <input type="search" id="pg-f-forn" placeholder="Filtrar fornecedor..." oninput="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);min-width:180px">
-    <select id="pg-f-estado" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)">
+    <select id="pg-f-obra" autocomplete="off" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)"><option value="">Todas as obras</option></select>
+    <input type="search" id="pg-f-forn" autocomplete="off" placeholder="Filtrar fornecedor..." oninput="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);min-width:180px">
+    <select id="pg-f-estado" autocomplete="off" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)">
       <option value="">Todos os estados</option>
       <option value="porpagar">Por pagar</option>
       <option value="parcial">Parcial</option>
@@ -6949,7 +6962,7 @@ function renderFacturacao(){
     var inf=(typeof GRUPO_STYLE!=='undefined'&&GRUPO_STYLE[g])?GRUPO_STYLE[g]:{cor:'#334155',bg:'#eef2f7',icone:'ti-folder'};
     var _col=!!fatColapsado[g];
     var _seta=_col?'ti-chevron-right':'ti-chevron-down';
-    _htmlF+='<tr style="cursor:pointer" onclick="toggleFatGrupo('+JSON.stringify(g)+')" title="Clique para minimizar/expandir"><td colspan="13" style="background:'+inf.bg+';color:'+inf.cor+';font-weight:700;font-size:12px;padding:6px 10px"><i class="ti '+_seta+'" style="margin-right:2px"></i><i class="ti '+inf.icone+'"></i> '+g+' <span style="font-weight:400;opacity:.7">('+arr.length+')</span></td></tr>';
+    _htmlF+='<tr style="cursor:pointer" onclick="toggleFatGrupo(&quot;'+g+'&quot;)" title="Clique para minimizar/expandir"><td colspan="13" style="background:'+inf.bg+';color:'+inf.cor+';font-weight:700;font-size:12px;padding:6px 10px"><i class="ti '+_seta+'" style="margin-right:2px"></i><i class="ti '+inf.icone+'"></i> '+g+' <span style="font-weight:400;opacity:.7">('+arr.length+')</span></td></tr>';
     if(!_col)_htmlF+=arr.map(_linhaFat).join('');
   });
   document.getElementById('fact-tbody').innerHTML=_htmlF||'<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:20px">Sem obras neste separador.</td></tr>';
