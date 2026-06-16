@@ -294,7 +294,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v95</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v97</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1776,7 +1776,7 @@ table td{vertical-align:middle}
       </div>
       <div class="form-group"><label>Ano</label><input type="number" id="cf-ano" placeholder="2020" min="2000" max="2099"></div>
       <div class="form-group"><label>Data do documento</label><input type="date" id="cf-data" onchange="autoVenc()"></div>
-      <div class="form-group"><label>Vencimento <span class="muted" style="font-size:10px">(auto)</span></label><input type="date" id="cf-venc"></div>
+      <div class="form-group"><label>Vencimento <span class="muted" style="font-size:10px">(auto)</span></label><input type="date" id="cf-venc"><div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap"><button type="button" class="btn" style="padding:3px 10px;font-size:11px" onclick="vencRapido(15)">15 dias</button><button type="button" class="btn" style="padding:3px 10px;font-size:11px" onclick="vencRapido(30)">30 dias</button><button type="button" class="btn" style="padding:3px 10px;font-size:11px" onclick="vencRapido(60)">60 dias</button><button type="button" class="btn" style="padding:3px 10px;font-size:11px" onclick="vencRapido(90)">90 dias</button></div></div>
       <div class="form-group"><label>Família de Custo</label><select id="cf-familia"></select></div>
       <div class="form-group"><label>Categoria</label>
         <select id="cf-categoria">
@@ -7334,20 +7334,30 @@ function _vencCusto(c){
   if(c.dataVenc && /^\d{4}-\d{2}-\d{2}/.test(c.dataVenc)){var d=new Date(c.dataVenc);if(!isNaN(d))return d;}
   var base=_dataBaseCusto(c);var d2=new Date(base);d2.setDate(d2.getDate()+_prazoForn(c.fornecedor));return d2;
 }
-function _estadoCusto(c){var f=_faltaCusto(c);if(f<=0.005)return 'pago';if(_pagoCusto(c)>0.005)return 'parcial';return 'porpagar';}
+function _estadoCusto(c){if(c.pagoFlag===true)return 'pago';if(c.pagoFlag===false)return 'porpagar';var tot=_totalComIva(c),f=_faltaCusto(c);if(tot>0.005&&f<=0.005)return 'pago';if(_pagoCusto(c)>0.005)return 'parcial';return 'porpagar';}
 function _diasAtraso(c){if(_estadoCusto(c)==='pago')return -99999;var h=new Date();h.setHours(0,0,0,0);var v=_vencCusto(c);v.setHours(0,0,0,0);return Math.floor((h-v)/86400000);}
 function togglePagoCusto(id){
   var c=custos.find(function(x){return String(x.id)===String(id);});
   if(!c)return;
-  if(_estadoCusto(c)==='pago'){ c.pagamentos=[]; }
-  else{ var falta=_faltaCusto(c); if(falta>0.005){ c.pagamentos=c.pagamentos||[]; c.pagamentos.push({data:new Date().toISOString().split('T')[0],valor:falta,obs:'Marcado pago em Custos'}); } }
+  if(_estadoCusto(c)==='pago'){ c.pagoFlag=false; c.pagamentos=[]; }
+  else{ c.pagoFlag=true; var falta=_faltaCusto(c); if(falta>0.005){ c.pagamentos=c.pagamentos||[]; c.pagamentos.push({data:new Date().toISOString().split('T')[0],valor:falta,obs:'Marcado pago em Custos'}); } }
   if(typeof agendarGravacao==='function')agendarGravacao();
   try{if(typeof renderCustos==='function')renderCustos();}catch(e){}
   try{if(typeof renderPagamentos==='function')renderPagamentos();}catch(e){}
 }
 // todos os custos com valor passam para Pagamentos (inclui sem fornecedor); só fica de fora o RH interno
-function _contasPagaveis(){return custos.filter(function(c){var fn=(c.fornecedor||'').trim().toLowerCase();return !c.origemRH && fn!=='rh (interno)' && fn!=='rh' && _totalComIva(c)>0.005;});}
+function _contasPagaveis(){return custos.filter(function(c){var fn=(c.fornecedor||'').trim().toLowerCase();return !c.origemRH && fn!=='rh (interno)' && fn!=='rh' && Math.abs(_totalComIva(c))>0.005;});}
 
+// vencimento rapido por prazo fixo (15/30/60/90 dias) a contar da data do documento
+function vencRapido(dias){
+  var elV=document.getElementById('cf-venc'),elD=document.getElementById('cf-data');
+  if(!elV)return;
+  var base=(elD&&elD.value)?new Date(elD.value):new Date();
+  if(isNaN(base))base=new Date();
+  var d=new Date(base); d.setDate(d.getDate()+dias);
+  elV.value=d.toISOString().split('T')[0];
+  if(elV.dataset)elV.dataset.manual='1';
+}
 // preenche o campo vencimento no modal de custo a partir do prazo do fornecedor
 function autoVenc(){
   var elV=document.getElementById('cf-venc'),elD=document.getElementById('cf-data'),elF=document.getElementById('cf-fornecedor');
@@ -7740,7 +7750,7 @@ function tabelaCustosObra(num){
         <td style="text-align:right;color:var(--blue)">${fmt((c.valor||0)*(c.iva||0),2)}</td>
         <td style="text-align:right;font-weight:600">${fmt(custoTotalCIva(c),2)}</td>
         <td style="text-align:center;font-size:11px;white-space:nowrap;color:${(_estadoCusto(c)!=='pago'&&_diasAtraso(c)>0)?'#dc2626':'inherit'}">${pgFmtD(_vencCusto(c))}</td>
-        <td style="text-align:center;cursor:pointer" title="Clique para marcar Pago / Por pagar" onclick="event.stopPropagation();togglePagoCusto(${c.id})">${_estadoBadge(c)}</td>
+        <td style="text-align:center;cursor:pointer" title="Clique para marcar Pago / Por pagar" onclick="event.stopPropagation();togglePagoCusto('${c.id}')">${_estadoBadge(c)}</td>
         <td style="text-align:center"><button class="btn sm" title="${val?'Validado — clique para marcar por validar':'Por validar — clique para validar'}" onclick="toggleValidarCusto(${c.id},'${num}')" style="padding:2px 7px;background:${val?'#1e8e3e':'#c0392b'};color:#fff;border:none"><i class="ti ti-${val?'check':'x'}"></i></button></td>
         <td style="text-align:center"><button class="btn sm" title="Editar no formulário de custo" onclick="abrirModalCusto(${c.id})" style="padding:2px 7px"><i class="ti ti-pencil"></i></button></td>
       </tr>`;
@@ -8053,7 +8063,7 @@ function renderCustos(){
       <td style="text-align:right;color:var(--blue);cursor:text" ondblclick="editCustoIvaPct(event,${c.id})" title="Duplo-clique para editar a taxa de IVA (%)">${fmt((c.valor||0)*(c.iva||0),2)}</td>
       <td style="text-align:right;font-weight:600">${fmt(custoTotalCIva(c),2)}</td>
       <td style="text-align:center;font-size:11px;white-space:nowrap;color:${(_estadoCusto(c)!=='pago'&&_diasAtraso(c)>0)?'#dc2626':'inherit'}">${pgFmtD(_vencCusto(c))}</td>
-      <td style="text-align:center;cursor:pointer" title="Clique para marcar Pago / Por pagar" onclick="event.stopPropagation();togglePagoCusto(${c.id})">${_estadoBadge(c)}</td>
+      <td style="text-align:center;cursor:pointer" title="Clique para marcar Pago / Por pagar" onclick="event.stopPropagation();togglePagoCusto('${c.id}')">${_estadoBadge(c)}</td>
       <td style="display:flex;gap:4px">
         <button class="btn sm" onclick="abrirModalCusto(${c.id})"><i class="ti ti-pencil"></i></button>
         <button class="btn sm danger" onclick="removeCusto(${c.id})"><i class="ti ti-trash"></i></button>
