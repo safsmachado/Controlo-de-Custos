@@ -294,7 +294,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v97</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v98</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -561,6 +561,8 @@ table td{vertical-align:middle}
     <i class="ti ti-checkbox"></i>
     <span id="custos-sel-info" style="flex:1;font-weight:600">0 selecionados</span>
     <button class="btn sm" onclick="selecionarTodosCustos(false)" style="background:#33334d;color:#fff;border-color:#44446a">Limpar seleção</button>
+    <button class="btn sm" onclick="marcarSelecionadosPago(true)" style="background:#16a34a;color:#fff;border-color:#15803d"><i class="ti ti-cash"></i> Marcar pagos</button>
+    <button class="btn sm" onclick="marcarSelecionadosPago(false)" style="background:#33334d;color:#fff;border-color:#44446a"><i class="ti ti-clock"></i> Marcar por pagar</button>
     <button class="btn sm danger" onclick="eliminarSelecionados()"><i class="ti ti-trash"></i> Eliminar selecionados</button>
   </div>
   <div class="card" style="padding:0">
@@ -5991,6 +5993,7 @@ function renderRelatorio(){
   }
   html+='</tbody></table></div>';
   document.getElementById('rel-container').innerHTML=html;
+  try{var _rtbl=document.querySelector('#rel-container table');if(_rtbl){var _rt=(document.getElementById('rel-tipo')||{}).value||'rel';_rtbl.setAttribute('data-colkey','rel_'+_rt);if(typeof ativarArrastoColunas==='function')ativarArrastoColunas(document.getElementById('rel-container'));}}catch(e){}
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -7538,7 +7541,7 @@ function abrirPagamento(id){
   var info=document.getElementById('pg-pay-info');
   if(info)info.innerHTML='<b>'+((c.fornecedor||'')+'').replace(/</g,'&lt;')+'</b> · '+(c.documento||'(s/ doc)')+'<br>Obra '+(c.obraNum||'')+' · Total c/IVA: <b>'+pgEUR(_totalComIva(c))+'</b> · Vencimento: '+pgFmtD(_vencCusto(c))+'<br>Já pago: '+pgEUR(_pagoCusto(c))+' · <b>Falta: '+pgEUR(_faltaCusto(c))+'</b>';
   var dd=document.getElementById('pg-pay-data');if(dd)dd.value=new Date().toISOString().split('T')[0];
-  var vv=document.getElementById('pg-pay-valor');if(vv)vv.value=(_faltaCusto(c)||0).toFixed(2);
+  var vv=document.getElementById('pg-pay-valor');if(vv){var _sug=_faltaCusto(c);if(_sug<=0.005)_sug=Math.abs(_totalComIva(c));vv.value=(_sug||0).toFixed(2);}
   var ob=document.getElementById('pg-pay-obs');if(ob)ob.value='';
   _renderPagListaModal();
   openModal('modal-pagamento');
@@ -7558,6 +7561,7 @@ function confirmarPagamento(){
   if(!data){alert('Indique a data do pagamento.');return;}
   if(valor<=0){alert('Indique um valor de pagamento válido.');return;}
   c.pagamentos.push({data:data,valor:valor,obs:obs});
+  c.pagoFlag=undefined;
   if(typeof regAudit==='function')regAudit('Pagamentos','Registou pagamento de '+pgEUR(valor)+' a '+(c.fornecedor||'')+(c.documento?(' ('+c.documento+')'):''));
   if(typeof agendarGravacao==='function')agendarGravacao();
   document.getElementById('pg-pay-valor').value=(_faltaCusto(c)||0).toFixed(2);
@@ -7565,14 +7569,15 @@ function confirmarPagamento(){
   _renderPagListaModal();
   var info=document.getElementById('pg-pay-info');
   if(info)info.innerHTML='<b>'+((c.fornecedor||'')+'').replace(/</g,'&lt;')+'</b> · '+(c.documento||'(s/ doc)')+'<br>Obra '+(c.obraNum||'')+' · Total c/IVA: <b>'+pgEUR(_totalComIva(c))+'</b> · Vencimento: '+pgFmtD(_vencCusto(c))+'<br>Já pago: '+pgEUR(_pagoCusto(c))+' · <b>Falta: '+pgEUR(_faltaCusto(c))+'</b>';
-  renderPagamentos();
+  renderPagamentos();try{if(typeof renderCustos==='function')renderCustos();}catch(e){}
 }
 function removerPagamento(i){
   var c=custos.find(x=>x.id===_pgCustoId);if(!c||!Array.isArray(c.pagamentos))return;
   if(!confirm('Remover este pagamento?'))return;
   c.pagamentos.splice(i,1);
+  c.pagoFlag=undefined;
   if(typeof agendarGravacao==='function')agendarGravacao();
-  _renderPagListaModal();renderPagamentos();
+  _renderPagListaModal();renderPagamentos();try{if(typeof renderCustos==='function')renderCustos();}catch(e){}
   abrirPagamento(_pgCustoId);
 }
 
@@ -8162,6 +8167,17 @@ function atualizarBarraSelecao(){
   document.getElementById('custos-sel-info').textContent=`${n} custo(s) selecionado(s) · ${fmt(total,2)}€`;
   const chk=document.getElementById('custos-sel-all');
   if(chk){const vis=listaCustosVisivel();chk.checked=vis.length>0&&vis.every(c=>custosSel.has(c.id));}
+}
+function marcarSelecionadosPago(pago){
+  const n=custosSel.size;if(!n)return;
+  custos.forEach(function(c){
+    if(!custosSel.has(c.id))return;
+    if(pago){ c.pagoFlag=true; var falta=_faltaCusto(c); if(falta>0.005){c.pagamentos=c.pagamentos||[];c.pagamentos.push({data:new Date().toISOString().split('T')[0],valor:falta,obs:'Marcado pago (selecao)'});} }
+    else { c.pagoFlag=false; c.pagamentos=[]; }
+  });
+  if(typeof agendarGravacao==='function')agendarGravacao();
+  try{if(typeof renderCustos==='function')renderCustos();}catch(e){}
+  try{if(typeof renderPagamentos==='function')renderPagamentos();}catch(e){}
 }
 function eliminarSelecionados(){
   const n=custosSel.size;if(!n)return;
