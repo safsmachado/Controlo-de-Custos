@@ -294,7 +294,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v98</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v99</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1274,6 +1274,13 @@ table td{vertical-align:middle}
       <option value="parcial">Parcial</option>
       <option value="vencido">Vencido</option>
       <option value="pago">Pago</option>
+    </select>
+    <select id="pg-agrupar" autocomplete="off" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)">
+      <option value="">Sem agrupamento</option>
+      <option value="obra">Agrupar por obra</option>
+      <option value="fornecedor">Agrupar por fornecedor</option>
+      <option value="mes">Agrupar por mês</option>
+      <option value="familia">Agrupar por família</option>
     </select>
     <button class="btn" onclick="exportarPagamentos()"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
   </div>
@@ -7383,6 +7390,8 @@ function _estadoBadge(c){
 }
 
 let pgOrd={campo:'venc',dir:'asc'};
+let pgGrupoColaps={};
+function togglePgGrupo(a,k){pgGrupoColaps[a+':'+k]=!pgGrupoColaps[a+':'+k];renderPagamentos();}
 function ordenarPagamentos(campo){
   if(pgOrd.campo===campo)pgOrd.dir=pgOrd.dir==='asc'?'desc':'asc';
   else{pgOrd.campo=campo;pgOrd.dir=(campo==='fornecedor'||campo==='obra'||campo==='documento'||campo==='desc')?'asc':'desc';}
@@ -7472,24 +7481,37 @@ function renderPagamentos(){
       +'<td style="text-align:center">'+_estadoBadge(c)+'</td>'
       +'<td style="text-align:center;white-space:nowrap">'+(_estadoCusto(c)==='pago'?'<button class="btn" style="padding:3px 8px;font-size:11px" title="Ver pagamentos" onclick="abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-eye"></i></button>':'<button class="btn primary" style="padding:3px 8px;font-size:11px" onclick="abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-cash"></i> Pagar</button>')+' <button class="btn" style="padding:3px 8px;font-size:11px" title="Editar conta" onclick="abrirModalCusto('+JSON.stringify(c.id)+')"><i class="ti ti-pencil"></i></button>'+'</td>'
       +'</tr>'; }
-  // agrupar por fornecedor (a lista já vem ordenada pela coluna escolhida)
-  var _gp={};
-  lista.forEach(function(c){var f=(c.fornecedor||'').trim()||'(sem fornecedor)';(_gp[f]=_gp[f]||[]).push(c);});
-  var _gpNomes=Object.keys(_gp).sort(function(a,b){return a.localeCompare(b,'pt');});
-  var rows=_gpNomes.map(function(f){
-    var arr=_gp[f];var tF=0,tT=0;arr.forEach(function(c){tT+=_totalComIva(c);if(_estadoCusto(c)!=='pago')tF+=_faltaCusto(c);});
-    var head='<tr style="background:var(--hover,#eef2f7)"><td colspan="5" style="font-weight:700;font-size:12px"><i class="ti ti-building-store" style="opacity:.6"></i> '+f.replace(/</g,'&lt;')+' <span class="muted" style="font-weight:400">\u00b7 '+arr.length+' conta(s)</span></td><td style="text-align:right;font-weight:700;font-size:12px">'+pgEUR(tT)+'</td><td></td><td style="text-align:right;font-weight:700;font-size:12px;color:'+(tF>0.005?'#dc2626':'#16a34a')+'">'+pgEUR(tF)+'</td><td colspan="2"></td></tr>';
-    // 2.o nivel: subagrupar por OBRA dentro do fornecedor
-    var _po={};arr.forEach(function(c){var k=String(c.obraNum||'').trim()||'(sem obra)';(_po[k]=_po[k]||[]).push(c);});
-    var _poNomes=Object.keys(_po).sort(function(a,b){return a.localeCompare(b,'pt',{numeric:true});});
-    var corpo=_poNomes.map(function(on){
-      var la=_po[on];var sT=0,sF=0;la.forEach(function(c){sT+=_totalComIva(c);if(_estadoCusto(c)!=='pago')sF+=_faltaCusto(c);});
-      var nomeObra=(on==='(sem obra)')?on:(on+(_nomeObraPg(on)?' \u00b7 '+_nomeObraPg(on):''));
-      var oHead='<tr style="background:#f3f6fb"><td colspan="5" style="font-size:11px;color:#334155;padding-left:22px"><i class="ti ti-corner-down-right" style="opacity:.5"></i> '+String(nomeObra).replace(/</g,'&lt;')+' <span class="muted">('+la.length+')</span></td><td style="text-align:right;font-size:11px;color:#334155">'+pgEUR(sT)+'</td><td></td><td style="text-align:right;font-size:11px;font-weight:600;color:'+(sF>0.005?'#dc2626':'#16a34a')+'">'+pgEUR(sF)+'</td><td colspan="2"></td></tr>';
-      return oHead+la.map(_linhaPg).join('');
+  // agrupamento selecionavel (como em Custos): obra / fornecedor / mes / familia
+  var _agr=(document.getElementById('pg-agrupar')||{}).value||'';
+  var rows;
+  if(!_agr){
+    rows=lista.map(_linhaPg).join('');
+  } else {
+    var _chaveDe=function(c){
+      if(_agr==='mes')return (c.ano||'0000')+'-'+String(c.mesNum||0).padStart(2,'0')+'|'+mesNomeDe(c.mesNum)+'/'+(c.ano||'\u2014');
+      if(_agr==='fornecedor')return ((c.fornecedor||'').trim()||'(sem fornecedor)');
+      if(_agr==='familia')return (familiaCodigo(c.familiaId)||'(sem familia)');
+      if(_agr==='obra'){var o=obras.find(function(x){return x.num===c.obraNum;});return (c.obraNum||'zzzz')+'|'+(c.obraNum||'(sem obra)')+(o?' \u2014 '+o.nome:'');}
+      return '';
+    };
+    var _gr={};
+    lista.forEach(function(c){var k=_chaveDe(c);(_gr[k]=_gr[k]||[]).push(c);});
+    var _ks=Object.keys(_gr).sort(function(a,b){return a.localeCompare(b,'pt',{numeric:true});});
+    rows=_ks.map(function(k){
+      var arr=_gr[k];
+      var rot=k.indexOf('|')>=0?k.split('|').slice(1).join('|'):k;
+      var tT=0,tF=0;arr.forEach(function(c){tT+=_totalComIva(c);if(_estadoCusto(c)!=='pago')tF+=_faltaCusto(c);});
+      var _col=!!pgGrupoColaps[_agr+':'+k];
+      var _seta=_col?'ti-chevron-right':'ti-chevron-down';
+      var _kEsc=(''+k).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var head='<tr style="background:#eef2ff;cursor:pointer" onclick="togglePgGrupo(\''+_agr+'\',\''+_kEsc+'\')">'
+        +'<td colspan="5" style="font-weight:700;font-size:12px"><i class="ti '+_seta+'" style="opacity:.6"></i> '+(''+rot).replace(/</g,'&lt;')+' <span class="muted" style="font-weight:400">\u00b7 '+arr.length+'</span></td>'
+        +'<td style="text-align:right;font-weight:700;font-size:12px">'+pgEUR(tT)+'</td><td></td>'
+        +'<td style="text-align:right;font-weight:700;font-size:12px;color:'+(tF>0.005?'#dc2626':'#16a34a')+'">'+pgEUR(tF)+'</td><td colspan="2"></td></tr>';
+      var corpo=_col?'':arr.map(_linhaPg).join('');
+      return head+corpo;
     }).join('');
-    return head+corpo;
-  }).join('');
+  }
   var totF=lista.reduce((a,c)=>a+_faltaCusto(c),0);
   var tbl=document.getElementById('pg-tabela');
   if(tbl)tbl.innerHTML='<table style="width:100%"><thead><tr>'
