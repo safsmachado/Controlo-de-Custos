@@ -91,8 +91,8 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;backgroun
     .tab .table-wrap thead th{position:sticky;top:0;z-index:6;background:var(--surface);box-shadow:inset 0 -1px 0 var(--border)}
     .tab .table-wrap thead tr:nth-child(2) th{top:34px}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;padding:8px 10px;color:#6B727A;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap;font-size:10.5px;background:#F1F4F8}
-td{padding:7px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;vertical-align:middle}
+th{text-align:center;padding:8px 10px;color:#6B727A;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap;font-size:10.5px;background:#F1F4F8}
+td{padding:7px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;vertical-align:middle;text-align:center}
 tr:last-child td{border-bottom:none}
 tr.loss td{background:#fef5f5}
 tr.loss td.val{color:var(--red)}
@@ -145,6 +145,8 @@ table td{vertical-align:middle}
 .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
 .modal-backdrop.open{display:flex}
 .modal{background:var(--surface);border-radius:16px;border:none;padding:24px;width:min(650px,95vw);max-height:92vh;overflow-y:auto;box-shadow:0 24px 70px rgba(16,42,74,.30)}
+.modal.wide{width:min(1180px,97vw)}
+.modal.wide .form-grid{grid-template-columns:repeat(3,1fr)}
 .modal-lg{width:min(800px,95vw)}
 .modal-xl{width:min(1200px,97vw)}.modal-obra-full{width:97vw;max-width:1700px}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
@@ -294,7 +296,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v103</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v104</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1333,7 +1335,7 @@ table td{vertical-align:middle}
     </div>
     <div id="cauc-libpanel"></div>
     <div class="metric-grid" id="cauc-kpis"></div>
-    <div class="table-wrap" style="overflow-x:auto"><div id="cauc-tabela"></div></div>
+    <div class="table-wrap"><div id="cauc-tabela"></div></div>
   </div>
 
   <!-- FORNECEDORES -->
@@ -1617,7 +1619,7 @@ table td{vertical-align:middle}
 
 <!-- ══════════════ MODAL NOVO CUSTO INDIRETO ══════════════ -->
 <div class="modal-backdrop" id="modal-indireto">
-  <div class="modal">
+  <div class="modal wide">
     <div class="modal-header">
       <h3 id="modal-indir-title">Novo custo indireto</h3>
       <button class="modal-close" onclick="closeModal('modal-indireto')">&times;</button>
@@ -1654,15 +1656,16 @@ table td{vertical-align:middle}
       </div>
       <div class="form-group" id="if-valor-grp"><label>Valor (€)</label><input type="number" id="if-valor" placeholder="0"></div>
       <div class="form-group" id="if-pct-grp" style="display:none"><label>Percentagem (%)</label><input type="number" id="if-pct" placeholder="0" step="0.1"></div>
-      <div class="form-group"><label>Aplicação</label>
-        <select id="if-aplicacao">
-          <option value="global">Global</option>
-          <option value="obra">Específico por obra</option>
-          <option value="categoria">Específico por categoria</option>
+      <div class="form-group"><label>Imputação do custo</label>
+        <select id="if-aplicacao" onchange="onImputacaoChange()">
+          <option value="global">Global — obras com custos no mês</option>
+          <option value="curso">Obras em Curso</option>
+          <option value="posvenda">Obras em Pós-venda</option>
+          <option value="obra">Por obra (escolher abaixo)</option>
         </select>
       </div>
-      <div class="form-group"><label>Associar a obra</label>
-        <select id="if-obra"><option value="">Global</option></select>
+      <div class="form-group" id="if-obra-grp"><label>Associar a obra</label>
+        <select id="if-obra"></select>
       </div>
       <div class="form-group">
         <label>Ativo</label>
@@ -4340,9 +4343,10 @@ function renderObrasTable(list){
     const tRent  = tCT>0?tM/tCT:0;
     const tPe    = tAdj>0?tAutos/tAdj:0;
 
-    // ── Linha de cabeçalho do grupo ──────────────────────────────────────────
+    // ── Linha de cabeçalho do grupo (com totais já alinhados nas colunas) ─────
+    const _bb='border-bottom:2px solid '+st.cor+'22';
     html += `<tr class="grupo-header" onclick="toggleGrupo('${estado}')" style="cursor:pointer;user-select:none;background:${st.bg}">
-      <td colspan="${NUM_COLS}" style="padding:8px 12px;border-bottom:2px solid ${st.cor}22">
+      <td colspan="5" style="padding:8px 12px;${_bb}">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${st.cor}22;color:${st.cor};font-size:13px;flex-shrink:0">
             <i class="ti ${colapsado?'ti-chevron-right':'ti-chevron-down'}"></i>
@@ -4351,15 +4355,19 @@ function renderObrasTable(list){
             <i class="ti ${st.icone}"></i>${estado}
           </span>
           <span style="background:${st.cor};color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${lista.length}</span>
-          <span style="flex:1"></span>
-          <span style="font-size:11px;color:${st.cor};font-weight:600;display:flex;gap:20px">
-            <span title="Adjudicação total">Adj: ${fmt(tAdj,2)}€</span>
-            <span title="Autos acumulados">Autos: ${fmt(tAutos,2)}€</span>
-            <span title="Margem" style="color:${tM<0?'#c0392b':st.cor}">Margem: ${fmt(tM,0)}€</span>
-            <span title="Rentabilidade" style="color:${tRent<0?'#c0392b':st.cor}">Rent.: ${fmtPct(tRent)}</span>
-          </span>
         </div>
       </td>
+      <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmt(tAdj,2)}€</td>
+      <td style="text-align:right;font-weight:700;color:var(--blue);${_bb}">${tRP?fmt(tRP,0)+'€':'—'}</td>
+      <td style="text-align:right;font-weight:700;color:var(--orange);${_bb}">${tTM?fmt(tTM,0)+'€':'—'}</td>
+      <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmt(tAutos,2)}€</td>
+      <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmtPct(tPe)}</td>
+      <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmt(tCus,2)}€</td>
+      <td style="text-align:right;font-weight:700;color:${tM<0?'var(--red)':st.cor};${_bb}">${fmt(tM,0)}€</td>
+      <td style="text-align:right;font-weight:700;color:${tRent<0?'var(--red)':st.cor};${_bb}">${fmtPct(tRent)}</td>
+      <td style="${_bb}"></td>
+      <td style="${_bb}"></td>
+      <td style="${_bb}"></td>
     </tr>`;
 
     if(!colapsado){
@@ -4425,23 +4433,6 @@ function renderObrasTable(list){
         </tr>`;
       });
 
-      // ── Linha de totais do grupo ─────────────────────────────────────────────
-      html += `<tr style="background:${st.bg};font-weight:700;border-top:1px solid ${st.cor}33;border-bottom:2px solid ${st.cor}55;font-size:11px">
-        <td style="padding:7px 8px 7px 20px;color:${st.cor};white-space:nowrap" colspan="5">
-          <i class="ti ti-sum" style="margin-right:4px"></i>Subtotal ${estado} (${lista.length} obra${lista.length!==1?'s':''})
-        </td>
-        <td style="text-align:right;color:${st.cor}">${fmt(tAdj,2)}€</td>
-        <td style="text-align:right;color:var(--blue)">${tRP?fmt(tRP,0)+'€':'—'}</td>
-        <td style="text-align:right;color:var(--orange)">${tTM?fmt(tTM,0)+'€':'—'}</td>
-        <td style="text-align:right;color:${st.cor}">${fmt(tAutos,2)}€</td>
-        <td style="text-align:right;color:${st.cor}">${fmtPct(tPe)}</td>
-        <td style="text-align:right;color:${st.cor}">${fmt(tCus,2)}€</td>
-        <td style="text-align:right;color:${tM<0?'var(--red)':st.cor}">${fmt(tM,0)}€</td>
-        <td style="text-align:right;color:${tRent<0?'var(--red)':st.cor}">${fmtPct(tRent)}</td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>`;
     }
   });
 
@@ -4985,7 +4976,80 @@ function custoTotalCIva(c){return (c.valor||0)*(1+(c.iva||0));}
 function custoEhIndireto(c){return c.tipoCusto==='indireto'||c.tipoCusto==='admin'||c.tipoCusto==='operacional';}
 // Reconstrói os custos mensais de TODAS as obras a partir da lista 'custos'.
 // Mantém os autos/RP/TM já existentes em cada mês; só recalcula a parte de custos.
+// ── DISTRIBUIÇÃO PROPORCIONAL DOS CUSTOS INDIRETOS PELAS OBRAS ───────
+// Reparte cada custo indireto (de valor fixo) pelas obras-alvo,
+// na proporção dos CUSTOS DIRETOS de cada obra no mês de referência.
+// Obra sem custos diretos nesse mês não leva nada.
+// Gera lançamentos no array 'custos' marcados com origemIndireto:true.
+function _estadoNormImp(e){
+  return String(e||'').toLowerCase().replace(/[\s.\-]/g,'')
+    .replace('ó','o').replace('á','a').replace('í','i').replace('é','e');
+}
+function _obrasAlvoIndireto(ind){
+  const modo=ind.aplicacao||'global';
+  if(modo==='obra') return obras.filter(o=>String(o.num)===String(ind.obraNum));
+  if(modo==='curso') return obras.filter(o=>_estadoNormImp(o.estado)==='emcurso'||_estadoNormImp(o.estado)==='adjudicado');
+  if(modo==='posvenda') return obras.filter(o=>_estadoNormImp(o.estado)==='posvenda');
+  return obras.slice(); // global -> todas (o filtro por custos do mês é feito a seguir)
+}
+function recalcularIndiretosProporcionais(){
+  // 1) limpar lançamentos automáticos anteriores
+  custos=custos.filter(c=>!c.origemIndireto);
+  // 2) mapa de custos DIRETOS por obra e mês: dir[obraNum][mesNum-ano] = total
+  const dir={};
+  custos.forEach(c=>{
+    if(!c.obraNum||custoEhIndireto(c))return;
+    const mn=parseInt(c.mesNum,10)||0; const an=parseInt(c.ano,10)||0;
+    if(!mn||!an)return;
+    const k=mn+'-'+an;
+    (dir[c.obraNum]=dir[c.obraNum]||{})[k]=(dir[c.obraNum][k]||0)+Math.abs(c.valor||0);
+  });
+  // todos os meses-ano que existem em custos diretos (para indiretos mensais)
+  const todosMeses={};
+  custos.forEach(c=>{ if(c.obraNum&&!custoEhIndireto(c)){const mn=parseInt(c.mesNum,10)||0,an=parseInt(c.ano,10)||0; if(mn&&an)todosMeses[mn+'-'+an]=true;} });
+  // 3) para cada indireto ativo de valor fixo, repartir
+  (indiretos||[]).filter(i=>i.ativo).forEach(ind=>{
+    const metodo=ind.metodo||'fixo_mensal';
+    if(metodo!=='fixo_mensal'&&metodo!=='fixo_unico')return; // só valores fixos entram na repartição automática
+    const valorBase=+ind.valor||0; if(valorBase<=0)return;
+    const alvo=_obrasAlvoIndireto(ind); if(!alvo.length)return;
+    const alvoNums=new Set(alvo.map(o=>String(o.num)));
+    // que meses repartir?
+    let meses;
+    if(metodo==='fixo_mensal'){ meses=Object.keys(todosMeses); }
+    else { // único: o mês mais recente com custos diretos nas obras-alvo
+      let melhor=null;
+      Object.keys(todosMeses).forEach(k=>{
+        const [mn,an]=k.split('-').map(Number);
+        const temAlvo=alvo.some(o=>dir[o.num]&&dir[o.num][k]>0);
+        if(temAlvo){ const ord=an*100+mn; if(!melhor||ord>melhor.ord)melhor={k,ord}; }
+      });
+      meses=melhor?[melhor.k]:[];
+    }
+    meses.forEach(k=>{
+      const [mn,an]=k.split('-').map(Number);
+      // base de rateio: custos diretos de cada obra-alvo nesse mês
+      let total=0; const pesos=[];
+      alvo.forEach(o=>{ const d=(dir[o.num]&&dir[o.num][k])||0; if(d>0){pesos.push({o,d});total+=d;} });
+      if(total<=0)return; // ninguém teve custos diretos nesse mês -> não imputa
+      pesos.forEach(p=>{
+        const quota=valorBase*(p.d/total);
+        if(quota<=0)return;
+        custos.push({
+          id:'IND'+ind.id+'_'+p.o.num+'_'+k, origemIndireto:true, indiretoId:ind.id,
+          obraNum:p.o.num, mesNum:mn, ano:an, data:mesNomeDe(mn)+'/'+an,
+          familiaId:ind.familiaId||'', categoria:ind.categ||'Indiretos',
+          fornecedor:'Indireto (auto)', documento:'',
+          desc:(ind.desc||ind.categ||'Custo indireto'),
+          valor:quota, iva:0, obs:'Imputação proporcional de custo indireto',
+          tipoCusto:ind.tipoCusto||'indireto'
+        });
+      });
+    });
+  });
+}
 function agregarCustosNasObras(){
+  try{ recalcularIndiretosProporcionais(); }catch(e){ console.warn('Indiretos proporcionais:',e); }
   // mapa: obraNum -> { 'Jan': {dir, ind}, ... }
   const mapa={};
   custos.forEach(c=>{
@@ -6012,10 +6076,15 @@ function renderRelatorio(){
 // ══════════════════════════════════════════════════════════════
 // CUSTOS INDIRETOS
 // ══════════════════════════════════════════════════════════════
+function onImputacaoChange(){
+  const modo=document.getElementById('if-aplicacao').value;
+  const grp=document.getElementById('if-obra-grp');
+  if(grp)grp.style.display=(modo==='obra')?'':'none';
+}
 function abrirModalIndireto(id){
   editIndiretoid=id||null;
   const sel=document.getElementById('if-obra');
-  sel.innerHTML='<option value="">Global</option>'+obras.map(o=>`<option value="${o.num}">${o.num} — ${o.nome}</option>`).join('');
+  sel.innerHTML='<option value="">— selecione a obra —</option>'+obras.map(o=>`<option value="${o.num}">${o.num} — ${o.nome}</option>`).join('');
   const fsel=document.getElementById('if-familia');
   if(fsel)fsel.innerHTML=familiasOptionsHTML(id?(indiretos.find(x=>x.id===id)||{}).familiaId:null);
   if(id){
@@ -6033,6 +6102,7 @@ function abrirModalIndireto(id){
       document.getElementById('if-obra').value=i.obraNum||'';
       document.getElementById('if-ativo').value=i.ativo?'1':'0';
       toggleMetodoIndir();
+      onImputacaoChange();
     }
   } else {
     document.getElementById('modal-indir-title').textContent='Novo custo indireto';
@@ -6040,7 +6110,10 @@ function abrirModalIndireto(id){
     document.getElementById('if-valor').value='';
     document.getElementById('if-pct').value='';
     document.getElementById('if-ativo').value='1';
+    document.getElementById('if-aplicacao').value='global';
+    document.getElementById('if-obra').value='';
     toggleMetodoIndir();
+    onImputacaoChange();
   }
   openModal('modal-indireto');
 }
@@ -6057,6 +6130,7 @@ function saveIndireto(){
   const v=isPct?0:+document.getElementById('if-valor').value;
   const pct=isPct?+document.getElementById('if-pct').value:0;
   if(!v&&!pct){alert('Introduza um valor ou percentagem');return;}
+  const aplicacao=document.getElementById('if-aplicacao').value;
   const data={
     categ:document.getElementById('if-categ').value,
     desc:document.getElementById('if-desc').value,
@@ -6064,11 +6138,12 @@ function saveIndireto(){
     metodo:document.getElementById('if-metodo').value,
     valor:v,pct,
     period:document.getElementById('if-period').value,
-    aplicacao:document.getElementById('if-aplicacao').value,
-    obraNum:document.getElementById('if-obra').value,
+    aplicacao:aplicacao,
+    obraNum:aplicacao==='obra'?document.getElementById('if-obra').value:'',
     ativo:document.getElementById('if-ativo').value==='1',
     familiaId:document.getElementById('if-familia')?document.getElementById('if-familia').value:'',
   };
+  if(aplicacao==='obra'&&!data.obraNum){alert('Selecione a obra a associar.');return;}
   if(editIndiretoid){
     const idx=indiretos.findIndex(i=>i.id===editIndiretoid);
     if(idx>=0)Object.assign(indiretos[idx],data);
@@ -6077,7 +6152,10 @@ function saveIndireto(){
     indiretos.push(data);
   }
   closeModal('modal-indireto');
+  // recalcula a imputação proporcional e atualiza obras automaticamente
+  if(typeof agregarCustosNasObras==='function')agregarCustosNasObras();
   renderIndiretos();
+  if(typeof agendarGravacao==='function')agendarGravacao();
 }
 
 function selectMethod(el,m){
@@ -6089,7 +6167,10 @@ function selectMethod(el,m){
 function removeIndireto(id){
   if(!confirm('Eliminar este custo indireto?'))return;
   const idx=indiretos.findIndex(i=>i.id===id);
-  if(idx>=0){indiretos.splice(idx,1);renderIndiretos();}
+  if(idx>=0){indiretos.splice(idx,1);
+    if(typeof agregarCustosNasObras==='function')agregarCustosNasObras();
+    renderIndiretos();
+    if(typeof agendarGravacao==='function')agendarGravacao();}
 }
 
 function toggleAtivoIndir(id){
@@ -7237,6 +7318,16 @@ function popularAutocompleteCustos(){
   if(dlF)dlF.innerHTML=forns.map(f=>`<option value="${(f||'').replace(/"/g,'&quot;')}">`).join('');
   if(dlD)dlD.innerHTML=descs.map(d=>`<option value="${(d||'').replace(/"/g,'&quot;')}">`).join('');
 }
+// Clique na linha de custo abre o modal; duplo-clique numa célula editável
+// edita inline sem abrir (espera curta para distinguir clique de duplo-clique).
+var _custoClickTimer=null;
+function custoLinhaClick(ev,id){
+  // se o alvo é um campo interativo, não faz nada (o próprio campo trata)
+  var tg=ev.target;
+  if(tg.closest('button,select,input,textarea,a'))return;
+  if(_custoClickTimer){clearTimeout(_custoClickTimer);_custoClickTimer=null;return;} // veio um 2º clique -> cancela
+  _custoClickTimer=setTimeout(function(){_custoClickTimer=null;abrirModalCusto(id);},230);
+}
 function abrirModalCusto(id){
   popularAutocompleteCustos();
   // popular colaboradores e centros de custo RH
@@ -7490,7 +7581,7 @@ function renderPagamentos(){
   // ordenar: vencidos primeiro (mais atraso no topo), depois por vencimento
   lista.sort(function(a,b){var x=valorOrdenacaoPagamento(a,pgOrd.campo),y=valorOrdenacaoPagamento(b,pgOrd.campo);if(x<y)return pgOrd.dir==='asc'?-1:1;if(x>y)return pgOrd.dir==='asc'?1:-1;return 0;});
 
-  function _linhaPg(c){ return '<tr>'
+  function _linhaPg(c){ return '<tr class="row-click" style="cursor:pointer" onclick="abrirPagamento('+JSON.stringify(c.id)+')">'
       +'<td style="font-size:12px">'+(c.obraNum||'')+'</td>'
       +'<td style="font-weight:600;font-size:12px">'+((c.fornecedor||'')+'').replace(/</g,'&lt;')+'</td>'
       +'<td style="font-size:12px">'+((c.documento||'')+'').replace(/</g,'&lt;')+'</td>'
@@ -7500,7 +7591,7 @@ function renderPagamentos(){
       +'<td style="text-align:right;font-size:12px;white-space:nowrap;color:#16a34a">'+pgEUR(_pagoCusto(c))+'</td>'
       +'<td style="text-align:right;font-size:12px;white-space:nowrap;font-weight:700">'+pgEUR(_faltaCusto(c))+'</td>'
       +'<td style="text-align:center">'+_estadoBadge(c)+'</td>'
-      +'<td style="text-align:center;white-space:nowrap">'+(_estadoCusto(c)==='pago'?'<button class="btn" style="padding:3px 8px;font-size:11px" title="Ver pagamentos" onclick="abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-eye"></i></button>':'<button class="btn primary" style="padding:3px 8px;font-size:11px" onclick="abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-cash"></i> Pagar</button>')+' <button class="btn" style="padding:3px 8px;font-size:11px" title="Editar conta" onclick="abrirModalCusto('+JSON.stringify(c.id)+')"><i class="ti ti-pencil"></i></button>'+'</td>'
+      +'<td style="text-align:center;white-space:nowrap">'+(_estadoCusto(c)==='pago'?'<button class="btn" style="padding:3px 8px;font-size:11px" title="Ver pagamentos" onclick="event.stopPropagation();abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-eye"></i></button>':'<button class="btn primary" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();abrirPagamento('+JSON.stringify(c.id)+')"><i class="ti ti-cash"></i> Pagar</button>')+' <button class="btn" style="padding:3px 8px;font-size:11px" title="Editar conta" onclick="event.stopPropagation();abrirModalCusto('+JSON.stringify(c.id)+')"><i class="ti ti-pencil"></i></button>'+'</td>'
       +'</tr>'; }
   // agrupamento selecionavel (como em Custos): obra / fornecedor / mes / familia
   var _agr=(document.getElementById('pg-agrupar')||{}).value||'';
@@ -8094,8 +8185,8 @@ function renderCustos(){
   const linhaCusto=(c)=>{
     const o=obras.find(x=>x.num===c.obraNum);
     const sel=custosSel.has(c.id);
-    return `<tr${sel?' style="background:#eaf3ff"':''}>
-      <td style="text-align:center"><input type="checkbox" ${sel?'checked':''} onclick="toggleSelCusto(${c.id},this.checked)" style="cursor:pointer"></td>
+    return `<tr class="row-click" style="cursor:pointer${sel?';background:#eaf3ff':''}" onclick="custoLinhaClick(event,${c.id})">
+      <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${sel?'checked':''} onclick="toggleSelCusto(${c.id},this.checked)" style="cursor:pointer"></td>
       <td><strong>${c.obraNum}</strong>${o?`<div style="font-size:10px;color:var(--muted)">${o.nome.substring(0,22)}</div>`:''}</td>
       <td>${mesNomeDe(c.mesNum)}/${c.ano||'—'}</td>
       <td style="font-size:11px">${c.data||'—'}</td>
@@ -8112,7 +8203,7 @@ function renderCustos(){
       <td style="text-align:right;font-weight:600">${fmt(custoTotalCIva(c),2)}</td>
       <td style="text-align:center;font-size:11px;white-space:nowrap;color:${(_estadoCusto(c)!=='pago'&&_diasAtraso(c)>0)?'#dc2626':'inherit'}">${pgFmtD(_vencCusto(c))}</td>
       <td style="text-align:center;cursor:pointer" title="Clique para marcar Pago / Por pagar" onclick="event.stopPropagation();togglePagoCusto('${c.id}')">${_estadoBadge(c)}</td>
-      <td style="display:flex;gap:4px">
+      <td style="display:flex;gap:4px" onclick="event.stopPropagation()">
         <button class="btn sm" onclick="abrirModalCusto(${c.id})"><i class="ti ti-pencil"></i></button>
         <button class="btn sm danger" onclick="removeCusto(${c.id})"><i class="ti ti-trash"></i></button>
       </td>
@@ -10303,16 +10394,16 @@ function confirmarLancamento(){
     function linhaCli(r){
       var ch=escA(r._chave);var o=acharObra(r);var p=proxLib(r);
       var vermelha=p&&p.vencida;
-      return '<tr'+(vermelha?' style="background:#FBE3E2"':'')+'>'+COLS_CLI.map(function(c){
+      return '<tr class="row-click" onclick="abrirCaucCli(\''+ch+'\')" style="cursor:pointer'+(vermelha?';background:#FBE3E2':'')+'">'+COLS_CLI.map(function(c){
         if(c.t==='data')return celData(ch,c.k,(r[c.k]!=null?r[c.k]:''),'ccDataEl');
-        if(c.t==='acoes')return '<td style="white-space:nowrap;text-align:center"><button class="btn sm" onclick="abrirCaucCli(\''+ch+'\')" title="Detalhe / libertações / cronologia"><i class="ti ti-eye"></i></button> <button class="btn sm" onclick="ccArquivar(\''+ch+'\')" title="'+(r.arquivada?'Reabrir':'Arquivar')+'"><i class="ti ti-'+(r.arquivada?'archive-off':'archive')+'"></i></button>'+(r.arquivada?' <button class="btn sm danger" onclick="ccApagar(\''+ch+'\')" title="Apagar definitivamente"><i class="ti ti-trash"></i></button>':'')+'</td>';
+        if(c.t==='acoes')return '<td style="white-space:nowrap;text-align:center"><button class="btn sm" onclick="event.stopPropagation();ccArquivar(\''+ch+'\')" title="'+(r.arquivada?'Reabrir':'Arquivar')+'"><i class="ti ti-'+(r.arquivada?'archive-off':'archive')+'"></i></button>'+(r.arquivada?' <button class="btn sm danger" onclick="event.stopPropagation();ccApagar(\''+ch+'\')" title="Apagar definitivamente"><i class="ti ti-trash"></i></button>':'')+'</td>';
         if(c.t==='cdata'){if(!p)return '<td style="text-align:center;color:var(--muted)">\u2014</td>';var cor=p.vencida?'#c0392b':(p.dias!=null&&p.dias<=30?'#C77A2E':'var(--text)');return '<td style="text-align:center;white-space:nowrap;color:'+cor+'">'+(p.data?fmtData(p.data):'(s/ data)')+'</td>';}
         if(c.t==='cval'){if(!p)return '<td style="text-align:center;color:var(--muted)">\u2014</td>';return '<td style="text-align:center;white-space:nowrap">'+eur(p.valor)+'</td>';}
         if(c.t==='num')return celNum(ch,c.k,(r[c.k]!=null?r[c.k]:''),'ccCellEl');
         var val=r[c.k]!=null?r[c.k]:'';
         if(c.t==='pct')val=(val!==''&&val!=null)?(num(val)*100):'';
-        if(c.t==='sel'){var _selV=val,_onch='ccCell(\''+ch+'\',\''+c.k+'\',this.value,\'sel\')';if(c.k==='estado'){var _ob=acharObra(r);var _ef=(_ob&&_ob.estado)?_ob.estado:(r.estado||'');_selV=_ef?(window.grpEstadoNorm?window.grpEstadoNorm(_ef):_ef):'';_onch='ccSetEstadoObra(\''+ch+'\',this.value)';}return '<td style="text-align:center"><select onchange="'+_onch+'" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center">'+c.op.map(function(o){return '<option'+(String(_selV)===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></td>';}
-        return '<td style="text-align:center"><input value="'+escA(val)+'" onchange="ccCell(\''+ch+'\',\''+c.k+'\',this.value,\''+c.t+'\')" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center" '+(o&&c.k==='cod'?'title="Ligada à obra '+esc(o.num)+'"':'')+'></td>';
+        if(c.t==='sel'){var _selV=val,_onch='ccCell(\''+ch+'\',\''+c.k+'\',this.value,\'sel\')';if(c.k==='estado'){var _ob=acharObra(r);var _ef=(_ob&&_ob.estado)?_ob.estado:(r.estado||'');_selV=_ef?(window.grpEstadoNorm?window.grpEstadoNorm(_ef):_ef):'';_onch='ccSetEstadoObra(\''+ch+'\',this.value)';}return '<td style="text-align:center"><select onclick="event.stopPropagation()" onchange="'+_onch+'" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center">'+c.op.map(function(o){return '<option'+(String(_selV)===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></td>';}
+        return '<td style="text-align:center"><input value="'+escA(val)+'" onclick="event.stopPropagation()" onchange="ccCell(\''+ch+'\',\''+c.k+'\',this.value,\''+c.t+'\')" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center" '+(o&&c.k==='cod'?'title="Ligada à obra '+esc(o.num)+'"':'')+'></td>';
       }).join('')+'</tr>';
     }
     var _GR=['Em Curso','Pós-Venda','Concluída'];
@@ -10323,20 +10414,21 @@ function confirmarLancamento(){
     var body='';
     var _GSTYLE={'Em Curso':{cor:'#1e40af',bg:'#dbeafe',icone:'ti-player-play'},'Pós-Venda':{cor:'#5b21b6',bg:'#ede9fe',icone:'ti-rosette'},'Concluída':{cor:'#166534',bg:'#dcfce7',icone:'ti-circle-check'}};
     _GR.forEach(function(gn){var arr=_gC[gn];if(!arr||!arr.length)return;var col=!!cauEstCol[gn];
-      var tg=arr.reduce(function(s2,r){return s2+(+r.garValor||0);},0);
+      var sg=0,sr=0,sl=0;arr.forEach(function(r){sg+=+r.garValor||0;sr+=+r.retValor||0;sl+=+r.libertar||0;});
       var st=_GSTYLE[gn]||{cor:'#475569',bg:'#eef2f7',icone:'ti-folder'};
-      body+='<tr class="grupo-header" onclick="cauEstToggle(\''+gn+'\')" style="cursor:pointer;user-select:none;background:'+st.bg+'"><td colspan="'+nCcli+'" style="padding:8px 12px;border-bottom:2px solid '+st.cor+'22"><div style="display:flex;align-items:center;gap:10px"><span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:'+st.cor+'22;color:'+st.cor+';font-size:13px;flex-shrink:0"><i class="ti '+(col?'ti-chevron-right':'ti-chevron-down')+'"></i></span><span style="font-size:12px;font-weight:700;color:'+st.cor+';text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px"><i class="ti '+st.icone+'"></i>'+esc(gn)+'</span><span style="background:'+st.cor+';color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:10px">'+arr.length+'</span><span style="margin-left:auto;color:'+st.cor+';font-weight:700;font-size:12px">'+eur(tg)+'</span></div></td></tr>';
+      // Linha do grupo: título + contagem na 1ª coluna; totais nas colunas respetivas.
+      var grpCels=COLS_CLI.map(function(c,_idx){
+        if(_idx===0){
+          return '<td style="padding:8px 12px;border-bottom:2px solid '+st.cor+'22"><div style="display:flex;align-items:center;gap:10px"><span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:'+st.cor+'22;color:'+st.cor+';font-size:13px;flex-shrink:0"><i class="ti '+(col?'ti-chevron-right':'ti-chevron-down')+'"></i></span><span style="font-size:12px;font-weight:700;color:'+st.cor+';text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px"><i class="ti '+st.icone+'"></i>'+esc(gn)+'</span><span style="background:'+st.cor+';color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:10px">'+arr.length+'</span></div></td>';
+        }
+        if(c.k==='garValor')return '<td style="text-align:right;font-weight:700;color:'+st.cor+';padding:8px 10px;border-bottom:2px solid '+st.cor+'22">'+eur(sg)+'</td>';
+        if(c.k==='retValor')return '<td style="text-align:right;font-weight:700;color:'+st.cor+';padding:8px 10px;border-bottom:2px solid '+st.cor+'22">'+eur(sr)+'</td>';
+        if(c.k==='libertar')return '<td style="text-align:right;font-weight:700;color:'+st.cor+';padding:8px 10px;border-bottom:2px solid '+st.cor+'22">'+eur(sl)+'</td>';
+        return '<td style="border-bottom:2px solid '+st.cor+'22"></td>';
+      }).join('');
+      body+='<tr class="grupo-header" onclick="cauEstToggle(\''+gn+'\')" style="cursor:pointer;user-select:none;background:'+st.bg+'">'+grpCels+'</tr>';
       if(!col){
         arr.forEach(function(r){body+=linhaCli(r);});
-        var sg=0,sr=0,sl=0;arr.forEach(function(r){sg+=+r.garValor||0;sr+=+r.retValor||0;sl+=+r.libertar||0;});
-        var subCels=COLS_CLI.map(function(c){
-          if(c.k==='nome')return '<td style="text-align:center;font-weight:700;color:'+st.cor+'"><i class="ti ti-sum"></i> Subtotal '+esc(gn)+'</td>';
-          if(c.k==='garValor')return '<td style="text-align:center;font-weight:700;color:'+st.cor+'">'+eur(sg)+'</td>';
-          if(c.k==='retValor')return '<td style="text-align:center;font-weight:700;color:'+st.cor+'">'+eur(sr)+'</td>';
-          if(c.k==='libertar')return '<td style="text-align:center;font-weight:700;color:'+st.cor+'">'+eur(sl)+'</td>';
-          return '<td></td>';
-        }).join('');
-        body+='<tr style="background:'+st.bg+';border-bottom:2px solid '+st.cor+'55">'+subCels+'</tr>';
       }
     });
     var totCels=COLS_CLI.map(function(c){
