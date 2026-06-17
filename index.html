@@ -90,8 +90,13 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;backgroun
     .tab .table-wrap{max-height:calc(100vh - 168px);overflow:auto}
     .tab .table-wrap thead th{position:sticky;top:0;z-index:6;background:var(--surface);box-shadow:inset 0 -1px 0 var(--border)}
     .tab .table-wrap thead tr:nth-child(2) th{top:34px}
+/* Cabeçalho fixo robusto para as tabelas de Cauções (têm um div intermédio) */
+.table-wrap:has(#cauc-tabela), .table-wrap:has(#cauf-tabela){max-height:none;overflow:visible}
+#cauc-tabela, #cauf-tabela{max-height:calc(100vh - 220px);overflow:auto;display:block}
+#cauc-tabela thead th, #cauf-tabela thead th{position:sticky;top:0;z-index:8;background:#F1F4F8;box-shadow:inset 0 -1px 0 var(--border)}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{text-align:center;padding:8px 10px;color:#6B727A;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap;font-size:10.5px;background:#F1F4F8}
+thead th, table th{text-align:center !important}
 td{padding:7px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;vertical-align:middle;text-align:center}
 tr:last-child td{border-bottom:none}
 tr.loss td{background:#fef5f5}
@@ -296,7 +301,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v104</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v106</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -833,6 +838,15 @@ table td{vertical-align:middle}
       <button class="btn primary" onclick="enviarEmailTeste()"><i class="ti ti-send"></i>Enviar teste</button>
     </div>
     <div id="email-teste-res" style="margin-top:8px;font-size:12px"></div>
+  </div>
+  <div class="card">
+    <div class="section-title">Backup automático na cloud</div>
+    <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Uma vez por mês, ao abrir a aplicação, é guardada automaticamente uma cópia completa dos dados na cloud (Supabase). São mantidas as 3 cópias mais recentes. Podes também forçar um backup agora.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" onclick="backupCloudAgora()"><i class="ti ti-cloud-upload"></i>Fazer backup à cloud agora</button>
+      <span id="backup-cloud-estado" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div id="backup-cloud-res" style="margin-top:8px;font-size:12px"></div>
   </div>
   <div class="two-col">
     <!-- Tipos de Obra -->
@@ -2175,6 +2189,25 @@ function removerExemplos(){
   }catch(e){alert('Erro ao remover exemplos: '+(e&&e.message||e));}
 }
 
+// Botão "Fazer backup à cloud agora" (Definições)
+async function backupCloudAgora(){
+  var box=document.getElementById('backup-cloud-res');
+  if(!window.cloudGuardarBackup){ if(box)box.innerHTML='<span style="color:#c0392b">A cloud não está disponível.</span>'; return; }
+  if(box)box.innerHTML='<span style="color:var(--muted)">A enviar backup para a cloud...</span>';
+  var r=await window.cloudGuardarBackup();
+  if(r&&r.ok){
+    if(box)box.innerHTML='<span style="color:#166534"><i class="ti ti-circle-check"></i> Backup guardado na cloud ('+(r.resumo?r.resumo.obras+' obras, '+r.resumo.custos+' custos':'')+'). Mantidas as '+(r.mantidos||3)+' cópias mais recentes.</span>';
+    atualizarEstadoBackupCloud();
+  } else {
+    if(box)box.innerHTML='<span style="color:#c0392b"><i class="ti ti-alert-triangle"></i> Falhou: '+String((r&&r.erro)||'erro desconhecido').replace(/</g,'&lt;')+'</span>';
+  }
+}
+function atualizarEstadoBackupCloud(){
+  var el=document.getElementById('backup-cloud-estado'); if(!el)return;
+  var u=null; try{ u=localStorage.getItem('gc_ultimo_backup_cloud'); }catch(e){}
+  if(u){ var d=new Date(u); el.textContent='Último backup na cloud: '+d.toLocaleDateString('pt-PT')+' '+d.toLocaleTimeString('pt-PT').slice(0,5); }
+  else { el.textContent='Ainda não há backups na cloud.'; }
+}
 function appBackup(){
   // 1) montar os dados PRINCIPAIS a partir da MEMÓRIA (o que está no ecrã), não só do armazenamento
   try{ if(typeof guardarTudo==='function') guardarTudo(); }catch(e){}
@@ -3727,7 +3760,7 @@ function showTab(id,btn){
   if(id==='relatorios')renderRelatorio();
   if(id==='indiretos')setTimeout(renderIndiretos,50);
   if(id==='gestao')renderGestao();
-  if(id==='definicoes'){renderDefinicoes();renderFamilias();}
+  if(id==='definicoes'){renderDefinicoes();renderFamilias();if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
   if(id==='importacao')initImportTab();
   if(id==='rh')switchRHTab('colab');
   if(id==='compras')switchComprasTab('lista');
@@ -11281,6 +11314,51 @@ function confirmarLancamento(){
       return {ok:true,n:arr.length};
     }catch(e){return {erro:String(e&&e.message||e)};}
   };
+
+  // ── BACKUP COMPLETO PARA A CLOUD (tabela 'backups') ───────────────────────
+  function _montarDumpCompleto(){
+    try{ if(typeof guardarTudo==='function') guardarTudo(); }catch(e){}
+    var ls={}; var chaves=[];
+    try{ for(var i=0;i<localStorage.length;i++) chaves.push(localStorage.key(i)); }catch(e){}
+    chaves.forEach(function(k){ try{ ls[k]=localStorage.getItem(k); }catch(_){} });
+    var nObras=0,nCustos=0,nContratos=0;
+    try{ var co=JSON.parse(ls['controloObras_v4']||'{}'); nObras=(co.obras||[]).length; nCustos=(co.custos||[]).length; }catch(e){}
+    try{ var au=JSON.parse(ls['autosmed_store_v1']||'{}'); nContratos=(au.contratos||[]).length; }catch(e){}
+    return {_crm:'backup_completo', v:5, data:new Date().toISOString(),
+            resumo:{obras:nObras,custos:nCustos,contratos:nContratos,chaves:Object.keys(ls).length}, ls:ls};
+  }
+  // Guarda um backup na cloud e mantém apenas as N mais recentes (N=3).
+  window.cloudGuardarBackup=async function(){
+    var c=client();if(!c)return {erro:'Sem ligacao a cloud (verifica a internet e recarrega).'};
+    var dump=_montarDumpCompleto();
+    var agora=new Date().toISOString();
+    try{
+      var ins=await c.from('backups').insert({criado_em:agora, resumo:dump.resumo, dados:dump});
+      if(ins.error)return {erro:ins.error.message};
+      // manter só as 3 mais recentes: ler ids ordenados e apagar os excedentes
+      var lst=await c.from('backups').select('id,criado_em').order('criado_em',{ascending:false});
+      if(!lst.error && lst.data && lst.data.length>3){
+        var apagar=lst.data.slice(3).map(function(x){return x.id;});
+        if(apagar.length){ await c.from('backups').delete().in('id',apagar); }
+      }
+      try{ localStorage.setItem('gc_ultimo_backup_cloud', agora); }catch(e){}
+      return {ok:true, data:agora, resumo:dump.resumo, mantidos:Math.min((lst.data||[]).length,3)};
+    }catch(e){return {erro:String(e&&e.message||e)};}
+  };
+  // Backup automático MENSAL: corre no arranque; só envia se passou >= 1 mês.
+  window.cloudBackupAutomatico=async function(forcar){
+    if(!client())return; // sem cloud, não faz nada (silencioso)
+    var ultimo=null; try{ ultimo=localStorage.getItem('gc_ultimo_backup_cloud'); }catch(e){}
+    if(!forcar && ultimo){
+      var dias=(Date.now()-new Date(ultimo).getTime())/86400000;
+      if(dias < 30) return; // ainda não passou um mês
+    }
+    var r=await window.cloudGuardarBackup();
+    if(r&&r.ok){ console.log('Backup mensal para a cloud criado:', r.data, r.resumo); }
+    else { console.warn('Backup mensal falhou:', r&&r.erro); }
+  };
+  // dispara o backup automático pouco depois do arranque (sem bloquear a app)
+  try{ setTimeout(function(){ try{ window.cloudBackupAutomatico(); }catch(e){} }, 8000); }catch(e){}
 })();
 
 function abrirModalCloud(){
