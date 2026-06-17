@@ -294,7 +294,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v101</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v103</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1624,7 +1624,7 @@ table td{vertical-align:middle}
     </div>
     <div class="form-grid">
       <div class="form-group"><label>Categoria</label>
-        <select id="if-categ" onchange="syncCategIndir()">
+        <select id="if-categ">
           <option>Seguros</option><option>Rendas</option><option>Viaturas</option><option>Combustível</option>
           <option>Telecomunicações</option><option>Administrativos</option><option>Equipamentos</option>
           <option>Salários indiretos</option><option>Estaleiro</option><option>Transportes</option>
@@ -3714,7 +3714,9 @@ function showTab(id,btn){
   tabAtual=id;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
+  var _tabEl=document.getElementById('tab-'+id);
+  if(!_tabEl){ console.warn('showTab: separador inexistente -> tab-'+id); return; }
+  _tabEl.classList.add('active');
   if(btn)btn.classList.add('active');
   if(id==='custos')switchCustosTab('lista');
   if(id==='facturacao')switchFactTab('lista');
