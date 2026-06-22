@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v114</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v115</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -5611,8 +5611,8 @@ function renderDashboardMensal(mes){
   const top=porObra.slice().sort((a,b)=>b.autos-a.autos).slice(0,8);
   mkChartCfg('chartBarObras',{type:'bar',data:{labels:top.map(x=>x.o.num),
     datasets:[
-      {label:'Autos',data:top.map(x=>+x.autos.toFixed(2)),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1},
-      {label:'Custos',data:top.map(x=>+x.custos.toFixed(2)),backgroundColor:'#E24B4A55',borderColor:'#E24B4A',borderWidth:1}
+      {label:'Autos',data:top.map(x=>+(x.autos||0).toFixed(2)),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1},
+      {label:'Custos',data:top.map(x=>+(x.custos||0).toFixed(2)),backgroundColor:'#E24B4A55',borderColor:'#E24B4A',borderWidth:1}
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
       x:{ticks:{font:{size:10},autoSkip:false,maxRotation:45}},y:{ticks:{callback:v=>fmt(v,0)+'€',font:{size:10}}}}}});
   // gráfico 2: margem do mês por obra
@@ -5774,8 +5774,8 @@ function renderDashboard(){
   mkChartCfg('chartBarObras',{type:'bar',data:{
     labels:top8.map(o=>o.num),
     datasets:[
-      {label:'Autos',data:top8.map(o=>+(o.autos).toFixed(2)),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1},
-      {label:'Custos Total',data:top8.map(o=>+((o.custos+o.gastosGerais)).toFixed(2)),backgroundColor:'#E24B4A55',borderColor:'#E24B4A',borderWidth:1}
+      {label:'Autos',data:top8.map(o=>+((o.autos||0)).toFixed(2)),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1},
+      {label:'Custos Total',data:top8.map(o=>+(((o.custos||0)+(o.gastosGerais||0))).toFixed(2)),backgroundColor:'#E24B4A55',borderColor:'#E24B4A',borderWidth:1}
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
       x:{ticks:{font:{size:10},autoSkip:false,maxRotation:45}},
       y:{ticks:{callback:v=>v+'€',font:{size:10}}}
@@ -7447,7 +7447,7 @@ function exportFacturacaoCSV(){
   const rows=[['N.º','Obra','Autos (€)','Trab.Mais (€)','Rev.Preços (€)','Total s/IVA (€)','IVA (€)','Total c/IVA (€)','Adiantamento (€)','Retido Acum. (€)','Fat.Líquida (€)','Liquidez Acum. (€)','Estado Faturação']];
   obras.forEach(o=>{
     const fin=finObra(o);if(!fin.temDados)return;
-    rows.push([o.num,o.nome,fin.autos.toFixed(2),fin.tm.toFixed(2),fin.rp.toFixed(2),fin.base.toFixed(2),
+    rows.push([o.num,o.nome,(fin.autos||0).toFixed(2),fin.tm.toFixed(2),fin.rp.toFixed(2),fin.base.toFixed(2),
       fin.iva.toFixed(2),fin.totalCIva.toFixed(2),fin.adiant.toFixed(2),fin.retidoLiqAcum.toFixed(2),
       fin.fatLiq.toFixed(2),fin.liquidez.toFixed(2),estadoFatLabel(estadoFatObra(o))]);
   });
