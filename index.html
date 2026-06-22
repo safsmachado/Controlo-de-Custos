@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v115</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v117</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -436,6 +436,7 @@ table td{vertical-align:middle}
         <option value="margem">Margem</option><option value="liquidez">Liquidez</option>
         <option value="adj">Adjudicação</option>
       </select>
+      <select id="ob-an-tipo" onchange="renderObrasAnalise()" title="Tipo de gráfico"><option value="bar" selected>Barras</option><option value="barh">Barras horiz.</option><option value="doughnut">Circular</option><option value="line">Linha</option></select>
       <select id="ob-an-agrup" onchange="renderObrasAnalise()">
         <option value="estado">Por estado</option>
         <option value="tipo">Por tipo de obra</option>
@@ -502,6 +503,7 @@ table td{vertical-align:middle}
   <div id="fact-sub-analise" style="display:none">
     <div class="toolbar">
       <select id="fc-an-mes" onchange="renderFactAnalise()"><option value="">Todos os meses</option></select>
+      <select id="fc-an-tipo" onchange="renderFactAnalise()" title="Tipo de gráfico"><option value="bar" selected>Barras</option><option value="barh">Barras horiz.</option><option value="doughnut">Circular</option><option value="line">Linha</option></select>
       <select id="fc-an-agrup" onchange="renderFactAnalise()">
         <option value="obra">Por obra</option>
         <option value="estado">Por estado</option>
@@ -641,12 +643,14 @@ table td{vertical-align:middle}
   <div id="custos-sub-analise" style="display:none">
     <div class="toolbar">
       <select id="cs-an-mes" onchange="renderCustosAnalise()"><option value="">Todos os meses</option></select>
+      <select id="cs-an-tipo" onchange="renderCustosAnalise()" title="Tipo de gráfico"><option value="bar" selected>Barras</option><option value="barh">Barras horiz.</option><option value="doughnut">Circular</option><option value="line">Linha</option></select>
       <select id="cs-an-agrup" onchange="renderCustosAnalise()">
         <option value="familia">Por família</option>
         <option value="categoria">Por categoria</option>
         <option value="obra">Por obra</option>
         <option value="fornecedor">Por fornecedor</option>
         <option value="centro">Por centro de custo</option>
+        <option value="mes">Por mês (evolução)</option>
       </select>
     </div>
     <div class="metric-grid" id="cs-an-metrics"></div>
@@ -1202,6 +1206,7 @@ table td{vertical-align:middle}
   <div id="rh-tab-analise" style="display:none">
     <div class="toolbar">
       <select id="rh-an-mes" onchange="renderRHAnalise()"><option value="">Todos os meses</option></select>
+      <select id="rh-an-tipo" onchange="renderRHAnalise()" title="Tipo de gráfico"><option value="bar" selected>Barras</option><option value="barh">Barras horiz.</option><option value="doughnut">Circular</option><option value="line">Linha</option></select>
       <select id="rh-an-agrup" onchange="renderRHAnalise()">
         <option value="dep">Por departamento</option>
         <option value="centro">Por centro de custo</option>
@@ -1277,6 +1282,7 @@ table td{vertical-align:middle}
   <!-- ===== ANÁLISE ===== -->
   <div id="compras-sub-analise" style="display:none">
     <div class="toolbar">
+      <select id="cp-an-tipo" onchange="renderComprasAnalise()" title="Tipo de gráfico"><option value="bar" selected>Barras</option><option value="barh">Barras horiz.</option><option value="doughnut">Circular</option><option value="line">Linha</option></select>
       <select id="cp-an-agrup" onchange="renderComprasAnalise()">
         <option value="obra">Por obra</option>
         <option value="situacao">Por situação</option>
@@ -2516,6 +2522,29 @@ function mkChart(id,config){
   return ch;
 }
 
+/* Função única de gráficos de análise: tipo = bar | barh | doughnut | pie | line.
+   Donut/circular com valores negativos cai automaticamente para barras horizontais. */
+function mkAnChart(id,tipo,labels,dados,nomeMetrica){
+  if(!labels||!labels.length)return;
+  var temNeg=dados.some(function(v){return v<0;});
+  var t=tipo||'bar';
+  if((t==='doughnut'||t==='pie')&&temNeg)t='barh';
+  var cores=labels.map(function(l,i){return CHART_COLORS[i%CHART_COLORS.length];});
+  if(t==='doughnut'||t==='pie'){
+    mkChart(id,{type:t,data:{labels:labels,datasets:[{data:dados,backgroundColor:cores,borderWidth:2,borderColor:'#fff'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{font:{size:9},boxWidth:10}}}}});
+  }else if(t==='line'){
+    mkChart(id,{type:'line',data:{labels:labels,datasets:[{label:nomeMetrica||'',data:dados,borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,.15)',fill:true,tension:.3,borderWidth:2,pointRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:function(v){return fmt(v,0)+'\u20ac';},font:{size:9}}},x:{ticks:{font:{size:9}}}}}});
+  }else{
+    var horiz=(t==='barh'); var ev=horiz?'x':'y', ec=horiz?'y':'x'; var sc={};
+    sc[ev]={beginAtZero:true,ticks:{callback:function(v){return fmt(v,0)+'\u20ac';},font:{size:9}}};
+    sc[ec]={ticks:{font:{size:9}}};
+    mkChart(id,{type:'bar',data:{labels:labels,datasets:[{label:nomeMetrica||'',data:dados,backgroundColor:labels.map(function(l,i){return dados[i]<0?'#E24B4A99':CHART_COLORS[i%CHART_COLORS.length];}),borderWidth:1}]},
+      options:{indexAxis:horiz?'y':'x',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:sc}});
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════════════
@@ -3165,8 +3194,7 @@ function renderRHAnalise(){
   const labels=Object.keys(acc).sort((a,b)=>acc[b]-acc[a]);
   const dados=labels.map(l=>+acc[l].toFixed(2));
   if(typeof mkChart==='function'&&labels.length){
-    mkChart('chartRHdist',{type:'doughnut',data:{labels,datasets:[{data:dados,backgroundColor:CHART_COLORS.slice(0,labels.length),borderWidth:2,borderColor:'#fff'}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{font:{size:9},boxWidth:10}}}}});
+    mkAnChart('chartRHdist',(document.getElementById('rh-an-tipo')||{}).value||'bar',labels,dados,'Custo RH');
   }
   // tabela
   let html='<table><thead><tr><th>'+(agrup==='obra'?'Obra':agrup==='colab'?'Colaborador':'Centro/Departamento')+'</th><th style="text-align:right">Custo RH</th><th style="text-align:right">% do total</th></tr></thead><tbody>';
@@ -3174,6 +3202,9 @@ function renderRHAnalise(){
     html+=`<tr><td>${nome}</td><td style="text-align:right;font-weight:600">${fmt(v,2)}€</td><td style="text-align:right">${fmtPct(totalRH>0?v/totalRH:0)}</td></tr>`;});
   html+=`<tr style="font-weight:700;background:#f8f9fb;border-top:2px solid var(--border)"><td>TOTAL</td><td style="text-align:right">${fmt(totalRH,2)}€</td><td style="text-align:right">100.00%</td></tr>`;
   html+='</tbody></table>';
+  if(rhColab.length===0){
+    html='<div style="padding:24px;text-align:center;color:var(--muted)">Ainda não há colaboradores carregados.<br>Adicione-os em <strong>RH → Colaboradores</strong> para ver a análise.</div>';
+  }
   document.getElementById('rh-an-tabela').innerHTML=html;
 }
 
@@ -3706,9 +3737,7 @@ function renderComprasAnalise(){
     <div class="metric"><div class="metric-label">Total adjudicado</div><div class="metric-value">${fmt(totAdj,2)}€</div></div>
     <div class="metric"><div class="metric-label">Poupança total</div><div class="metric-value ${(totCusto-totAdj)<0?'danger':'success'}">${fmt(totCusto-totAdj,2)}€</div></div>`;
   if(typeof mkChart==='function'&&labels.length){
-    mkChart('chartComprasAn',{type:'bar',
-      data:{labels:labels.slice(0,15),datasets:[{label:nomeMetrica,data:labels.slice(0,15).map(l=>+acc[l].toFixed(2)),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},maxRotation:50}},y:{ticks:{callback:v=>ehDinheiro?fmt(v,0)+'€':v,font:{size:10}}}}}});
+    mkAnChart('chartComprasAn',(document.getElementById('cp-an-tipo')||{}).value||'bar',labels.slice(0,15),labels.slice(0,15).map(l=>+acc[l].toFixed(2)),nomeMetrica);
     // gráfico de situação (sempre)
     const accSit={};compras.forEach(c=>{const s=c.situacao||'(s/situação)';accSit[s]=(accSit[s]||0)+1;});
     const ls=Object.keys(accSit);
@@ -6746,6 +6775,48 @@ function desenharGraficosCustom(){
 
 
 // aplica visibilidade/ordem/tamanho aos cards (o tipo/cor é usado no render dos gráficos)
+let _dashDragId=null;
+function _dashCSS(){
+  if(document.getElementById('dash-ctrl-css'))return;
+  var st=document.createElement('style');st.id='dash-ctrl-css';
+  st.textContent=".chart-card{position:relative}"
+   +".dash-ctrl{position:absolute;top:6px;right:8px;display:flex;align-items:center;gap:6px;z-index:6;opacity:0;transition:opacity .15s}"
+   +".chart-card:hover .dash-ctrl{opacity:1}"
+   +".dash-grip{cursor:grab;color:var(--muted);font-size:15px;line-height:1;user-select:none;padding:2px 5px;border:1px solid var(--border);border-radius:6px;background:#fff}"
+   +".dash-grip:active{cursor:grabbing}"
+   +".dash-sizes{display:flex;gap:2px}"
+   +".dash-size{border:1px solid var(--border);background:#fff;color:var(--muted);font-size:10px;font-weight:700;width:21px;height:21px;border-radius:6px;cursor:pointer;padding:0}"
+   +".dash-size.on{background:#378ADD;color:#fff;border-color:#378ADD}"
+   +".chart-card.dragging{opacity:.45}"
+   +".chart-card.drop-target{outline:2px dashed #378ADD;outline-offset:-2px}";
+  document.head.appendChild(st);
+}
+function montarControlosDash(){
+  _dashCSS();
+  var cont=document.getElementById('dash-charts');if(!cont)return;
+  cont.querySelectorAll('[data-chart]').forEach(function(card){
+    var id=card.getAttribute('data-chart');
+    var cfg=(typeof cfgDe==='function')?cfgDe(id):null;
+    var tam=cfg?cfg.tamanho:'M';
+    var bar=card.querySelector('.dash-ctrl');
+    if(!bar){bar=document.createElement('div');bar.className='dash-ctrl';card.insertBefore(bar,card.firstChild);}
+    bar.innerHTML='<span class="dash-grip" title="Arrastar para mudar de posição" onmousedown="this.closest(\'[data-chart]\').setAttribute(\'draggable\',\'true\')">\u283f</span>'
+      +'<span class="dash-sizes">'+['P','M','G'].map(function(t){return '<button class="dash-size'+(tam===t?' on':'')+'" title="Tamanho '+t+'" onclick="setGraficoCampo(\''+id+'\',\'tamanho\',\''+t+'\')">'+t+'</button>';}).join('')+'</span>';
+    card.setAttribute('draggable','false');
+    card.ondragstart=function(e){_dashDragId=id;card.classList.add('dragging');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);}catch(_){}};
+    card.ondragend=function(){card.classList.remove('dragging');card.setAttribute('draggable','false');_dashDragId=null;cont.querySelectorAll('.drop-target').forEach(function(x){x.classList.remove('drop-target');});};
+    card.ondragover=function(e){if(_dashDragId&&_dashDragId!==id){e.preventDefault();card.classList.add('drop-target');}};
+    card.ondragleave=function(){card.classList.remove('drop-target');};
+    card.ondrop=function(e){e.preventDefault();card.classList.remove('drop-target');if(_dashDragId&&_dashDragId!==id)trocarOrdemDash(_dashDragId,id);};
+  });
+}
+function trocarOrdemDash(idA,idB){
+  if(!dashCharts)return;
+  var a=cfgDe(idA),b=cfgDe(idB);if(!a||!b)return;
+  var oa=a.ordem;a.ordem=b.ordem;b.ordem=oa;
+  guardarConfigGraficos();aplicarConfigGraficos();
+  if(typeof renderConfigGraficos==='function')renderConfigGraficos();
+}
 function aplicarConfigGraficos(){
   if(!dashCharts)carregarConfigGraficos();
   const cont=document.getElementById('dash-charts');
@@ -6768,6 +6839,7 @@ function aplicarConfigGraficos(){
     });
     setTimeout(desenharGraficosCustom,30);
   }
+  if(typeof montarControlosDash==='function')montarControlosDash();
 }
 
 function abrirCriarGrafico(){
@@ -7032,9 +7104,7 @@ function renderFactAnalise(){
     <div class="metric"><div class="metric-label">Faturação ${mes?'('+mes+')':'(total)'}</div><div class="metric-value">${fmt(totFat,2)}€</div></div>
     <div class="metric"><div class="metric-label">Liquidez</div><div class="metric-value ${totLiq<0?'danger':'success'}">${fmt(totLiq,2)}€</div></div>
     <div class="metric"><div class="metric-label">Grupos</div><div class="metric-value">${labels.length}</div></div>`;
-  if(typeof mkChart==='function'&&labels.length)mkChart('chartFactAn',{type:'bar',
-    data:{labels,datasets:[{label:'Faturação',data:labels.map(l=>+accFat[l].toFixed(2)),backgroundColor:'#378ADD88',borderColor:'#378ADD',borderWidth:1}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},maxRotation:45}},y:{ticks:{callback:v=>fmt(v,0)+'€',font:{size:10}}}}}});
+  if(typeof mkAnChart==='function')mkAnChart('chartFactAn',(document.getElementById('fc-an-tipo')||{}).value||'bar',labels,labels.map(l=>+accFat[l].toFixed(2)),'Faturação');
   document.getElementById('fc-an-liq').innerHTML=labels.map(l=>`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>${l}</span><strong class="${accLiq[l]<0?'negative':'positive'}">${fmt(accLiq[l],2)}€</strong></div>`).join('')||'<p style="color:var(--muted)">Sem dados</p>';
   let html='<table><thead><tr><th>Grupo</th><th style="text-align:right">Faturação</th><th style="text-align:right">Liquidez</th><th style="text-align:right">% Fat.</th></tr></thead><tbody>';
   labels.forEach(l=>{html+=`<tr><td>${l}</td><td style="text-align:right;font-weight:600">${fmt(accFat[l],2)}€</td><td style="text-align:right" class="${accLiq[l]<0?'negative':'positive'}">${fmt(accLiq[l],2)}€</td><td style="text-align:right">${fmtPct(totFat>0?accFat[l]/totFat:0)}</td></tr>`;});
@@ -7097,9 +7167,7 @@ function renderObrasAnalise(){
     <div class="metric"><div class="metric-label">${nomeMetrica} (total)</div><div class="metric-value ${total<0?'danger':''}">${fmt(total,2)}€</div></div>
     <div class="metric"><div class="metric-label">Obras</div><div class="metric-value">${obras.length}</div></div>
     <div class="metric"><div class="metric-label">Grupos</div><div class="metric-value">${labels.length}</div></div>`;
-  if(typeof mkChart==='function'&&labels.length)mkChart('chartObrasAn',{type:'bar',
-    data:{labels,datasets:[{label:nomeMetrica,data:labels.map(l=>+acc[l].toFixed(2)),backgroundColor:'#63992288',borderColor:'#639922',borderWidth:1}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},maxRotation:45}},y:{ticks:{callback:v=>fmt(v,0)+'€',font:{size:10}}}}}});
+  if(typeof mkAnChart==='function')mkAnChart('chartObrasAn',(document.getElementById('ob-an-tipo')||{}).value||'bar',labels,labels.map(l=>+acc[l].toFixed(2)),nomeMetrica);
   document.getElementById('ob-an-top').innerHTML=labels.slice(0,10).map(l=>`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>${l}</span><strong class="${acc[l]<0?'negative':'positive'}">${fmt(acc[l],2)}€</strong></div>`).join('')||'<p style="color:var(--muted)">Sem dados</p>';
   let html='<table><thead><tr><th>Grupo</th><th style="text-align:right">'+nomeMetrica+'</th><th style="text-align:right">%</th></tr></thead><tbody>';
   labels.forEach(l=>{html+=`<tr><td>${l}</td><td style="text-align:right;font-weight:600" class="${acc[l]<0?'negative':''}">${fmt(acc[l],2)}€</td><td style="text-align:right">${fmtPct(total!==0?acc[l]/total:0)}</td></tr>`;});
@@ -8300,18 +8368,19 @@ function renderCustosAnalise(){
     else if(agrup==='obra')k=c.obraNum||'(s/obra)';
     else if(agrup==='fornecedor')k=c.fornecedor||'(s/fornecedor)';
     else if(agrup==='centro')k=c.centroNome||'(s/centro)';
+    else if(agrup==='mes')k=(c.ano||'0000')+'-'+String(c.mesNum||0).padStart(2,'0');
     const v=c.valor||0;acc[k]=(acc[k]||0)+v;total+=v;
   });
-  const labels=Object.keys(acc).sort((a,b)=>acc[b]-acc[a]);
+  const labels=Object.keys(acc).sort((a,b)=> agrup==='mes' ? a.localeCompare(b) : acc[b]-acc[a]);
   document.getElementById('cs-an-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Total custos ${mes?'('+mes+')':''}</div><div class="metric-value warning">${fmt(total,2)}€</div></div>
     <div class="metric"><div class="metric-label">Nº registos</div><div class="metric-value">${lista.length}</div></div>
     <div class="metric"><div class="metric-label">Grupos</div><div class="metric-value">${labels.length}</div></div>`;
-  if(typeof mkChart==='function'&&labels.length)mkChart('chartCustosAn',{type:'doughnut',
-    data:{labels,datasets:[{data:labels.map(l=>+acc[l].toFixed(2)),backgroundColor:CHART_COLORS.slice(0,labels.length),borderWidth:2,borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{font:{size:9},boxWidth:10}}}}});
+  if(typeof mkAnChart==='function'){
+    mkAnChart('chartCustosAn',(document.getElementById('cs-an-tipo')||{}).value||'bar',labels,labels.map(l=>+acc[l].toFixed(2)),'Custos');
+  }
   document.getElementById('cs-an-top').innerHTML=labels.slice(0,10).map(l=>`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span>${l}</span><strong>${fmt(acc[l],2)}€</strong></div>`).join('')||'<p style="color:var(--muted)">Sem dados</p>';
-  let html='<table><thead><tr><th>'+({familia:'Família',categoria:'Categoria',obra:'Obra',fornecedor:'Fornecedor',centro:'Centro de custo'})[agrup]+'</th><th style="text-align:right">Total</th><th style="text-align:right">%</th></tr></thead><tbody>';
+  let html='<table><thead><tr><th>'+({familia:'Família',categoria:'Categoria',obra:'Obra',fornecedor:'Fornecedor',centro:'Centro de custo',mes:'Mês'})[agrup]+'</th><th style="text-align:right">Total</th><th style="text-align:right">%</th></tr></thead><tbody>';
   labels.forEach(l=>{html+=`<tr><td>${l}</td><td style="text-align:right;font-weight:600">${fmt(acc[l],2)}€</td><td style="text-align:right">${fmtPct(total>0?acc[l]/total:0)}</td></tr>`;});
   html+=`<tr style="font-weight:700;background:#f8f9fb;border-top:2px solid var(--border)"><td>TOTAL</td><td style="text-align:right">${fmt(total,2)}€</td><td style="text-align:right">100.00%</td></tr></tbody></table>`;
   document.getElementById('cs-an-tabela').innerHTML=html;
