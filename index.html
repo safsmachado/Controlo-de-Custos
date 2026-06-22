@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v113</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v114</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -2462,6 +2462,9 @@ function closeModal(id){
   // restaura a posição exata, sem animação
   window.scrollTo(0,_scrollY);
 }
+/* === Capturador de erros visível (barra vermelha em baixo) === */
+window.__gerrlog=function(msg){try{var b=document.getElementById('__errbox');if(!b){b=document.createElement('div');b.id='__errbox';b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#b91c1c;color:#fff;font:12px/1.45 ui-monospace,monospace;padding:8px 40px 8px 12px;max-height:42vh;overflow:auto;white-space:pre-wrap;box-shadow:0 -2px 8px rgba(0,0,0,.3)';var x=document.createElement('span');x.textContent='\u2715';x.style.cssText='position:absolute;top:6px;right:12px;cursor:pointer;font-size:16px;font-weight:bold';x.onclick=function(){b.remove();};b.appendChild(x);(document.body||document.documentElement).appendChild(b);}b.appendChild(document.createTextNode('\n'+msg));}catch(e){}};
+if(!window.__gerrInstalado){window.__gerrInstalado=1;window.addEventListener('error',function(ev){var f=(ev.filename||'').split('/').pop();window.__gerrlog('ERRO: '+(ev.message||'')+'  ('+f+':'+(ev.lineno||'?')+')');});window.addEventListener('unhandledrejection',function(ev){window.__gerrlog('PROMESSA: '+((ev.reason&&ev.reason.message)||ev.reason||''));});}
 function destroyChart(id){if(chartRegistry[id]){try{if(chartRegistry[id]._ro)chartRegistry[id]._ro.disconnect();}catch(e){}try{chartRegistry[id].destroy();}catch(e){}delete chartRegistry[id];}}
 function mkChartCfg(id,config){
   // aplica tipo e cor configurados em "Gráficos e Análises"
@@ -2490,7 +2493,14 @@ function mkChartCfg(id,config){
 function mkChart(id,config){
   const ctx=document.getElementById(id);if(!ctx)return;
   destroyChart(id);
-  const ch=new Chart(ctx,config);
+  var ch;
+  try{ ch=new Chart(ctx,config); }
+  catch(err){
+    var m=(err&&err.message)||String(err);
+    if(window.__gerrlog)window.__gerrlog('GRAFICO '+id+': '+m);
+    try{var w=ctx.parentElement;if(w){w.insertAdjacentHTML('beforeend','<div style=\"position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#b91c1c;font:11px/1.3 monospace;text-align:center;padding:6px\">Gráfico falhou:<br>'+m+'</div>');}}catch(_){}
+    return;
+  }
   chartRegistry[id]=ch;
   // Corrige gráficos criados num separador/aba ainda sem dimensão (canvas a 0px):
   // quando o container ganha tamanho ou fica visível, o gráfico redimensiona-se.
@@ -6745,7 +6755,7 @@ function aplicarConfigGraficos(){
   ordenados.forEach((cfg,pos)=>{
     const card=cont.querySelector(`[data-chart="${cfg.id}"]`);
     if(!card)return;
-    card.style.display=cfg.visivel?'':'none';
+    card.style.display=(cfg.visivel===false)?'none':'';
     card.style.order=pos;
     card.style.flex='1 1 '+(larguras[cfg.tamanho]||larguras['M']);
   });
@@ -6754,7 +6764,7 @@ function aplicarConfigGraficos(){
     customCharts.forEach(cc=>{
       const cfg=cfgDe(cc.id); if(!cfg)return;
       const card=cont.querySelector(`[data-chart="${cc.id}"]`);
-      if(card){card.style.display=cfg.visivel?'':'none';card.style.order=cfg.ordem;card.style.flex='1 1 '+(larguras[cfg.tamanho]||larguras['M']);}
+      if(card){card.style.display=(cfg.visivel===false)?'none':'';card.style.order=cfg.ordem;card.style.flex='1 1 '+(larguras[cfg.tamanho]||larguras['M']);}
     });
     setTimeout(desenharGraficosCustom,30);
   }
