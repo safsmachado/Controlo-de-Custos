@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v117</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v119</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -2056,6 +2056,84 @@ function limparDados(){
   try{location.reload();}catch(e){}
 }
 window.limparDados=limparDados;
+/* ===== ANEXOS das compras em IndexedDB (a "gaveta grande" do navegador) =====
+   Os ficheiros (PDF/imagens) deixam de ocupar o localStorage (teto ~5MB) e passam
+   para IndexedDB (varios GB). No objeto da compra fica so a ficha leve do anexo
+   {nome,tipo,size,idb:true}; o conteudo pesado (dataURL) vive aqui. */
+var AnexosDB=(function(){
+  var DBNAME='cc_anexos_v1', STORE='anexos', _db=null;
+  function abrir(){
+    return new Promise(function(res,rej){
+      if(_db)return res(_db);
+      try{
+        var rq=indexedDB.open(DBNAME,1);
+        rq.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE);};
+        rq.onsuccess=function(e){_db=e.target.result;res(_db);};
+        rq.onerror=function(){rej(rq.error);};
+      }catch(err){rej(err);}
+    });
+  }
+  function op(mode,fn){return abrir().then(function(db){return new Promise(function(res,rej){
+    var t=db.transaction(STORE,mode), st=t.objectStore(STORE), r=fn(st);
+    r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);};
+  });});}
+  return {
+    set:function(key,val){return op('readwrite',function(st){return st.put(val,key);});},
+    get:function(key){return op('readonly',function(st){return st.get(key);}).then(function(v){return v||null;});},
+    del:function(key){return op('readwrite',function(st){return st.delete(key);});},
+    all:function(){return abrir().then(function(db){return new Promise(function(res,rej){
+      var out={}, t=db.transaction(STORE,'readonly'), st=t.objectStore(STORE), c=st.openCursor();
+      c.onsuccess=function(e){var cur=e.target.result; if(cur){out[cur.key]=cur.value;cur.continue();} else res(out);};
+      c.onerror=function(){rej(c.error);};
+    });});},
+    disponivel:function(){try{return typeof indexedDB!=='undefined' && !!indexedDB;}catch(e){return false;}}
+  };
+})();
+window.AnexosDB=AnexosDB;
+
+/* Grava (ou remove) um anexo de uma compra na IndexedDB e devolve a ficha leve a
+   guardar no objeto da compra. Se a IndexedDB falhar, mantem o anexo embutido
+   (rede de seguranca, nunca perde). */
+async function _cpGravarAnexo(id,qual,a){
+  var key=String(id)+'::'+qual;
+  if(!a){ try{ if(AnexosDB.disponivel()) await AnexosDB.del(key); }catch(e){} return null; }
+  if(a.dataURL){ // anexo novo escolhido nesta sessao
+    if(AnexosDB.disponivel()){
+      try{
+        await AnexosDB.set(key,{nome:a.nome,tipo:a.tipo,size:a.size,dataURL:a.dataURL});
+        return {nome:a.nome,tipo:a.tipo,size:a.size,idb:true};
+      }catch(e){ return a; } // falhou: mantem embutido
+    }
+    return a;
+  }
+  return a; // ja era ficha (idb) ou embutido antigo, nao mexido
+}
+
+/* One-time: move anexos antigos (dataURL embutido) para a IndexedDB, libertando o
+   localStorage. So remove o embutido DEPOIS de confirmar que ficou gravado. */
+async function _migrarAnexosParaIDB(){
+  try{
+    if(typeof compras==='undefined'||!compras||!compras.length)return;
+    if(!AnexosDB.disponivel())return;
+    var mudou=false, pares=[['contrato','anexoContrato'],['lista','anexoLista']];
+    for(var i=0;i<compras.length;i++){
+      var c=compras[i]; if(!c||c.id==null)continue;
+      for(var p=0;p<pares.length;p++){
+        var qual=pares[p][0], campo=pares[p][1], a=c[campo];
+        if(a && typeof a==='object' && a.dataURL){
+          var key=String(c.id)+'::'+qual;
+          try{
+            await AnexosDB.set(key,{nome:a.nome,tipo:a.tipo,size:a.size,dataURL:a.dataURL});
+            var chk=await AnexosDB.get(key);
+            if(chk && chk.dataURL){ c[campo]={nome:a.nome,tipo:a.tipo,size:a.size,idb:true}; mudou=true; }
+          }catch(e){}
+        }
+      }
+    }
+    if(mudou){ try{guardarTudo();}catch(e){} try{guardarCompras();}catch(e){} }
+  }catch(e){}
+}
+
 function guardarTudo(){
   const dump={
     v:4,ts:Date.now(),
@@ -2244,7 +2322,7 @@ function atualizarEstadoBackupCloud(){
   if(u){ var d=new Date(u); el.textContent='Último backup na cloud: '+d.toLocaleDateString('pt-PT')+' '+d.toLocaleTimeString('pt-PT').slice(0,5); }
   else { el.textContent='Ainda não há backups na cloud.'; }
 }
-function appBackup(){
+async function appBackup(){
   // 1) montar os dados PRINCIPAIS a partir da MEMÓRIA (o que está no ecrã), não só do armazenamento
   try{ if(typeof guardarTudo==='function') guardarTudo(); }catch(e){}
   var principal=null;
@@ -2274,8 +2352,9 @@ function appBackup(){
   var nObras=0,nCustos=0,nContratos=0;
   try{ var co=JSON.parse(ls['controloObras_v4']||'{}'); nObras=(co.obras||[]).length; nCustos=(co.custos||[]).length; }catch(e){}
   try{ var au=JSON.parse(ls['autosmed_store_v1']||'{}'); nContratos=(au.contratos||[]).length; }catch(e){}
-  var dump={_crm:'backup_completo', v:5, data:new Date().toISOString(),
-            resumo:{obras:nObras,custos:nCustos,contratos:nContratos,chaves:Object.keys(ls).length}, ls:ls};
+  var idb={}; try{ if(window.AnexosDB && AnexosDB.disponivel()) idb=await AnexosDB.all(); }catch(e){}
+  var dump={_crm:'backup_completo', v:6, data:new Date().toISOString(),
+            resumo:{obras:nObras,custos:nCustos,contratos:nContratos,chaves:Object.keys(ls).length,anexos:Object.keys(idb).length}, ls:ls, idb:idb};
   var txt=JSON.stringify(dump,null,2);
   var blob=new Blob([txt],{type:'application/json'});
   var a=document.createElement('a');
@@ -2287,7 +2366,7 @@ function appBackup(){
 function appRestaurar(file){
   if(!file)return;
   var r=new FileReader();
-  r.onload=function(e){
+  r.onload=async function(e){
     var d;
     try{ d=JSON.parse(e.target.result); }catch(err){ alert('Ficheiro inválido (não é um backup).'); return; }
     if(!(d&&d.ls&&typeof d.ls==='object')){ alert('Este ficheiro não é um backup válido desta aplicação.'); return; }
@@ -2299,6 +2378,8 @@ function appRestaurar(file){
     // 1) repor o armazenamento (para futuras sessões)
     try{ Object.keys(d.ls).forEach(function(k){ if(d.ls[k]==null) localStorage.removeItem(k); else localStorage.setItem(k,d.ls[k]); }); }
     catch(err){ alert('Erro ao gravar (o navegador pode estar sem espaço).\n'+err); return; }
+    // repor anexos (IndexedDB) se o backup os trouxer (backups novos com idb)
+    try{ if(d.idb && typeof d.idb==='object' && window.AnexosDB && AnexosDB.disponivel()){ var _ks=Object.keys(d.idb); for(var _i=0;_i<_ks.length;_i++){ try{ await AnexosDB.set(_ks[_i], d.idb[_ks[_i]]); }catch(_){} } } }catch(_){}
     // 2) aplicar os dados principais DIRETAMENTE à memória — como faz o separador Autos (NÃO recarrega a página)
     try{ if(co){
       if(co.obras)obras=co.obras;
@@ -3219,7 +3300,24 @@ function carregarCompras(){
   try{const s=localStorage.getItem('compras_v1');if(s){const d=JSON.parse(s);compras=Array.isArray(d.compras)?d.compras:(Array.isArray(d)?d:[]);}}catch(e){compras=[];}
 }
 function guardarCompras(){
-  try{localStorage.setItem('compras_v1',JSON.stringify({compras}));}catch(e){}
+  // Os anexos (PDF/imagens) ficam guardados UMA vez, no bloco consolidado
+  // (controloObras_v4), que e a fonte de verdade no arranque. Persistimos
+  // primeiro o completo, para nunca perder um anexo acabado de juntar.
+  try{ if(typeof guardarTudo==='function') guardarTudo(); }catch(e){}
+  // Em compras_v1 guardamos uma copia LEVE (nome/tipo/tamanho do anexo, sem o
+  // conteudo pesado), para o mesmo ficheiro nao ocupar espaco em dobro.
+  try{
+    var leve=(compras||[]).map(function(c){
+      var o=Object.assign({},c);
+      ['anexoContrato','anexoLista'].forEach(function(f){
+        if(o[f]&&typeof o[f]==='object'&&o[f].dataURL){
+          var meta=Object.assign({},o[f]); delete meta.dataURL; meta.__semDados=true; o[f]=meta;
+        }
+      });
+      return o;
+    });
+    localStorage.setItem('compras_v1',JSON.stringify({compras:leve}));
+  }catch(e){}
 }
 
 // ---- importação ----
@@ -3502,7 +3600,7 @@ function abrirModalCompra(id){
     document.getElementById('cp-tipo').value='FORNECIMENTO';document.getElementById('cp-situacao').value='Adjudicado';document.getElementById('cp-desvio').value='';}
   openModal('modal-compra');
 }
-function saveCompra(){
+async function saveCompra(){
   const obra=document.getElementById('cp-obra').value.trim();
   if(!obra){alert('Indique a obra');return;}
   const custo=parseNum(document.getElementById('cp-custo').value);
@@ -3514,12 +3612,15 @@ function saveCompra(){
     fornecedor:(document.getElementById('cp-fornecedor')?document.getElementById('cp-fornecedor').value.trim():''),
     artigos,
     propostas:cpLerPropostas(),
-    anexoContrato:_cpAnexos.contrato||null, anexoLista:_cpAnexos.lista||null,
     dataAdj:document.getElementById('cp-dataAdj').value,custo,adjud,desvio:+(custo-adjud).toFixed(2),
     obs:document.getElementById('cp-obs').value.trim()};
   data.ano=cpAnoDe(data);
+  // id estavel (necessario para a chave dos anexos na IndexedDB)
+  var _cid = editCompraId ? editCompraId : (Date.now()+Math.random());
+  data.anexoContrato = await _cpGravarAnexo(_cid,'contrato',_cpAnexos.contrato);
+  data.anexoLista    = await _cpGravarAnexo(_cid,'lista',   _cpAnexos.lista);
   if(editCompraId){const c=compras.find(x=>String(x.id)===String(editCompraId));if(c)Object.assign(c,data);}
-  else{data.id=Date.now()+Math.random();compras.push(data);}
+  else{data.id=_cid;compras.push(data);}
   guardarCompras();closeModal('modal-compra');renderCompras();
 }
 /* ===== Lista de quantidades nas Compras ===== */
@@ -3686,11 +3787,19 @@ function cpAnexoFile(qual,inp){
   r.readAsDataURL(f);
 }
 function cpAnexoRemover(qual){_cpAnexos[qual]=null;cpRenderAnexos();}
-function cpAnexoVer(qual){
-  const a=_cpAnexos[qual];if(!a)return;
-  const w=window.open();if(!w){alert('Permita pop-ups para abrir o anexo.');return;}
-  if((a.tipo||'').indexOf('image')===0){w.document.write('<img src="'+a.dataURL+'" style="max-width:100%">');}
-  else{w.document.write('<iframe src="'+a.dataURL+'" style="width:100%;height:100vh;border:0"></iframe>');}
+async function cpAnexoVer(qual){
+  var a=_cpAnexos[qual];if(!a)return;
+  var w=window.open();if(!w){alert('Permita pop-ups para abrir o anexo.');return;}
+  try{w.document.write('<p style="font:14px sans-serif;padding:14px">A abrir o anexo...</p>');}catch(_){}
+  var dataURL=a.dataURL;
+  if(!dataURL && a.idb && typeof editCompraId!=='undefined' && editCompraId && AnexosDB.disponivel()){
+    try{ var full=await AnexosDB.get(String(editCompraId)+'::'+qual); if(full)dataURL=full.dataURL; }catch(e){}
+  }
+  if(!dataURL){ try{w.document.body.innerHTML='<p style="font:14px sans-serif;padding:14px">Nao foi possivel abrir o anexo.</p>';}catch(_){} return; }
+  try{
+    if((a.tipo||'').indexOf('image')===0){w.document.write('<img src="'+dataURL+'" style="max-width:100%">');}
+    else{w.document.write('<iframe src="'+dataURL+'" style="width:100%;height:100vh;border:0"></iframe>');}
+  }catch(_){}
 }
 
 function removeCompra(id){if(!confirm('Eliminar este processo?'))return;compras=compras.filter(x=>String(x.id)!==String(id));guardarCompras();renderCompras();}
@@ -9272,6 +9381,10 @@ carregarRH();
 carregarCompras();
 setTimeout(instalarObservadoresColunas,150);
 carregarTudo();
+// One-time: se compras_v1 ainda guarda anexos pesados (versoes antigas),
+// passa-os a leve e consolida no bloco principal, libertando espaco ja ocupado.
+try{var _cv=localStorage.getItem('compras_v1');if(_cv&&_cv.indexOf('"dataURL"')!==-1){guardarCompras();}}catch(e){}
+try{ if(window.AnexosDB && AnexosDB.disponivel() && typeof _migrarAnexosParaIDB==='function') _migrarAnexosParaIDB(); }catch(e){}
 if(typeof agregarCustosNasObras==='function'&&custos.length)agregarCustosNasObras();
 populateSelects();
 popularAnoGlobal();
@@ -11042,7 +11155,7 @@ function confirmarLancamento(){
       if(col.t==='data')return celData(ch,col.k,(r[col.k]!=null?r[col.k]:''),'cfDataEl');
       if(col.t==='acoes')return '<td style="white-space:nowrap;text-align:center"><button class="btn sm" onclick="abrirCaucForn(\''+ch+'\')" title="Caução / cronologia"><i class="ti ti-eye"></i></button> <button class="btn sm" onclick="cfArquivar(\''+ch+'\')" title="'+(r.arquivada?'Reabrir':'Arquivar')+'"><i class="ti ti-'+(r.arquivada?'archive-off':'archive')+'"></i></button>'+(sub?' <button class="btn sm" onclick="abrirSubDetalhe(\''+ch+'\')" title="Autos"><i class="ti ti-ruler-2"></i></button>':'')+(r.arquivada?' <button class="btn sm danger" onclick="cfApagar(\''+ch+'\')" title="Apagar definitivamente"><i class="ti ti-trash"></i></button>':'')+'</td>';
       if(col.t==='ro')return '<td style="font-weight:600;text-align:center">'+esc(row.obra)+'</td>';
-      if(col.t==='rofor')return '<td style="text-align:center"><input list="dl-fornecedores" value="'+escA(row.fornecedor)+'" onchange="cfNome(\''+ch+'\',this.value)" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center"'+(sub?' title="subempreitada"':'')+'></td>';
+      if(col.t==='rofor')return '<td style="text-align:center"><input list="dl-fornecedores-cauc" value="'+escA(row.fornecedor)+'" onchange="cfNome(\''+ch+'\',this.value)" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center"'+(sub?' title="subempreitada"':'')+'></td>';
       if(col.t==='eur')return '<td style="text-align:center'+(col.k==='ret'?';color:var(--purple)':'')+'">'+(row[col.k]?eur(row[col.k]):'\u2014')+'</td>';
       if(col.t==='cdata'){if(!p)return '<td style="text-align:center;color:var(--muted)">\u2014</td>';var cor=p.vencida?'#c0392b':(p.dias!=null&&p.dias<=30?'#C77A2E':'var(--text)');return '<td style="text-align:center;white-space:nowrap;color:'+cor+'">'+(p.data?fmtData(p.data):'(s/ data)')+'</td>';}
       if(col.t==='cval'){if(!p)return '<td style="text-align:center;color:var(--muted)">\u2014</td>';return '<td style="text-align:center;white-space:nowrap">'+eur(p.valor)+'</td>';}
@@ -11059,7 +11172,7 @@ function confirmarLancamento(){
     var grp=g('cauf-group')?g('cauf-group').value:'obra';
     var L=fornLinhas();
     var nomes=nomesFornecedores();
-    var dl='<datalist id="dl-fornecedores">'+nomes.map(function(n){return '<option value="'+escA(n)+'">';}).join('')+'</datalist>';
+    var dl='<datalist id="dl-fornecedores-cauc">'+nomes.map(function(n){return '<option value="'+escA(n)+'">';}).join('')+'</datalist>';
     var head=montarHead(COLS_FOR,ordForn,'cauOrdForn');
     var tAdj=0,tExec=0,tRet=0,tGar=0,tProxF=0;L.forEach(function(x){tAdj+=x.adj;tExec+=x.exec;tRet+=x.ret;tGar+=+x.reg.garValor||0;var _pp=proxLib(x.reg);if(_pp)tProxF+=+_pp.valor||0;});
     var rows='';
