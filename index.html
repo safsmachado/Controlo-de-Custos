@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v119</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v123</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -2096,15 +2096,34 @@ window.AnexosDB=AnexosDB;
    (rede de seguranca, nunca perde). */
 async function _cpGravarAnexo(id,qual,a){
   var key=String(id)+'::'+qual;
-  if(!a){ try{ if(AnexosDB.disponivel()) await AnexosDB.del(key); }catch(e){} return null; }
+  var cloudPath='compras/'+String(id)+'__'+qual;
+  if(!a){
+    try{ if(AnexosDB.disponivel()) await AnexosDB.del(key); }catch(e){}
+    try{ if(window.cloudAnexoDel) window.cloudAnexoDel(cloudPath); }catch(e){}
+    return null;
+  }
   if(a.dataURL){ // anexo novo escolhido nesta sessao
+    var ficha=a;
     if(AnexosDB.disponivel()){
       try{
         await AnexosDB.set(key,{nome:a.nome,tipo:a.tipo,size:a.size,dataURL:a.dataURL});
-        return {nome:a.nome,tipo:a.tipo,size:a.size,idb:true};
-      }catch(e){ return a; } // falhou: mantem embutido
+        ficha={nome:a.nome,tipo:a.tipo,size:a.size,idb:true};
+      }catch(e){ ficha=a; } // falhou: mantem embutido
     }
-    return a;
+    // ---- Por online para todos (regra dos 5 MB) ----
+    try{
+      if(window.cloudAnexoUpload && typeof window.cloudOk==='function' && window.cloudOk()){
+        var MB=(a.size||0)/1048576, enviar=true;
+        if(MB>5){
+          enviar=confirm('O ficheiro "'+(a.nome||'anexo')+'" tem '+MB.toFixed(1)+' MB (acima de 5 MB).\n\nColocar ONLINE para todos os utilizadores?\n\nOK = online para todos\nCancelar = fica so neste computador');
+        }
+        if(enviar){
+          var up=await window.cloudAnexoUpload(cloudPath, a.dataURL, a.tipo);
+          if(up && up.ok && ficha && typeof ficha==='object'){ ficha.cloud=true; ficha.path=cloudPath; }
+        }
+      }
+    }catch(e){}
+    return ficha;
   }
   return a; // ja era ficha (idb) ou embutido antigo, nao mexido
 }
@@ -2162,6 +2181,7 @@ function guardarTudo(){
   }
   try{if(window.cauAutoSync)window.cauAutoSync(false);}catch(eC){}
   try{sincronizarAutosSeAberto();}catch(eS){}
+  try{if(window._syncAgendar)window._syncAgendar();}catch(eSy){}
 }
 // gravação "adiada" — junta várias alterações seguidas numa só escrita
 function sincronizarAutosSeAberto(){
@@ -2212,6 +2232,56 @@ function carregarTudo(){
     return true;
   }catch(e){console.warn('Falha a carregar:',e);return false;}
 }
+
+/* ===== Estado partilhado online (Fase 1) ===== */
+function _ccSemAnexosPesados(arr){
+  return (arr||[]).map(function(c){
+    var o=Object.assign({},c);
+    ['anexoContrato','anexoLista'].forEach(function(f){
+      var v=o[f];
+      if(typeof v==='string' && v.indexOf('data:')===0 && v.length>4000){ o[f]='__local__'; }
+    });
+    return o;
+  });
+}
+function montarEstadoPartilhado(){
+  return {
+    obras:obras, indiretos:indiretos, categorias:categorias, familias:familias,
+    tiposObra:tiposObra, tiposCliente:tiposCliente, custos:custos,
+    rhColab:rhColab, centrosCusto:centrosCusto, rhConfig:rhConfig, rhRegrasDistrib:rhRegrasDistrib,
+    compras:_ccSemAnexosPesados(compras), certificacoes:certificacoes
+  };
+}
+window.montarEstadoPartilhado=montarEstadoPartilhado;
+function aplicarEstadoPartilhado(d){
+  if(!d||typeof d!=='object')return false;
+  try{
+    if(Array.isArray(d.obras))obras=d.obras;
+    if(Array.isArray(d.indiretos))indiretos=d.indiretos;
+    if(Array.isArray(d.categorias))categorias=d.categorias;
+    if(Array.isArray(d.familias))familias=d.familias;
+    if(Array.isArray(d.tiposObra))tiposObra=d.tiposObra;
+    if(Array.isArray(d.tiposCliente))tiposCliente=d.tiposCliente;
+    if(Array.isArray(d.custos))custos=d.custos;
+    if(Array.isArray(d.rhColab))rhColab=d.rhColab;
+    if(Array.isArray(d.centrosCusto))centrosCusto=d.centrosCusto;
+    if(d.rhConfig&&typeof d.rhConfig==='object')rhConfig=d.rhConfig;
+    if(Array.isArray(d.rhRegrasDistrib))rhRegrasDistrib=d.rhRegrasDistrib;
+    if(Array.isArray(d.compras))compras=d.compras;
+    if(Array.isArray(d.certificacoes))certificacoes=d.certificacoes;
+    return true;
+  }catch(e){console.warn('aplicarEstado falhou',e);return false;}
+}
+window.aplicarEstadoPartilhado=aplicarEstadoPartilhado;
+window.ccReDesenhar=function(){
+  try{
+    var ae=document.activeElement;
+    if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))return;
+    if(typeof tabAtual!=='undefined'&&typeof showTab==='function'){
+      showTab(tabAtual, (typeof navBtn==='function'?navBtn(tabAtual):null));
+    }
+  }catch(e){}
+};
 function marcarGuardado(estado){
   const el=document.getElementById('save-indicator');
   if(!el)return;
@@ -3791,14 +3861,21 @@ async function cpAnexoVer(qual){
   var a=_cpAnexos[qual];if(!a)return;
   var w=window.open();if(!w){alert('Permita pop-ups para abrir o anexo.');return;}
   try{w.document.write('<p style="font:14px sans-serif;padding:14px">A abrir o anexo...</p>');}catch(_){}
-  var dataURL=a.dataURL;
+  var dataURL=a.dataURL, urlCloud=null;
   if(!dataURL && a.idb && typeof editCompraId!=='undefined' && editCompraId && AnexosDB.disponivel()){
     try{ var full=await AnexosDB.get(String(editCompraId)+'::'+qual); if(full)dataURL=full.dataURL; }catch(e){}
   }
-  if(!dataURL){ try{w.document.body.innerHTML='<p style="font:14px sans-serif;padding:14px">Nao foi possivel abrir o anexo.</p>';}catch(_){} return; }
+  if(!dataURL && a.cloud && a.path && window.cloudAnexoUrl){
+    try{ urlCloud=window.cloudAnexoUrl(a.path); }catch(e){}
+  }
+  if(!dataURL && !urlCloud){ try{w.document.body.innerHTML='<p style="font:14px sans-serif;padding:14px">Nao foi possivel abrir o anexo (pode estar so noutro computador).</p>';}catch(_){} return; }
   try{
-    if((a.tipo||'').indexOf('image')===0){w.document.write('<img src="'+dataURL+'" style="max-width:100%">');}
-    else{w.document.write('<iframe src="'+dataURL+'" style="width:100%;height:100vh;border:0"></iframe>');}
+    if(dataURL){
+      if((a.tipo||'').indexOf('image')===0){w.document.write('<img src="'+dataURL+'" style="max-width:100%">');}
+      else{w.document.write('<iframe src="'+dataURL+'" style="width:100%;height:100vh;border:0"></iframe>');}
+    } else {
+      w.location.href=urlCloud;
+    }
   }catch(_){}
 }
 
@@ -9385,6 +9462,8 @@ carregarTudo();
 // passa-os a leve e consolida no bloco principal, libertando espaco ja ocupado.
 try{var _cv=localStorage.getItem('compras_v1');if(_cv&&_cv.indexOf('"dataURL"')!==-1){guardarCompras();}}catch(e){}
 try{ if(window.AnexosDB && AnexosDB.disponivel() && typeof _migrarAnexosParaIDB==='function') _migrarAnexosParaIDB(); }catch(e){}
+try{ if(navigator.storage && navigator.storage.persist && navigator.storage.persisted){ navigator.storage.persisted().then(function(p){ if(!p){ try{navigator.storage.persist();}catch(e){} } }).catch(function(){}); } }catch(e){}
+try{ setTimeout(function(){ if(window.cloudIniciarSync) window.cloudIniciarSync(); }, 1500); }catch(e){}
 if(typeof agregarCustosNasObras==='function'&&custos.length)agregarCustosNasObras();
 populateSelects();
 popularAnoGlobal();
@@ -10251,6 +10330,21 @@ function confirmarLancamento(){
     r.innerHTML='<b style="color:var(--navy)">'+kb(x.tot)+'</b> ocupados de ~5 MB disponíveis ('+pct+'%)'+(pct>=80?' — <b style="color:var(--red)">quase cheio, liberte espaço</b>':'');
     if(b){b.style.width=pct+'%';b.style.background=pct>=80?'var(--red)':pct>=60?'var(--orange)':'var(--blue)';}
     if(d)d.innerHTML='Maiores blocos: '+x.porChave.slice(0,5).map(function(e){return esc(e.k)+' ('+kb(e.t)+')';}).join(' · ');
+    // Armazenamento TOTAL da aplicacao (inclui anexos na "gaveta grande" / IndexedDB)
+    try{
+      if(d && navigator.storage && navigator.storage.estimate){
+        navigator.storage.estimate().then(function(est){
+          var usado=est.usage||0, total=est.quota||0, livre=Math.max(0,total-usado);
+          function gb(n){ return n>=1073741824 ? (n/1073741824).toFixed(1)+' GB' : (n/1048576).toFixed(0)+' MB'; }
+          var extra='<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;color:var(--navy)">'
+            +'<b>Armazenamento total da aplicacao</b> (dados + anexos): '
+            +'<b>'+gb(usado)+'</b> usados de <b>'+gb(total)+'</b> &nbsp;—&nbsp; '
+            +'<b style="color:var(--green)">'+gb(livre)+' livres</b>'
+            +'<div style="color:#888;font-size:11px;margin-top:2px">Os anexos dos contratos ja nao ocupam o limite de ~5 MB; ficam nesta gaveta grande, no teu computador.</div></div>';
+          d.innerHTML += extra;
+        }).catch(function(){});
+      }
+    }catch(e){}
   };
   window.limparAnexosCompras=function(){
     if(typeof compras==='undefined')return;
@@ -11680,8 +11774,8 @@ function confirmarLancamento(){
 <script>
 /* ===== CLOUD (Supabase) - partilha de dados [v73] ===== */
 (function(){
-  var SB_URL='https://wlmtjcnyjhajqoheovqx.supabase.co';
-  var SB_KEY='sb_publishable_nxiuao8A9GBYc054JRS_Jg_AHPBOcaZ';
+  var SB_URL=(function(){try{return (localStorage.getItem('cc_sb_url')||'').trim()||'https://wlmtjcnyjhajqoheovqx.supabase.co';}catch(e){return 'https://wlmtjcnyjhajqoheovqx.supabase.co';}})();
+  var SB_KEY=(function(){try{return (localStorage.getItem('cc_sb_key')||'').trim()||'sb_publishable_nxiuao8A9GBYc054JRS_Jg_AHPBOcaZ';}catch(e){return 'sb_publishable_nxiuao8A9GBYc054JRS_Jg_AHPBOcaZ';}})();
   var sb=null;
   function client(){
     if(sb)return sb;
@@ -11690,6 +11784,173 @@ function confirmarLancamento(){
     return sb;
   }
   window.cloudOk=function(){return !!client();};
+
+  /* ===== MOTOR DE SINCRONIZACAO ONLINE (Fase 1: dados) ===== */
+  var _syncTimer=null,_syncCanal=null,_syncAplicando=false,_syncEnviando=false,_syncSnap=null;
+  var _ultimoEnviadoStr='',_ultimoLocalStr='';
+  var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes'];
+  var _CC_OBJ=['rhConfig'];
+  function _ccChave(o){
+    if(o&&typeof o==='object'){
+      if(o.id!=null)return '#'+o.id;
+      if(o.codigo!=null)return 'c#'+o.codigo;
+      if(o.nome!=null)return 'n#'+o.nome;
+      return 'j#'+JSON.stringify(o);
+    }
+    return 'v#'+String(o);
+  }
+  function _ccUniao(pref,outro,rem){
+    pref=Array.isArray(pref)?pref:[]; outro=Array.isArray(outro)?outro:[]; rem=rem||{};
+    var mapa={},ordem=[];
+    function add(a){ for(var i=0;i<a.length;i++){ var o=a[i],k=_ccChave(o); if(rem[k])continue; if(!(k in mapa)){mapa[k]=o;ordem.push(k);} } }
+    add(pref); add(outro);
+    return ordem.map(function(k){return mapa[k];});
+  }
+  function _ccMerge(base,outro,rem){
+    base=base||{}; outro=outro||{}; var out={};
+    _CC_ARR.forEach(function(k){ out[k]=_ccUniao(base[k],outro[k],rem); });
+    _CC_OBJ.forEach(function(k){ out[k]=(base[k]!==undefined&&base[k]!==null)?base[k]:outro[k]; });
+    return out;
+  }
+  function _ccRemovidos(snap,local){
+    var set={}; if(!snap)return set;
+    _CC_ARR.forEach(function(k){
+      var antes=Array.isArray(snap[k])?snap[k]:[], agora=Array.isArray(local[k])?local[k]:[];
+      var ak={}; agora.forEach(function(o){ak[_ccChave(o)]=1;});
+      antes.forEach(function(o){var c=_ccChave(o); if(!ak[c])set[c]=1;});
+    });
+    return set;
+  }
+  function _ccVazio(d){
+    if(!d)return true;
+    for(var i=0;i<_CC_ARR.length;i++){ var a=d[_CC_ARR[i]]; if(Array.isArray(a)&&a.length)return false; }
+    return true;
+  }
+  function _ccLocal(){ return window.montarEstadoPartilhado?window.montarEstadoPartilhado():null; }
+  function _ccAplicarLocal(merged){
+    _syncAplicando=true;
+    try{ if(window.aplicarEstadoPartilhado)window.aplicarEstadoPartilhado(merged); if(typeof window.guardarTudo==='function')window.guardarTudo(); }catch(e){}
+    _syncAplicando=false;
+  }
+  function _ccQuem(){ try{return (JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'{}').nome)||'';}catch(e){return '';} }
+
+  async function cloudPuxarEstado(){
+    var c=client(); if(!c)return null;
+    try{
+      var r=await c.from('estado_partilhado').select('dados').eq('id',1).maybeSingle();
+      if(r.error){ console.warn('puxar:',r.error.message); return null; }
+      return (r.data&&r.data.dados)?r.data.dados:null;
+    }catch(e){ console.warn('puxar ex:',e); return null; }
+  }
+  async function cloudEnviarEstado(){
+    if(_syncEnviando)return; _syncEnviando=true;
+    try{
+      var c=client(); if(!c){_syncEstado('offline');return;}
+      var local=_ccLocal(); if(!local)return;
+      var rem=_ccRemovidos(_syncSnap,local);
+      var cloud=await cloudPuxarEstado();
+      var merged=_ccMerge(local,cloud,rem);
+      var mergedStr=JSON.stringify(merged);
+      var up=await c.from('estado_partilhado').upsert({id:1,dados:merged,atualizado_em:new Date().toISOString(),atualizado_por:_ccQuem()});
+      if(up.error){ _syncEstado('erro',up.error.message); return; }
+      _ultimoEnviadoStr=mergedStr; try{_ultimoLocalStr=JSON.stringify(local);}catch(e){}
+      _ccAplicarLocal(merged); _syncSnap=merged;
+      if(window.ccReDesenhar)window.ccReDesenhar();
+      _syncEstado('ok');
+    }catch(e){ _syncEstado('erro',String(e&&e.message||e)); }
+    finally{ _syncEnviando=false; }
+  }
+  function _syncAgendar(){
+    if(_syncAplicando)return;
+    try{ var s=JSON.stringify(_ccLocal()); if(s===_ultimoLocalStr) return; }catch(e){}
+    if(_syncTimer)clearTimeout(_syncTimer);
+    _syncTimer=setTimeout(function(){ cloudEnviarEstado(); },4000);
+  }
+  window._syncAgendar=_syncAgendar;
+  function _ccAplicarDaCloud(dados){
+    if(!dados||_ccVazio(dados))return;
+    var local=_ccLocal()||{};
+    var rem=_ccRemovidos(_syncSnap,local);
+    var merged=_ccMerge(dados,local,rem); /* cloud preferida + as minhas criacoes */
+    _ccAplicarLocal(merged); _syncSnap=merged;
+    if(window.ccReDesenhar)window.ccReDesenhar();
+    _syncEstado('ok');
+  }
+  async function cloudIniciarSync(){
+    var c=client(); if(!c){ _syncEstado('offline'); return; }
+    _syncEstado('lig');
+    try{
+      var cloud=await cloudPuxarEstado();
+      var local=_ccLocal()||{};
+      if(cloud && !_ccVazio(cloud)){
+        var merged=_ccMerge(cloud,local,{}); /* cloud + criacoes locais ainda nao enviadas */
+        _ccAplicarLocal(merged); _syncSnap=merged;
+        if(window.ccReDesenhar)window.ccReDesenhar();
+        cloudEnviarEstado();
+      } else {
+        _syncSnap=local; cloudEnviarEstado();
+      }
+      try{
+        if(_syncCanal)c.removeChannel(_syncCanal);
+        _syncCanal=c.channel('estado_partilhado_rt')
+          .on('postgres_changes',{event:'*',schema:'public',table:'estado_partilhado'},function(p){
+            if(_syncEnviando)return;
+            var novo=p&&p.new&&p.new.dados; if(!novo)return;
+            try{ if(JSON.stringify(novo)===_ultimoEnviadoStr) return; }catch(e){}
+            _ccAplicarDaCloud(novo);
+          }).subscribe();
+      }catch(e){ console.warn('realtime:',e); }
+      _syncEstado('ok');
+    }catch(e){ _syncEstado('erro',String(e&&e.message||e)); }
+  }
+  window.cloudIniciarSync=cloudIniciarSync;
+  window.cloudSincronizarAgora=function(){ return cloudEnviarEstado(); };
+  window.cloudUsarServidor=function(url,key){
+    try{
+      if(url)localStorage.setItem('cc_sb_url',String(url).trim());
+      if(key)localStorage.setItem('cc_sb_key',String(key).trim());
+      alert('Servidor da cloud atualizado. A app vai recarregar.');
+      location.reload();
+    }catch(e){ alert('Nao foi possivel guardar: '+e); }
+  };
+  window.cloudReporServidorOriginal=function(){
+    try{ localStorage.removeItem('cc_sb_url'); localStorage.removeItem('cc_sb_key'); alert('Servidor original reposto. A recarregar.'); location.reload(); }catch(e){}
+  };
+  window.cloudVerServidor=function(){ try{ return {url:SB_URL, chave:(SB_KEY||'').slice(0,12)+'...'}; }catch(e){ return null; } };
+
+  /* ===== Fase 2: anexos online (Supabase Storage, bucket 'anexos') ===== */
+  window.cloudAnexoUpload=async function(path,dataURL,tipo){
+    var c=client(); if(!c)return {ok:false,erro:'sem ligacao'};
+    try{
+      var resp=await fetch(dataURL); var blob=await resp.blob();
+      var r=await c.storage.from('anexos').upload(path, blob, {contentType:tipo||'application/octet-stream', upsert:true});
+      if(r.error)return {ok:false,erro:r.error.message};
+      return {ok:true,path:path};
+    }catch(e){ return {ok:false,erro:String(e&&e.message||e)}; }
+  };
+  window.cloudAnexoUrl=function(path){
+    try{ var c=client(); if(!c)return null; var r=c.storage.from('anexos').getPublicUrl(path); return (r&&r.data&&r.data.publicUrl)||null; }catch(e){ return null; }
+  };
+  window.cloudAnexoDel=async function(path){
+    try{ var c=client(); if(!c)return; await c.storage.from('anexos').remove([path]); }catch(e){}
+  };
+
+  function _ccEsc(s){return String(s).replace(/[<>&]/g,function(c){return ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c];});}
+  function _syncEstado(tipo,msg){
+    var el=document.getElementById('cc-sync-ind');
+    if(!el){ el=document.createElement('div'); el.id='cc-sync-ind';
+      el.style.cssText='position:fixed;right:10px;bottom:10px;z-index:99999;font:12px system-ui,Arial;padding:6px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.18);background:#fff;color:#333;opacity:.95;cursor:pointer';
+      el.title='Clicar para sincronizar agora';
+      el.onclick=function(){ try{ _syncEstado('lig'); cloudEnviarEstado(); }catch(e){} };
+      if(document.body)document.body.appendChild(el);
+    }
+    var cor='#16a34a',txt='Online \u2014 sincronizado';
+    if(tipo==='lig'){cor='#d97706';txt='A ligar \u00e0 cloud\u2026';}
+    else if(tipo==='offline'){cor='#6b7280';txt='Sem liga\u00e7\u00e3o \u2014 a trabalhar local';}
+    else if(tipo==='erro'){cor='#dc2626';txt='Sincroniza\u00e7\u00e3o com aviso';}
+    if(el)el.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+cor+';margin-right:6px;vertical-align:middle"></span>'+txt+(msg&&tipo==='erro'?' <span style=\"color:#999\">('+_ccEsc(String(msg).slice(0,60))+')</span>':'');
+  }
+
   window.cloudLogin=async function(email,pw){
     var c=client();if(!c)return {erro:'A biblioteca da cloud nao carregou (verifica a internet e recarrega).'};
     try{
