@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v131</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v136</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1177,10 +1177,10 @@ table td{vertical-align:middle}
           <th onclick="rhOrd.campo==='nome'?(rhOrd.dir=rhOrd.dir==='asc'?'desc':'asc'):(rhOrd.campo='nome',rhOrd.dir='asc');renderRHColab()" style="cursor:pointer">Colaborador <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="rhOrd.campo==='dep'?(rhOrd.dir=rhOrd.dir==='asc'?'desc':'asc'):(rhOrd.campo='dep',rhOrd.dir='asc');renderRHColab()" style="cursor:pointer">Departamento <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="rhOrd.campo==='funcao'?(rhOrd.dir=rhOrd.dir==='asc'?'desc':'asc'):(rhOrd.campo='funcao',rhOrd.dir='asc');renderRHColab()" style="cursor:pointer">Função <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
-          <th style="text-align:right">Salário base (mês)</th>
-          <th style="text-align:right">Salário líquido (mês)</th>
-          <th style="text-align:right">Encargos</th>
-          <th onclick="rhOrd.campo==='custo'?(rhOrd.dir=rhOrd.dir==='asc'?'desc':'asc'):(rhOrd.campo='custo',rhOrd.dir='desc');renderRHColab()" style="cursor:pointer;text-align:right">Custo total (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+          <th style="text-align:center">Salário base (mês)</th>
+          <th style="text-align:center">Salário líquido (mês)</th>
+          <th style="text-align:center">Encargos</th>
+          <th onclick="rhOrd.campo==='custo'?(rhOrd.dir=rhOrd.dir==='asc'?'desc':'asc'):(rhOrd.campo='custo',rhOrd.dir='desc');renderRHColab()" style="cursor:pointer;text-align:center">Custo total (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th>Distribuição</th><th></th>
         </tr></thead>
         <tbody id="rh-colab-tbody"></tbody>
@@ -1196,7 +1196,7 @@ table td{vertical-align:middle}
     </div>
     <div class="card" style="padding:0">
       <div class="table-wrap"><table>
-        <thead><tr><th>Centro de Custo</th><th>Tipo</th><th style="text-align:right">N.º colaboradores</th><th style="text-align:right">Custo mensal</th><th>Ativo</th><th></th></tr></thead>
+        <thead><tr><th>Centro de Custo</th><th>Tipo</th><th style="text-align:center">N.º colaboradores</th><th style="text-align:center">Custo mensal</th><th>Ativo</th><th></th></tr></thead>
         <tbody id="rh-centros-tbody"></tbody>
       </table></div>
     </div>
@@ -1721,6 +1721,8 @@ table td{vertical-align:middle}
         <label>Ativo</label>
         <select id="if-ativo"><option value="1">Sim</option><option value="0">Não</option></select>
       </div>
+      <div class="form-group"><label>Prazo de pagamento (dias)</label><input type="number" id="if-prazopag" placeholder="30" min="0"></div>
+      <div class="form-group"><label>Pago</label><select id="if-pago"><option value="0">Não</option><option value="1">Sim</option></select></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
       <button class="btn" onclick="closeModal('modal-indireto')">Cancelar</button>
@@ -2998,10 +3000,10 @@ function renderRHColab(){
       <td style="padding-left:22px"><strong>${c.nome}</strong></td>
       <td style="font-size:11px">${c.dep||'—'}</td>
       <td style="font-size:11px">${c.funcao||'—'}</td>
-      <td style="text-align:right">${fmt(base,2)}€</td>
-      <td style="text-align:right">${fmt(sal,2)}€</td>
-      <td style="text-align:right;color:var(--purple)">${fmt(enc,2)}€</td>
-      <td style="text-align:right;font-weight:600">${fmt(tot,2)}€</td>
+      <td style="text-align:center">${fmt(base,2)}€</td>
+      <td style="text-align:center">${fmt(sal,2)}€</td>
+      <td style="text-align:center;color:var(--purple)">${fmt(enc,2)}€</td>
+      <td style="text-align:center;font-weight:600">${fmt(tot,2)}€</td>
       <td style="font-size:11px">${distTxt}</td>
       <td style="display:flex;gap:4px">
         <button class="btn sm primary" onclick="abrirDistribuir('${c.id}')"><i class="ti ti-arrows-split"></i></button>
@@ -3022,10 +3024,10 @@ function renderRHColab(){
     const depEsc=dep.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     html+=`<tr draggable="true" ondragstart="rhDragStart(event,'${depEsc}')" ondragover="rhDragOver(event)" ondrop="rhDrop(event,'${depEsc}')" style="background:#eef2ff;cursor:grab">
       <td colspan="3" style="font-weight:700;color:var(--blue);text-align:left" onclick="toggleColapsoRHDep('${depEsc}')"><i class="ti ti-grip-vertical" style="color:var(--muted);margin-right:2px;cursor:grab" title="Arrastar para reordenar"></i><i class="ti ${colaps?'ti-chevron-right':'ti-chevron-down'}" style="margin-right:4px"></i>${dep} <span style="font-weight:400;color:var(--muted)">(${g.length})</span></td>
-      <td style="text-align:right;font-weight:700">${fmt(sBase,2)}€</td>
-      <td style="text-align:right;font-weight:700">${fmt(sSal,2)}€</td>
-      <td style="text-align:right;font-weight:700;color:var(--purple)">${fmt(sEnc,2)}€</td>
-      <td style="text-align:right;font-weight:700">${fmt(sTot,2)}€</td>
+      <td style="text-align:center;font-weight:700">${fmt(sBase,2)}€</td>
+      <td style="text-align:center;font-weight:700">${fmt(sSal,2)}€</td>
+      <td style="text-align:center;font-weight:700;color:var(--purple)">${fmt(sEnc,2)}€</td>
+      <td style="text-align:center;font-weight:700">${fmt(sTot,2)}€</td>
       <td colspan="2"></td>
     </tr>`;
     if(!colaps)html+=g.map(linhaColab).join('');
@@ -3043,8 +3045,8 @@ function renderRHCentros(){
     return `<tr style="opacity:${cc.ativo?1:.5}">
       <td><strong>${cc.nome}</strong></td>
       <td>${cc.tipo==='obra'?'<span class="badge direto">Obra</span>':'<span class="badge admin">Estrutura</span>'}</td>
-      <td style="text-align:right">${nColab}</td>
-      <td style="text-align:right">${fmt(custo,2)}€</td>
+      <td style="text-align:center">${nColab}</td>
+      <td style="text-align:center">${fmt(custo,2)}€</td>
       <td><span class="badge ${cc.ativo?'concluida':'cancelada'}" style="cursor:pointer" onclick="toggleCentro('${cc.id}')">${cc.ativo?'Ativo':'Inativo'}</span></td>
       <td style="display:flex;gap:4px">
         <button class="btn sm" onclick="abrirModalCentro('${cc.id}')"><i class="ti ti-pencil"></i></button>
@@ -5443,6 +5445,8 @@ function recalcularIndiretosProporcionais(){
       let total=0; const pesos=[];
       alvo.forEach(o=>{ const d=(dir[o.num]&&dir[o.num][k])||0; if(d>0){pesos.push({o,d});total+=d;} });
       if(total<=0)return; // ninguém teve custos diretos nesse mês -> não imputa
+      var _vd=new Date(an,mn-1,1); _vd.setDate(_vd.getDate()+(parseInt(ind.prazoPag)||30));
+      var _isoVenc=_vd.getFullYear()+'-'+String(_vd.getMonth()+1).padStart(2,'0')+'-'+String(_vd.getDate()).padStart(2,'0');
       pesos.forEach(p=>{
         const quota=valorBase*(p.d/total);
         if(quota<=0)return;
@@ -5453,7 +5457,7 @@ function recalcularIndiretosProporcionais(){
           fornecedor:'Indireto (auto)', documento:'',
           desc:(ind.desc||ind.categ||'Custo indireto'),
           valor:quota, iva:0, obs:'Imputação proporcional de custo indireto',
-          tipoCusto:ind.tipoCusto||'indireto'
+          tipoCusto:ind.tipoCusto||'indireto', dataVenc:_isoVenc, pagoFlag:(ind.pago?true:undefined)
         });
       });
     });
@@ -6514,6 +6518,8 @@ function abrirModalIndireto(id){
       document.getElementById('if-aplicacao').value=i.aplicacao||'global';
       document.getElementById('if-obra').value=i.obraNum||'';
       document.getElementById('if-ativo').value=i.ativo?'1':'0';
+      document.getElementById('if-prazopag').value=i.prazoPag!=null?i.prazoPag:30;
+      document.getElementById('if-pago').value=i.pago?'1':'0';
       toggleMetodoIndir();
       onImputacaoChange();
     }
@@ -6523,6 +6529,8 @@ function abrirModalIndireto(id){
     document.getElementById('if-valor').value='';
     document.getElementById('if-pct').value='';
     document.getElementById('if-ativo').value='1';
+    document.getElementById('if-prazopag').value=30;
+    document.getElementById('if-pago').value='0';
     document.getElementById('if-aplicacao').value='global';
     document.getElementById('if-obra').value='';
     toggleMetodoIndir();
@@ -6555,6 +6563,8 @@ function saveIndireto(){
     obraNum:aplicacao==='obra'?document.getElementById('if-obra').value:'',
     ativo:document.getElementById('if-ativo').value==='1',
     familiaId:document.getElementById('if-familia')?document.getElementById('if-familia').value:'',
+    prazoPag:+document.getElementById('if-prazopag').value||30,
+    pago:document.getElementById('if-pago').value==='1',
   };
   if(aplicacao==='obra'&&!data.obraNum){alert('Selecione a obra a associar.');return;}
   if(editIndiretoid){
@@ -10778,28 +10788,67 @@ function confirmarLancamento(){
   /* ---------- regras de caução ---------- */
   function prazoAnos(reg){var m=String(reg.prazo||'').match(/(\d+)/);return m?Math.max(1,Math.min(10,+m[1])):5;}
   function baseGar(reg){return (+reg.garValor||0)||(+reg.retValor||0)||(+reg.retEstim||0)||(+reg.cauEstim||0);}
-  function fracAno(reg,i){var a=(reg.anos&&reg.anos[i])?reg.anos[i].pct:null;if(a==null||a==='')return null;var v=num(a);return v>1?v/100:v;}
+  function baseLib(reg,tipo){ return tipo==='gar' ? (+reg.garValor||0) : ((+reg.retValor||0)||(+reg.retEstim||0)); }
+  function arrLib(reg,tipo){ var k=tipo==='gar'?'anosGar':'anosRet';
+    if((!reg[k]||!reg[k].length) && reg.anos && reg.anos.length){
+      var antigoEhGar=(+reg.garValor||0)>0;
+      if(((tipo==='gar')===antigoEhGar) && !reg['_lib_'+tipo+'_mig']){ reg[k]=reg.anos.map(function(a){return Object.assign({},a);}); reg['_lib_'+tipo+'_mig']=1; }
+    }
+    if(!reg[k])reg[k]=[]; return reg[k]; }
+  function temLib(reg){ return baseLib(reg,'gar')>0 || baseLib(reg,'ret')>0; }
+  function fracLib(reg,tipo,i){ var arr=arrLib(reg,tipo); var a=(arr&&arr[i])?arr[i].pct:null; if(a==null||a==='')return null; var v=num(a); return v>1?v/100:v; }
+  function dataPlanLib(reg,tipo,i){ var arr=arrLib(reg,tipo); var dm=arr&&arr[i]?parseData(arr[i].dataMan):null; if(dm)return dm; var rp=parseData(reg.recProv); return rp?addAnos(rp,i+1):null; }
   function fimGarantia(reg){var rp=parseData(reg.recProv);return rp?addAnos(rp,prazoAnos(reg)):null;}
-  /* próxima libertação por receber: {ano,data,valor,dias,vencida} */
-  function proxLib(reg){
-    var rp=parseData(reg.recProv);var pa=prazoAnos(reg);var base=baseGar(reg);
-    for(var i=0;i<pa;i++){
-      var a=reg.anos&&reg.anos[i]?reg.anos[i]:{};
-      if(a.receb)continue;                 // já recebido
-      var frac=fracAno(reg,i); if(frac==null)frac=1/pa; // default: igual
-      var data=rp?addAnos(rp,i+1):null;
-      return {ano:i+1,data:data,valor:base*frac,dias:diasAte(data),vencida:data?data<HOJE:false};
+  function proxLibT(reg,tipo){
+    if(baseLib(reg,tipo)<=0)return null;
+    var pa=prazoAnos(reg);var base=baseLib(reg,tipo);
+    for(var i=0;i<pa;i++){ var arr=arrLib(reg,tipo); var a=arr&&arr[i]?arr[i]:{};
+      if(a.receb)continue;
+      var frac=fracLib(reg,tipo,i); if(frac==null)frac=1/pa;
+      var data=dataPlanLib(reg,tipo,i);
+      return {ano:i+1,data:data,valor:base*frac,dias:diasAte(data),vencida:data?data<HOJE:false,tipo:tipo};
     }
     return null;
   }
-  function programar(reg){
-    var pa=prazoAnos(reg);if(!reg.anos)reg.anos=[];
-    // regime legal de libertação faseada (DL 190/2012): 5 anos = 30/30/15/15/10
+  function proxLib(reg){
+    var pr=proxLibT(reg,'ret'), pg=proxLibT(reg,'gar');
+    if(!pr)return pg; if(!pg)return pr;
+    if(!pr.data)return pg; if(!pg.data)return pr;
+    return (pr.data<=pg.data)?pr:pg;
+  }
+  function fracAno(reg,i){ return fracLib(reg,'gar',i); }
+  function programarT(reg,tipo){
+    var pa=prazoAnos(reg); var arr=arrLib(reg,tipo);
     var LEGAL={5:[30,30,15,15,10],4:[30,30,25,15],3:[40,30,30],2:[50,50],1:[100]};
     var tabela=LEGAL[pa]||null;
-    for(var i=0;i<pa;i++){ if(!reg.anos[i])reg.anos[i]={}; if(reg.anos[i].pct==null||reg.anos[i].pct==='')reg.anos[i].pct=tabela?tabela[i]:+(100/pa).toFixed(2); }
+    for(var i=0;i<pa;i++){ if(!arr[i])arr[i]={}; if(arr[i].pct==null||arr[i].pct==='')arr[i].pct=tabela?tabela[i]:+(100/pa).toFixed(2); }
   }
-  function tudoRecebido(reg){var pa=prazoAnos(reg);for(var i=0;i<pa;i++){if(!(reg.anos&&reg.anos[i]&&reg.anos[i].receb))return false;}return true;}
+  function programar(reg){ programarT(reg,'ret'); programarT(reg,'gar'); }
+  function tudoRecebidoT(reg,tipo){ if(baseLib(reg,tipo)<=0)return true; var pa=prazoAnos(reg); var arr=arrLib(reg,tipo); for(var i=0;i<pa;i++){ if(!(arr[i]&&arr[i].receb))return false; } return true; }
+  function tudoRecebido(reg){ return tudoRecebidoT(reg,'ret') && tudoRecebidoT(reg,'gar'); }
+  /* duas sub-tabelas de libertações (Retenção e Garantia) — partilhado clientes/fornecedores */
+  function libTabelasHTML(r, chave, anoFn, progFn){
+    function tab(tipo,titulo,base){
+      var pa=prazoAnos(r), arr=arrLib(r,tipo), L='';
+      for(var i=0;i<pa;i++){ var a=arr[i]||{};
+        var dAuto=parseData(r.recProv)?fmtData(addAnos(parseData(r.recProv),i+1)):'';
+        var frac=fracLib(r,tipo,i), val=(frac!=null?base*frac:0);
+        L+='<tr><td>'+(i+1)+'\u00BA ano</td>'
+          +'<td><input type="date" value="'+escA(toISO(a.dataMan))+'" onchange="'+anoFn+'(\''+escA(chave)+'\',\''+tipo+'\','+i+',\'dataMan\',this.value)" style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:11px"><div style="font-size:9px;color:var(--muted)">auto: '+esc(dAuto||'\u2014')+'</div></td>'
+          +'<td><input value="'+escA(a.pct!=null?a.pct:'')+'" onchange="'+anoFn+'(\''+escA(chave)+'\',\''+tipo+'\','+i+',\'pct\',this.value)" style="width:56px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:11px"></td>'
+          +'<td style="color:var(--muted);font-size:11px">'+(frac!=null?eur(val):'\u2014')+'</td>'
+          +'<td><input type="date" value="'+escA(toISO(a.pedido))+'" onchange="'+anoFn+'(\''+escA(chave)+'\',\''+tipo+'\','+i+',\'pedido\',this.value)" style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:11px"></td>'
+          +'<td><input type="date" value="'+escA(toISO(a.receb))+'" onchange="'+anoFn+'(\''+escA(chave)+'\',\''+tipo+'\','+i+',\'receb\',this.value)" style="padding:4px;border:1px solid var(--border);border-radius:6px;font-size:11px"></td></tr>';
+      }
+      return '<div class="section-title" style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-top:10px">'+titulo+' <span style="font-weight:400;color:var(--muted);font-size:11px">base '+eur(base)+'</span> <button class="btn sm primary" onclick="'+progFn+'(\''+escA(chave)+'\',\''+tipo+'\')"><i class="ti ti-calendar-plus"></i> 30/30/15/15/10</button></div>'
+        +'<div class="table-wrap"><table><thead><tr><th>Ano</th><th>Data planeada</th><th>%</th><th>Valor</th><th>Data pedido</th><th>Data recebimento</th></tr></thead><tbody>'+L+'</tbody></table></div>';
+    }
+    var bRet=baseLib(r,'ret'), bGar=baseLib(r,'gar'), out='';
+    if(bRet>0) out+=tab('ret','Libertações da Retenção',bRet);
+    if(bGar>0) out+=tab('gar','Libertações da Garantia',bGar);
+    if(!out) out='<div class="alert warn" style="margin-top:8px"><i class="ti ti-info-circle"></i> Defina um valor de Retenção (efetivo/estimado) e/ou de Garantia para programar as libertações.</div>';
+    return out;
+  }
   function deveArquivar(reg){var fg=fimGarantia(reg);var fim=fg&&fg<HOJE;var pago=(+reg.libertar<=0)||tudoRecebido(reg);return !!(fim&&pago&&(baseGar(reg)>0||reg.retValor||reg.garValor));}
   function autoArquivar(store){var mud=false;Object.keys(store).forEach(function(k){var r=store[k];if(!r.arquivada&&deveArquivar(r)){r.arquivada=true;r._arqAuto=true;mud=true;}});return mud;}
 
@@ -10904,7 +10953,7 @@ function confirmarLancamento(){
   function toISO(v){var d=parseData(v);if(!d||isNaN(d))return '';var p=function(n){return(n<10?'0':'')+n;};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
   function celData(ch,campo,val,fn){return '<td style="text-align:center"><input type="date" value="'+escA(toISO(val))+'" onchange="'+fn+'(this.value,this)" data-ch="'+escA(ch)+'" data-k="'+escA(campo)+'" style="border:1px solid transparent;background:transparent;font-size:11px;padding:2px;text-align:center"></td>';}
   function addMeses(d,m){var r=new Date(d.getTime());r.setMonth(r.getMonth()+m);return r;}
-  function kpiLib3m(store){var lim=addMeses(HOJE,3),t=0;Object.keys(store).forEach(function(k){var r=store[k];if(r.arquivada)return;var rp=parseData(r.recProv);if(!rp)return;var pa=prazoAnos(r);var base=baseGar(r);for(var i=0;i<pa;i++){var a=r.anos&&r.anos[i]?r.anos[i]:{};if(a.receb)continue;var data=addAnos(rp,i+1);if(data&&data<=lim){var frac=fracAno(r,i);if(frac==null)frac=1/pa;t+=base*frac;}}});return t;}
+  function kpiLib3m(store){var lim=addMeses(HOJE,3),t=0;Object.keys(store).forEach(function(k){var r=store[k];if(r.arquivada)return;['ret','gar'].forEach(function(tp){var base=baseLib(r,tp);if(base<=0)return;var pa=prazoAnos(r);var arr=arrLib(r,tp);for(var i=0;i<pa;i++){var a=arr[i]||{};if(a.receb)continue;var data=dataPlanLib(r,tp,i);if(data&&data<=lim){var frac=fracLib(r,tp,i);if(frac==null)frac=1/pa;t+=base*frac;}}});});return t;}
   /* cabeçalho com grupos (2 níveis): colunas com .grupo igual ficam sob um título único */
   function montarHead(COLS,ord,fnOrd){
     var temGrupo=COLS.some(function(c){return c.grupo;});
@@ -10932,7 +10981,7 @@ function confirmarLancamento(){
     {k:'estado',lbl:'Estado',t:'sel',op:['','Em Curso','Pós-Venda','Concluída']},
     {k:'garValor',lbl:'GB',t:'num'},
     {k:'retPct',lbl:'Ret.%',t:'pct'},
-    {k:'retValor',lbl:'RE',t:'num'},
+    {k:'retValor',lbl:'Retenção',t:'num'},
     {k:'prazo',lbl:'Prazo',t:'text'},
     {k:'recProv',lbl:'Rec. prov.',t:'data'},
     {k:'_proxData',lbl:'Data',t:'cdata',grupo:'Próx. Libertação'},
@@ -11018,7 +11067,7 @@ function confirmarLancamento(){
     var tbl=tab.querySelector('table');ativarResize(tbl,'cli');
     if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Obras no mapa</div><div class="metric-value">'+lista.length+'</div></div>'
       +'<div class="metric"><div class="metric-label">Garantias bancárias (GB)</div><div class="metric-value">'+fmt(tGar,0)+'\u20AC</div></div>'
-      +'<div class="metric"><div class="metric-label">Retenção efetiva (RE)</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRetEf,0)+'\u20AC</div></div>'
+      +'<div class="metric"><div class="metric-label">Retenção efetiva</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRetEf,0)+'\u20AC</div></div>'
       +'<div class="metric"><div class="metric-label">A libertar</div><div class="metric-value warning">'+fmt(tLib,0)+'\u20AC</div></div>'
       +'<div class="metric" title="Libertações não recebidas com data até 3 meses (inclui vencidas)."><div class="metric-label">A libertar (3 meses)</div><div class="metric-value" style="color:#c0392b">'+fmt(kpiLib3m(cli),0)+'\u20AC</div></div>'
       +'<div class="metric" title="Soma do valor da próxima libertação de cada obra."><div class="metric-label">Próxima libertação (total)</div><div class="metric-value" style="color:#C77A2E">'+fmt(tProx,0)+'\u20AC</div></div>';
@@ -11046,16 +11095,15 @@ function confirmarLancamento(){
       (o?'<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-link"></i> Ligada à obra <b>'+esc(o.num)+'</b> (por código). Retenção da faturação: <b>'+eur(fatRet)+'</b>. <button class="btn sm" onclick="ccPuxarFat(\''+escA(chave)+'\')">Usar este valor</button></div>':'<div class="alert warn" style="margin-bottom:10px"><i class="ti ti-unlink"></i> Sem obra com este código.</div>')
       +'<div class="section-title">Identificação</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Código','cod')+fld('Obra','nome','240px')+fldSel('Natureza','natureza',['','Pública','Privada'])+fldSelEstado('Estado')+fld('Contrato','contrato')+fld('Consignação','consignacao')+'</div>'
       +'<div class="section-title">Garantia / Caução</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fldSel('Tipo de caução','tipoCaucao',['','Garantia bancária','Retenção','Seguro-caução','Depósito'],'170px')+fld('Caução %','cauPct')+fld('Nº garantia','garNum')+fld('Data garantia','garData')+fld('Valor garantia (GB)','garValor')+'</div>'
-      +'<div class="section-title">Retenções</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Retenção %','retPct')+fld('Valor estimado','retEstim')+fld('Valor efetivo (RE)','retValor')+'</div>'
+      +'<div class="section-title">Retenções</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Retenção %','retPct')+fld('Valor estimado','retEstim')+fld('Valor efetivo','retValor')+'</div>'
       +'<div class="section-title">Prazo e receções</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Prazo garantia','prazo')+fld('Rec. provisória','recProv')+fld('Rec. definitiva','recDefinitiva')+fld('A libertar','libertar')+'</div>'
-      +'<div class="section-title" style="display:flex;justify-content:space-between;align-items:center">Libertações ano a ano <button class="btn sm primary" onclick="ccProgramar(\''+escA(chave)+'\')"><i class="ti ti-calendar-plus"></i> Programar automaticamente</button></div>'
-      +'<div class="table-wrap"><table><thead><tr><th>Ano</th><th>Data planeada</th><th>% / nota</th><th>Data pedido</th><th>Data recebimento</th></tr></thead><tbody>'+anos+'</tbody></table></div>'
+      +'<div class="section-title">Libertações (Retenção e Garantia)</div>'+libTabelasHTML(r,chave,'ccAno','ccProgramar')
       +cronHTML(r,chave);
     openModal('modal-cauc-cli');
   };
   window.ccSet=function(chave,campo,val){var r=cli[chave];if(!r)return;var pctF=['cauPct','retPct'].indexOf(campo)>=0,numF=['cauEstim','garValor','retEstim','retValor','libertar'].indexOf(campo)>=0;r[campo]=pctF&&val!==''?(num(val)>1?num(val)/100:num(val)):(numF?num(val):val);cliSave();renderCaucClientes();};
-  window.ccAno=function(chave,i,campo,val){var r=cli[chave];if(!r)return;if(!r.anos)r.anos=[];if(!r.anos[i])r.anos[i]={};r.anos[i][campo]=val;cliSave();renderCaucClientes();};
-  window.ccProgramar=function(chave){var r=cli[chave];if(!r)return;programar(r);cliSave();abrirCaucCli(chave);renderCaucClientes();};
+  window.ccAno=function(chave,tipo,i,campo,val){var r=cli[chave];if(!r)return;var arr=arrLib(r,tipo);if(!arr[i])arr[i]={};arr[i][campo]=val;cliSave();renderCaucClientes();};
+  window.ccProgramar=function(chave,tipo){var r=cli[chave];if(!r)return;if(tipo)programarT(r,tipo);else programar(r);cliSave();abrirCaucCli(chave);renderCaucClientes();};
   window.ccPuxarFat=function(chave){var r=cli[chave];if(!r)return;var o=acharObra(r);if(!o)return;r.retValor=+retidoObra(o).toFixed(2);cliSave();abrirCaucCli(chave);renderCaucClientes();};
 
   /* ---------- cronologia DENTRO do formulário ---------- */
@@ -11219,7 +11267,7 @@ function confirmarLancamento(){
     if(st&&+st.retPct>0)return true;
     if(retidoForn(c)>0)return true;
     if(+c.retencao>0)return true;
-    if(reg&&((+reg.garValor>0)||(+reg.retValor>0)||(+reg.retPct>0)||(reg.anos&&reg.anos.some(function(a){return a&&a.pct;}))))return true;
+    if(reg&&((+reg.garValor>0)||(+reg.retValor>0)||(+reg.retPct>0)||(reg.anos&&reg.anos.some(function(a){return a&&a.pct;}))||(reg.anosRet&&reg.anosRet.some(function(a){return a&&a.pct;}))||(reg.anosGar&&reg.anosGar.some(function(a){return a&&a.pct;}))))return true;
     var cu=custosArr().some(function(x){return x&&x.obra===c.obra&&x.fornecedor===c.fornecedor&&((+x.retencao>0)||x.caucao);});
     return cu;
   }
@@ -11343,14 +11391,13 @@ function confirmarLancamento(){
       +(sub?'<div class="alert ok" style="margin:6px 0 12px"><i class="ti ti-link"></i> Retenção automática pelos autos. <button class="btn sm" onclick="closeModal(\'modal-cauc-forn\');abrirSubDetalhe(\''+escA(fkey)+'\')">Gerir autos</button></div>':'<div class="alert warn" style="margin:6px 0 12px"><i class="ti ti-info-circle"></i> Sem autos. Para retenção automática, crie como Subempreitada com lista de quantidades.</div>')
       +'<div class="section-title">Garantia / Caução</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Tipo de caução','tipoCaucao','170px')+fld('Retenção %','retPct')+fld('Nº garantia','garNum')+fld('Data','garData')+fld('Valor garantia (GB)','garValor')+'</div>'
       +'<div class="section-title">Prazo e receções</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Prazo','prazo')+fld('Rec. provisória','recProv')+fld('Rec. definitiva','recDefinitiva')+fld('A libertar','libertar')+'</div>'
-      +'<div class="section-title" style="display:flex;justify-content:space-between;align-items:center">Libertações ano a ano <button class="btn sm primary" onclick="cfProgramar(\''+escA(fkey)+'\')"><i class="ti ti-calendar-plus"></i> Programar automaticamente</button></div>'
-      +'<div class="table-wrap"><table><thead><tr><th>Ano</th><th>Data planeada</th><th>%</th><th>Pedido</th><th>Recebido</th></tr></thead><tbody>'+anos+'</tbody></table></div>'
+      +'<div class="section-title">Libertações (Retenção e Garantia)</div>'+libTabelasHTML(reg,String(fkey),'cfAno','cfProgramar')
       +cronHTML(reg,String(fkey));
     openModal('modal-cauc-forn');
   };
   window.cfSet=function(fkey,campo,val){if(!forn[fkey])forn[fkey]={};var r=forn[fkey];var pctF=campo==='retPct',numF=['garValor','retValor','libertar','retEstim'].indexOf(campo)>=0;r[campo]=pctF&&val!==''?(num(val)>1?num(val)/100:num(val)):(numF?num(val):val);fornSave();renderCaucFornecedores();};
-  window.cfAno=function(fkey,i,campo,val){if(!forn[fkey])forn[fkey]={};if(!forn[fkey].anos)forn[fkey].anos=[];if(!forn[fkey].anos[i])forn[fkey].anos[i]={};forn[fkey].anos[i][campo]=val;fornSave();renderCaucFornecedores();};
-  window.cfProgramar=function(fkey){if(!forn[fkey])forn[fkey]={};programar(forn[fkey]);fornSave();abrirCaucForn(fkey);renderCaucFornecedores();};
+  window.cfAno=function(fkey,tipo,i,campo,val){if(!forn[fkey])forn[fkey]={};var arr=arrLib(forn[fkey],tipo);if(!arr[i])arr[i]={};arr[i][campo]=val;fornSave();renderCaucFornecedores();};
+  window.cfProgramar=function(fkey,tipo){if(!forn[fkey])forn[fkey]={};if(tipo)programarT(forn[fkey],tipo);else programar(forn[fkey]);fornSave();abrirCaucForn(fkey);renderCaucFornecedores();};
   window.cauSincronizarFornecedores=function(){fornLoad();renderCaucFornecedores();alert('Mapa de fornecedores atualizado a partir dos autos.');};
 
   /* ---------- arranque ---------- */
@@ -11878,11 +11925,56 @@ function confirmarLancamento(){
   var SB_URL=(function(){try{return (localStorage.getItem('cc_sb_url')||'').trim()||'https://wlmtjcnyjhajqoheovqx.supabase.co';}catch(e){return 'https://wlmtjcnyjhajqoheovqx.supabase.co';}})();
   var SB_KEY=(function(){try{return (localStorage.getItem('cc_sb_key')||'').trim()||'sb_publishable_nxiuao8A9GBYc054JRS_Jg_AHPBOcaZ';}catch(e){return 'sb_publishable_nxiuao8A9GBYc054JRS_Jg_AHPBOcaZ';}})();
   var sb=null;
+  function _ccXhrFetch(input,init){
+    init=init||{};
+    return new Promise(function(resolve,reject){
+      try{
+        var xhr=new XMLHttpRequest();
+        var method=(init.method||(input&&input.method)||'GET').toUpperCase();
+        var url=(typeof input==='string')?input:((input&&input.url)||String(input));
+        xhr.open(method,url,true);
+        var h=init.headers||(input&&input.headers);
+        if(h){
+          if(typeof h.forEach==='function'&&!Array.isArray(h)){ h.forEach(function(v,k){try{xhr.setRequestHeader(k,v);}catch(e){}}); }
+          else if(Array.isArray(h)){ h.forEach(function(p){try{xhr.setRequestHeader(p[0],p[1]);}catch(e){}}); }
+          else { Object.keys(h).forEach(function(k){try{xhr.setRequestHeader(k,h[k]);}catch(e){}}); }
+        }
+        try{xhr.responseType='text';}catch(e){}
+        if(init.signal){ try{ if(init.signal.aborted)xhr.abort(); init.signal.addEventListener('abort',function(){try{xhr.abort();}catch(e){}}); }catch(e){} }
+        xhr.onload=function(){
+          try{
+            var st=xhr.status;
+            if(st===0){ reject(new TypeError('Network/CORS error (xhr)')); return; }
+            var raw=xhr.getAllResponseHeaders()||'';
+            var hd={};
+            raw.trim().split(/[\r\n]+/).forEach(function(line){ if(!line)return; var i=line.indexOf(':'); if(i>0)hd[line.slice(0,i).trim().toLowerCase()]=line.slice(i+1).trim(); });
+            var body=(st===204||st===205)?null:(xhr.responseText||'');
+            var resp;
+            try{ resp=new Response(body,{status:st,statusText:xhr.statusText||'',headers:hd}); }
+            catch(e){
+              resp={ ok:(st>=200&&st<300), status:st, statusText:xhr.statusText||'', url:url,
+                headers:{ get:function(k){return hd[String(k).toLowerCase()]||null;}, has:function(k){return (String(k).toLowerCase() in hd);} },
+                text:function(){return Promise.resolve(body||'');},
+                json:function(){return Promise.resolve(body?JSON.parse(body):null);} };
+            }
+            resolve(resp);
+          }catch(e){ reject(e); }
+        };
+        xhr.onerror=function(){ reject(new TypeError('Network request failed (xhr)')); };
+        xhr.ontimeout=function(){ reject(new TypeError('Network request timed out (xhr)')); };
+        xhr.send((init.body!==undefined&&init.body!==null)?init.body:null);
+      }catch(e){ reject(e); }
+    });
+  }
   function client(){
     if(sb)return sb;
     if(!SB_URL||!SB_KEY)return null;
     if(!window.supabase||!window.supabase.createClient)return null;
-    sb=window.supabase.createClient(SB_URL,SB_KEY);
+    try{
+      sb=window.supabase.createClient(SB_URL,SB_KEY,{ global:{ fetch:_ccXhrFetch } });
+    }catch(e){
+      try{ sb=window.supabase.createClient(SB_URL,SB_KEY); }catch(_){ return null; }
+    }
     return sb;
   }
   window.cloudOk=function(){return !!client();};
@@ -11890,6 +11982,21 @@ function confirmarLancamento(){
   /* ===== MOTOR DE SINCRONIZACAO ONLINE (Fase 1: dados) ===== */
   var _syncTimer=null,_syncCanal=null,_syncAplicando=false,_syncEnviando=false,_syncSnap=null;
   var _ultimoEnviadoStr='',_ultimoLocalStr='';
+  var _syncFalhas=0,_syncPausado=false,_syncAvisado={};
+  function _syncWarnOnce(label,msg){ try{ var k=label+'|'+String(msg).slice(0,80); if(_syncAvisado[k])return; _syncAvisado[k]=1; console.warn(label,msg); }catch(e){} }
+  function _syncOk(){ _syncFalhas=0; }
+  function _syncRegistarFalha(ctx,msg){
+    _syncFalhas++;
+    if(_syncFalhas>=3 && !_syncPausado){
+      _syncPausado=true;
+      try{ if(_syncTimer){clearTimeout(_syncTimer);_syncTimer=null;} }catch(e){}
+      try{ if(_syncCanal){var c=client();if(c)c.removeChannel(_syncCanal);_syncCanal=null;} }catch(e){}
+      try{ _syncEstado('offline'); }catch(e){}
+      try{ console.warn('cloud: sincronizacao pausada apos '+_syncFalhas+' falhas ('+String(msg).slice(0,80)+'). Vai tentar religar sozinha em 30s; ou forca com window.cloudRetomar().'); }catch(e){}
+      try{ setTimeout(function(){ if(_syncPausado){ try{cloudIniciarSync();}catch(e){} } }, 30000); }catch(e){}
+    }
+  }
+  window.cloudRetomar=function(){ _syncPausado=false; _syncFalhas=0; _syncAvisado={}; try{cloudIniciarSync();}catch(e){} };
   var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes'];
   var _CC_OBJ=['rhConfig'];
   function _ccChave(o){
@@ -11940,12 +12047,12 @@ function confirmarLancamento(){
     var c=client(); if(!c)return null;
     try{
       var r=await c.from('estado_partilhado').select('dados').eq('id',1).maybeSingle();
-      if(r.error){ console.warn('puxar:',r.error.message); return null; }
+      if(r.error){ _syncWarnOnce('puxar:',r.error.message); _syncRegistarFalha('puxar',r.error.message); return null; }
       return (r.data&&r.data.dados)?r.data.dados:null;
-    }catch(e){ console.warn('puxar ex:',e); return null; }
+    }catch(e){ _syncWarnOnce('puxar ex:',e&&e.message||e); _syncRegistarFalha('puxar',e&&e.message||e); return null; }
   }
   async function cloudEnviarEstado(){
-    if(_syncEnviando)return; _syncEnviando=true;
+    if(_syncEnviando||_syncPausado)return; _syncEnviando=true;
     try{
       var c=client(); if(!c){_syncEstado('offline');return;}
       var local=_ccLocal(); if(!local)return;
@@ -11954,17 +12061,17 @@ function confirmarLancamento(){
       var merged=_ccMerge(local,cloud,rem);
       var mergedStr=JSON.stringify(merged);
       var up=await c.from('estado_partilhado').upsert({id:1,dados:merged,atualizado_em:new Date().toISOString(),atualizado_por:_ccQuem()});
-      if(up.error){ _syncEstado('erro',up.error.message); return; }
+      if(up.error){ _syncEstado('erro',up.error.message); _syncRegistarFalha('enviar',up.error.message); return; }
       _ultimoEnviadoStr=mergedStr; try{_ultimoLocalStr=JSON.stringify(local);}catch(e){}
       var _antesEnv=''; try{_antesEnv=JSON.stringify(_ccLocal());}catch(e){}
       _ccAplicarLocal(merged); _syncSnap=merged;
       if(mergedStr!==_antesEnv && window.ccReDesenhar)window.ccReDesenhar();
-      _syncEstado('ok');
-    }catch(e){ _syncEstado('erro',String(e&&e.message||e)); }
+      _syncOk(); _syncEstado('ok');
+    }catch(e){ _syncEstado('erro',String(e&&e.message||e)); _syncRegistarFalha('enviar',e&&e.message||e); }
     finally{ _syncEnviando=false; }
   }
   function _syncAgendar(){
-    if(_syncAplicando)return;
+    if(_syncAplicando||_syncPausado)return;
     try{ var s=JSON.stringify(_ccLocal()); if(s===_ultimoLocalStr) return; }catch(e){}
     if(_syncTimer)clearTimeout(_syncTimer);
     _syncTimer=setTimeout(function(){ cloudEnviarEstado(); },4000);
@@ -11983,6 +12090,7 @@ function confirmarLancamento(){
   }
   async function cloudIniciarSync(){
     var c=client(); if(!c){ _syncEstado('offline'); return; }
+    _syncPausado=false; _syncFalhas=0;
     _syncEstado('lig');
     try{
       var cloud=await cloudPuxarEstado();
