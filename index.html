@@ -92,7 +92,7 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;backgroun
     .tab .table-wrap thead tr:nth-child(2) th{top:34px}
 /* Cabeçalho fixo robusto para as tabelas de Cauções (têm um div intermédio) */
 .cauc-wrap{max-height:calc(100vh - 180px);overflow:auto}
-.cauc-wrap > #cauc-tabela{display:block}
+.cauc-wrap > #cauc-tabela{display:contents}
 .cauc-wrap thead th{position:-webkit-sticky;position:sticky;top:0;z-index:9;background:#F1F4F8;box-shadow:inset 0 -1px 0 var(--border)}
 .cauc-wrap thead tr:nth-child(2) th{top:30px}
 /* Coluna do código de obra mais estreita nas Cauções */
@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v126</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v131</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -2282,11 +2282,11 @@ window.ccReDesenhar=function(){
     var ae=document.activeElement;
     if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) ocupado=true;       // a escrever num campo
     if(document.querySelector('.modal-backdrop.open')) ocupado=true;          // tem um formulario aberto
-    if(Date.now()-(window._ccUltimaInteracao||0) < 2500) ocupado=true;        // clicou/mexeu ha menos de 2,5s
+    if(Date.now()-(window._ccUltimaInteracao||0) < 3500) ocupado=true;        // clicou/mexeu ha menos de 2,5s
     if(ocupado){
       // adia o re-desenho para quando o utilizador parar (em vez de o fazer por baixo dos dedos)
       clearTimeout(window._ccReDesenharTimer);
-      window._ccReDesenharTimer=setTimeout(window.ccReDesenhar, 2500);
+      window._ccReDesenharTimer=setTimeout(window.ccReDesenhar, 3500);
       return;
     }
     if(typeof tabAtual!=='undefined'&&typeof showTab==='function'){
@@ -2906,6 +2906,7 @@ function confirmarImportRH(){
 
 // ══════ RENDER COLABORADORES ══════
 function switchRHTab(tab){
+  if(tab==='colab' && window._rhFull===false) tab='centros';
   ['colab','centros','analise'].forEach(t=>{
     const el=document.getElementById('rh-tab-'+t);const btn=document.getElementById('rh-tab-btn-'+t);
     if(el)el.style.display=t===tab?'':'none';
@@ -4115,7 +4116,8 @@ function aplicarOrdemNav(){
   if(org)nav.appendChild(org);
 }
 function showTab(id,btn){
-  if(id==='rh'){try{var s=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'null');var pr=s&&s.perfil;if(['admin','financeiro','dep_financeiro'].indexOf(pr)<0){alert('O separador RH está reservado à Direção/Departamento Financeiro e ao Administrador.');return;}}catch(e){}}
+  if(id==='rh'){try{var s=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'null');var pr=s&&s.perfil;window._rhFull=['admin','financeiro','dep_financeiro'].indexOf(pr)>=0;var _bc=document.getElementById('rh-tab-btn-colab');if(_bc)_bc.style.display=window._rhFull?'':'none';}catch(e){window._rhFull=false;}}
+  if(window._ccPermitido && id!=='inicio' && window._ccPermitido.indexOf(id)<0 && ['obras','facturacao','autosmed','custos','dashboard','relatorios','rh','compras','pagamentos','caucoes','precos','definicoes'].indexOf(id)>=0){ id='inicio'; btn=document.querySelector('.nav-btn'); }
   tabAtual=id;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -4123,18 +4125,24 @@ function showTab(id,btn){
   if(!_tabEl){ console.warn('showTab: separador inexistente -> tab-'+id); return; }
   _tabEl.classList.add('active');
   if(btn)btn.classList.add('active');
-  if(id==='custos')switchCustosTab('lista');
-  if(id==='facturacao')switchFactTab('lista');
-  if(id==='dashboard')setTimeout(()=>{renderDashboard();aplicarConfigGraficos();},50);
-  if(id==='relatorios')renderRelatorio();
-  if(id==='indiretos')setTimeout(renderIndiretos,50);
-  if(id==='gestao')renderGestao();
-  if(id==='definicoes'){renderDefinicoes();renderFamilias();if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
-  if(id==='importacao')initImportTab();
-  if(id==='rh')switchRHTab('colab');
-  if(id==='compras')switchComprasTab('lista');
-  if(id==='pagamentos')renderPagamentos();
-  if(id==='precos')renderPrecos();
+  try{ var _te=document.getElementById('tab-'+id); if(_te){var _old=_te.querySelector('.__tabErr'); if(_old)_old.remove();} }catch(_){}
+  try{
+    if(id==='custos')switchCustosTab('lista');
+    if(id==='facturacao')switchFactTab('lista');
+    if(id==='dashboard')setTimeout(function(){try{renderDashboard();aplicarConfigGraficos();}catch(e){try{console.warn('dashboard:',e);}catch(_){}}},50);
+    if(id==='relatorios')renderRelatorio();
+    if(id==='indiretos')setTimeout(function(){try{renderIndiretos();}catch(e){try{console.warn('indiretos:',e);}catch(_){}}},50);
+    if(id==='gestao')renderGestao();
+    if(id==='definicoes'){renderDefinicoes();renderFamilias();if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
+    if(id==='importacao')initImportTab();
+    if(id==='rh')switchRHTab(window._rhFull===false?'centros':'colab');
+    if(id==='compras')switchComprasTab('lista');
+    if(id==='pagamentos')renderPagamentos();
+    if(id==='precos')renderPrecos();
+  }catch(_showErr){
+    try{console.warn('Falha a desenhar o separador '+id+':',_showErr);}catch(_){}
+    try{var _tb=document.getElementById('tab-'+id);if(_tb){var _n=document.createElement('div');_n.className='__tabErr';_n.style.cssText='margin:12px;padding:10px 14px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:10px;font-size:13px;line-height:1.4';_n.textContent='Não foi possível atualizar este separador com os dados atuais. O resto da aplicação continua a funcionar.';_tb.insertBefore(_n,_tb.firstChild);}}catch(_){}
+  }
   setTimeout(function(){try{ativarArrastoColunas(document);}catch(e){}},220);
   if(id==='autosmed'){const fr=document.getElementById('frame-autosmed');if(fr&&!fr.dataset.loaded){try{fr.srcdoc=decodeURIComponent(escape(atob(window.AUTOS_B64)));}catch(e){fr.srcdoc='<p style=\"font-family:sans-serif;padding:20px\">Não foi possível carregar o módulo de Autos.</p>';}fr.dataset.loaded='1';}setTimeout(sincronizarAutos,400);}
 }
@@ -9739,6 +9747,7 @@ function confirmarLancamento(){
         <div class="um-fi"><label>Palavra-passe</label><input id="um-pass" type="text" placeholder="palavra-passe"></div>
         <div class="um-fi"><label>Perfil</label><select id="um-perfil"></select></div>
         <div class="um-fi"><label>Email</label><input id="um-email" type="email" placeholder="nome@samachado.pt"></div>
+        <div class="um-fi" style="grid-column:1/-1"><label>Acesso por defeito do perfil</label><div id="um-perm-hint" style="font-size:12px;color:#475569;padding:6px 2px;line-height:1.4">&mdash;</div></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn primary" onclick="umCriar()"><i class="ti ti-plus"></i>Criar Utilizador</button>
@@ -11643,10 +11652,90 @@ function confirmarLancamento(){
   }
   // RH visível só para Administrador, Dir. Financeiro e Dep. Financeiro
   var PERFIS_RH=['admin','financeiro','dep_financeiro'];
+  var MODULOS=[
+    {v:'obras',t:'Obras'},{v:'facturacao',t:'Facturação'},{v:'autosmed',t:'Autos de Medição'},
+    {v:'custos',t:'Custos'},{v:'dashboard',t:'Dashboard'},{v:'relatorios',t:'Relatórios'},
+    {v:'rh',t:'RH'},{v:'compras',t:'Compras'},{v:'pagamentos',t:'Pagamentos'},
+    {v:'caucoes',t:'Cauções'},{v:'precos',t:'Base de Preços'},{v:'definicoes',t:'Definições'}
+  ];
+  window._MODULOS=MODULOS;
+  function modLabel(v){for(var i=0;i<MODULOS.length;i++){if(MODULOS[i].v===v)return MODULOS[i].t;}return v;}
+  function permsTodos(){return MODULOS.map(function(m){return m.v;});}
+  function permsPadrao(perfil){
+    if(perfil==='admin')return permsTodos();
+    return permsTodos().filter(function(v){return v==='rh'?(PERFIS_RH.indexOf(perfil)>=0):true;});
+  }
+  function permsDe(u){
+    if(!u)return [];
+    if(u.perfil==='admin')return permsTodos();
+    if(Array.isArray(u.perms))return u.perms.filter(function(v){return permsTodos().indexOf(v)>=0;});
+    return permsPadrao(u.perfil);
+  }
+  window.permsDe=permsDe; window.permsPadrao=permsPadrao;
+  function userDaSessao(){try{var s=sessao();if(!s)return null;var us=lerUsers();for(var i=0;i<us.length;i++){if((us[i].user||'').toLowerCase()===(s.user||'').toLowerCase())return us[i];}}catch(e){}return null;}
   window.aplicarPermissoesUI=function(perfil){
-    var podeRH=PERFIS_RH.indexOf(perfil)>=0;
-    var nb=document.getElementById('nav-rh');if(nb)nb.style.display=podeRH?'':'none';
-    if(!podeRH){var t=document.getElementById('tab-rh');if(t&&t.classList.contains('active')){var inicio=document.querySelector('.nav-btn');showTab('inicio',inicio);}}
+    var u=userDaSessao();
+    var permitido = u ? permsDe(u) : permsPadrao(perfil);
+    window._ccPermitido = permitido.slice();
+    MODULOS.forEach(function(m){
+      var btn=(m.v==='rh')?document.getElementById('nav-rh'):(typeof navBtn==='function'?navBtn(m.v):null);
+      if(btn)btn.style.display=(permitido.indexOf(m.v)>=0)?'':'none';
+    });
+    try{
+      var atv=document.querySelector('.tab.active');
+      var atvId=atv?(atv.id||'').replace('tab-',''):'';
+      if(atvId && atvId!=='inicio' && permsTodos().indexOf(atvId)>=0 && permitido.indexOf(atvId)<0){
+        var inicio=document.querySelector('.nav-btn'); if(typeof showTab==='function')showTab('inicio',inicio);
+      }
+    }catch(e){}
+  };
+  window.umPermHint=function(){
+    var el=document.getElementById('um-perm-hint'); if(!el)return;
+    var perfil=val('um-perfil')||'medidor';
+    if(perfil==='admin'){el.innerHTML='<span style="color:#16a34a">Vê tudo (Administrador).</span>';return;}
+    var lst=permsPadrao(perfil).filter(function(v){return v!=='definicoes';});
+    el.innerHTML=(lst.length?('Vê por defeito: '+lst.map(modLabel).join(' · ')):'Sem separadores por defeito.')
+      +' <span style="color:#64748b">— podes afinar depois em cada utilizador (botão de cadeado).</span>';
+  };
+  window.umPermissoes=function(user){
+    var users=lerUsers(),i=findIdx(users,user); if(i<0)return; var u=users[i];
+    var atual=permsDe(u), admin=(u.perfil==='admin');
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial,Helvetica,sans-serif';
+    var linhas=MODULOS.map(function(m){
+      var on=atual.indexOf(m.v)>=0;
+      return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;cursor:'+(admin?'not-allowed':'pointer')+';background:'+(on?'#eff6ff':'#fff')+'">'+
+        '<input type="checkbox" data-mod="'+m.v+'" '+(on?'checked':'')+' '+(admin?'disabled':'')+' style="width:16px;height:16px">'+
+        '<span style="font-size:13px;color:#111">'+m.t+'</span></label>';
+    }).join('');
+    ov.innerHTML='<div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.3)">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">Permissões de acesso</h3><button class="btn" id="_permX">✕</button></div>'+
+      '<div style="font-size:12px;color:#64748b;margin-bottom:12px">Utilizador: <strong>'+esc(u.nome||u.user)+'</strong> · perfil '+perfilNome(u.perfil)+'</div>'+
+      (admin?'<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px">O Administrador tem sempre acesso a tudo. Para limitar, muda primeiro o perfil.</div>':'')+
+      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Marca os separadores que este utilizador pode ver. O Início está sempre disponível.</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'+linhas+'</div>'+
+      (admin?'':'<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="_permTodos">Marcar todos</button><button class="btn" id="_permDefeito">Repor defeito do perfil</button><button class="btn primary" id="_permGuardar" style="margin-left:auto"><i class="ti ti-check"></i> Guardar</button></div>')+
+      '</div>';
+    document.body.appendChild(ov);
+    function fechar(){try{document.body.removeChild(ov);}catch(e){}}
+    ov.addEventListener('click',function(e){if(e.target===ov)fechar();});
+    ov.querySelector('#_permX').onclick=fechar;
+    if(!admin){
+      ov.querySelector('#_permTodos').onclick=function(){ov.querySelectorAll('input[data-mod]').forEach(function(c){c.checked=true;c.parentNode.style.background='#eff6ff';});};
+      ov.querySelector('#_permDefeito').onclick=function(){var def=permsPadrao(u.perfil);ov.querySelectorAll('input[data-mod]').forEach(function(c){c.checked=def.indexOf(c.getAttribute('data-mod'))>=0;c.parentNode.style.background=c.checked?'#eff6ff':'#fff';});};
+      ov.querySelectorAll('input[data-mod]').forEach(function(c){c.onchange=function(){c.parentNode.style.background=c.checked?'#eff6ff':'#fff';};});
+      ov.querySelector('#_permGuardar').onclick=function(){
+        var sel=[];ov.querySelectorAll('input[data-mod]').forEach(function(c){if(c.checked)sel.push(c.getAttribute('data-mod'));});
+        var users2=lerUsers(),k=findIdx(users2,user); if(k<0){fechar();return;}
+        var def=permsPadrao(users2[k].perfil).slice().sort().join(',');
+        if(sel.slice().sort().join(',')===def){delete users2[k].perms;}else{users2[k].perms=sel;}
+        gravarUsers(users2);
+        try{if(window.regAudit)window.regAudit('Utilizadores','Alterou permissões de "'+user+'"');}catch(e){}
+        renderListaUsers();
+        try{var s=sessao(); if(s&&(s.user||'').toLowerCase()===(user||'').toLowerCase()) aplicarPermissoesUI(s.perfil);}catch(e){}
+        fechar();
+      };
+    }
   };
   window.toggleUserMenu=function(ev){if(ev&&ev.stopPropagation)ev.stopPropagation();var d=document.getElementById("user-dropdown");if(d){d.classList.toggle("open"); if(d.classList.contains("open")){ try{if(typeof pedirFlushAutos==='function')pedirFlushAutos();}catch(e){} }}};
   window.closeUserMenu=function(){var d=document.getElementById("user-dropdown");if(d)d.classList.remove("open");};
@@ -11696,7 +11785,7 @@ function confirmarLancamento(){
   }
 
   /* ---- Gestao de Utilizadores ---- */
-  function umPopularPerfis(){var sel=document.getElementById('um-perfil');if(!sel)return;sel.innerHTML=PERFIS.map(function(x){return '<option value="'+x.v+'"'+(x.v==='medidor'?' selected':'')+'>'+x.t+'</option>';}).join('');}
+  function umPopularPerfis(){var sel=document.getElementById('um-perfil');if(!sel)return;sel.innerHTML=PERFIS.map(function(x){return '<option value="'+x.v+'"'+(x.v==='medidor'?' selected':'')+'>'+x.t+'</option>';}).join('');try{sel.onchange=function(){try{umPermHint();}catch(e){}};umPermHint();}catch(e){}}
   window.abrirGerirUsers=function(){if(!ehAdmin()){alert('Apenas o Administrador pode gerir utilizadores.');return;}var p=document.getElementById('panel-gerir-users');if(p)p.style.display='block';umPopularPerfis();renderListaUsers();};
   window.fecharGerirUsers=function(){var p=document.getElementById('panel-gerir-users');if(p)p.style.display='none';};
   window.umLimparForm=function(){['um-nome','um-user','um-pass','um-email'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});var r=document.getElementById('um-perfil');if(r)r.value='medidor';};
@@ -11748,7 +11837,7 @@ function confirmarLancamento(){
         '<div class="um-col"><div class="um-lbl">Perfil</div><select onchange="umMudarPerfil(\''+p.user+'\',this.value)" '+(isMe?'disabled title="Nao podes mudar o teu proprio perfil"':'')+' style="padding:4px 8px;border:1px solid var(--border,#cbd5e1);border-radius:6px;font-size:12px;background:var(--surface,#fff);color:var(--text,#111)">'+opts+'</select></div>'+
         '<div class="um-col"><div class="um-lbl">Estado</div><span class="um-badge '+(act?'on':'off')+'" '+(isMe?'':'onclick="umToggleEstado(\''+p.user+'\')"')+' title="'+(isMe?'Nao te podes inativar':'Clica para alternar')+'">'+(act?'Activo':'Inativo')+'</span></div>'+
         '<div class="um-col"><div class="um-lbl">Assinatura</div><div class="um-val">'+(p.assinaturaImg?('<img src="'+p.assinaturaImg+'" style="max-height:28px;max-width:90px;object-fit:contain;vertical-align:middle"> <button class="um-mini" onclick="umAssinatura(\''+p.user+'\')" title="Mudar assinatura"><i class="ti ti-pencil"></i></button> <button class="um-mini um-del" onclick="umLimparAssinatura(\''+p.user+'\')" title="Remover assinatura"><i class="ti ti-x"></i></button>'):('<button class="um-mini" onclick="umAssinatura(\''+p.user+'\')" title="Carregar assinatura"><i class="ti ti-signature"></i> Carregar</button>'))+'</div></div>'+
-        '<div class="um-col um-acts"><button class="um-mini" onclick="umAlterarPass(\''+p.user+'\')" title="Alterar palavra-passe"><i class="ti ti-key"></i></button>'+(isMe?'':'<button class="um-mini um-del" onclick="umRemover(\''+p.user+'\')" title="Remover"><i class="ti ti-trash"></i></button>')+'</div>'+
+        '<div class="um-col um-acts"><button class="um-mini" onclick="umPermissoes(\''+p.user+'\')" title="Permissões de acesso"><i class="ti ti-lock"></i></button><button class="um-mini" onclick="umAlterarPass(\''+p.user+'\')" title="Alterar palavra-passe"><i class="ti ti-key"></i></button>'+(isMe?'':'<button class="um-mini um-del" onclick="umRemover(\''+p.user+'\')" title="Remover"><i class="ti ti-trash"></i></button>')+'</div>'+
       '</div>';
     }).join('');
   }
@@ -11791,6 +11880,7 @@ function confirmarLancamento(){
   var sb=null;
   function client(){
     if(sb)return sb;
+    if(!SB_URL||!SB_KEY)return null;
     if(!window.supabase||!window.supabase.createClient)return null;
     sb=window.supabase.createClient(SB_URL,SB_KEY);
     return sb;
@@ -11866,8 +11956,9 @@ function confirmarLancamento(){
       var up=await c.from('estado_partilhado').upsert({id:1,dados:merged,atualizado_em:new Date().toISOString(),atualizado_por:_ccQuem()});
       if(up.error){ _syncEstado('erro',up.error.message); return; }
       _ultimoEnviadoStr=mergedStr; try{_ultimoLocalStr=JSON.stringify(local);}catch(e){}
+      var _antesEnv=''; try{_antesEnv=JSON.stringify(_ccLocal());}catch(e){}
       _ccAplicarLocal(merged); _syncSnap=merged;
-      if(window.ccReDesenhar)window.ccReDesenhar();
+      if(mergedStr!==_antesEnv && window.ccReDesenhar)window.ccReDesenhar();
       _syncEstado('ok');
     }catch(e){ _syncEstado('erro',String(e&&e.message||e)); }
     finally{ _syncEnviando=false; }
@@ -11884,8 +11975,10 @@ function confirmarLancamento(){
     var local=_ccLocal()||{};
     var rem=_ccRemovidos(_syncSnap,local);
     var merged=_ccMerge(dados,local,rem); /* cloud preferida + as minhas criacoes */
+    var _antesApl=''; try{_antesApl=JSON.stringify(local);}catch(e){}
+    var _mStr=''; try{_mStr=JSON.stringify(merged);}catch(e){}
     _ccAplicarLocal(merged); _syncSnap=merged;
-    if(window.ccReDesenhar)window.ccReDesenhar();
+    if(_mStr!==_antesApl && window.ccReDesenhar)window.ccReDesenhar();
     _syncEstado('ok');
   }
   async function cloudIniciarSync(){
@@ -12057,8 +12150,8 @@ function confirmarLancamento(){
       if(dias < 30) return; // ainda não passou um mês
     }
     var r=await window.cloudGuardarBackup();
-    if(r&&r.ok){ console.log('Backup mensal para a cloud criado:', r.data, r.resumo); }
-    else { console.warn('Backup mensal falhou:', r&&r.erro); }
+    if(r&&r.ok){ try{console.log('Backup mensal cloud OK', r.data);}catch(_){} }
+    /* se a tabela 'backups' nao existir na cloud, falha em silencio (nao e critico) */
   };
   // dispara o backup automático pouco depois do arranque (sem bloquear a app)
   try{ setTimeout(function(){ try{ window.cloudBackupAutomatico(); }catch(e){} }, 8000); }catch(e){}
