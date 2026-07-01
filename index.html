@@ -57,7 +57,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   --sombra:0 1px 3px rgba(16,42,74,.06),0 8px 24px rgba(16,42,74,.06);
 }
 body{font-family:'Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px}
-.app{display:flex;flex-direction:column;min-height:100vh}
+.app{display:flex;flex-direction:column;min-height:calc(100vh / var(--zf, 1))}
 /* TOPBAR */
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(16,42,74,.05);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 .topbar-title{font-size:15px;font-weight:800;letter-spacing:-.2px;display:flex;align-items:center;gap:8px;color:var(--navy)}
@@ -71,6 +71,8 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;backgroun
 .sub-pill:hover{background:#F1F4F8}
 /* CONTENT */
 .content{flex:1;padding:16px 20px;overflow:auto;width:100%;max-width:none;margin:0}
+#zoomwrap{transform-origin:0 0}
+#frame-autosmed{height:calc((100vh - 210px) / var(--zf, 1))}
 .tab{display:none}.tab.active{display:block}
 /* CARDS */
 .card{background:var(--surface);border:none;border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--sombra)}
@@ -307,7 +309,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v144</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v146</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -526,7 +528,7 @@ table td{vertical-align:middle}
     <button class="btn primary" onclick="abrirModalPassarCustos()"><i class="ti ti-arrow-bar-to-down"></i>Lançar autos como custos da obra</button>
     <span class="muted" style="font-size:11px">Passa um auto ou um contrato de subempreitada para os custos de uma obra (manual).</span>
   </div>
-  <iframe id="frame-autosmed" title="Autos de Medição" style="width:100%;height:calc(100vh - 210px);min-height:560px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
+  <iframe id="frame-autosmed" title="Autos de Medição" style="width:100%;min-height:300px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
 </div>
 
 <div class="tab" id="tab-custos">
@@ -4210,6 +4212,7 @@ function showTab(id,btn){
   if(!_tabEl){ console.warn('showTab: separador inexistente -> tab-'+id); return; }
   _tabEl.classList.add('active');
   if(btn)btn.classList.add('active');
+  if(id==='autosmed'){ try{ requestAnimationFrame(_ajustarIframeAutos); }catch(e){ try{_ajustarIframeAutos();}catch(_){} } }
   try{ var _te=document.getElementById('tab-'+id); if(_te){var _old=_te.querySelector('.__tabErr'); if(_old)_old.remove();} }catch(_){}
   try{
     if(id==='custos')switchCustosTab('lista');
@@ -9565,7 +9568,37 @@ function instalarObservadoresColunas(){
 }
 
 carregarColPrefs();
-function aplicarZoom(){ try{ var z=parseInt(localStorage.getItem('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100; document.body.style.zoom=(z/100); var el=document.getElementById('zoom-val'); if(el)el.textContent=z+'%'; }catch(e){} }
+function aplicarZoom(){ try{
+  var z=parseInt(localStorage.getItem('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100;
+  var z1=z/100;
+  // desfazer wrapper/transform de versoes anteriores (transform parte <select> nativos no WebKit)
+  var wrap=document.getElementById('zoomwrap');
+  if(wrap){ try{ var par=wrap.parentNode; while(wrap.firstChild){ par.insertBefore(wrap.firstChild, wrap); } par.removeChild(wrap); }catch(e){} }
+  try{ document.documentElement.style.setProperty('--zf', z1); }catch(e){}
+  var b=document.body;
+  b.style.transform=''; b.style.transformOrigin='';
+  b.style.zoom=z1;
+  b.style.width='';
+  if(z1!==1){
+    // encher a largura: medir se o zoom refluiu; se nao (motor tipo WebKit/Safari), compensar
+    var precisa=false;
+    try{ var w=b.getBoundingClientRect().width, vw=window.innerWidth||w; if(w < vw-2) precisa=true; }catch(e){ precisa=true; }
+    if(!precisa){ try{ if(!window.chrome) precisa=true; }catch(e){} }
+    if(precisa) b.style.width='calc(100% / '+z1+')';
+  }
+  var el=document.getElementById('zoom-val'); if(el)el.textContent=z+'%';
+  try{ requestAnimationFrame(_ajustarIframeAutos); }catch(e){ try{_ajustarIframeAutos();}catch(_){} }
+}catch(e){} }
+function _ajustarIframeAutos(){ try{
+  var f=document.getElementById('frame-autosmed'); if(!f) return;
+  var tab=document.getElementById('tab-autosmed');
+  if(!tab||!tab.classList.contains('active')){ f.style.height=''; return; }
+  var z=parseInt(localStorage.getItem('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100; var z1=z/100;
+  var r=f.getBoundingClientRect(); var vh=window.innerHeight||800;
+  var alvo=(vh - r.top - 14); if(alvo<320) alvo=320;
+  f.style.height=(alvo/z1)+'px';
+}catch(e){} }
+try{ window.addEventListener('resize', function(){ try{_ajustarIframeAutos();}catch(e){} }); }catch(e){}
 function ajustarZoom(delta,repor){ try{ var z=parseInt(localStorage.getItem('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100; if(repor)z=100; else z=Math.min(150,Math.max(70,z+delta)); localStorage.setItem('crm_zoom',String(z)); aplicarZoom(); }catch(e){} }
 aplicarZoom();
 carregarConfigGraficos();
