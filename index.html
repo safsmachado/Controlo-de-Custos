@@ -307,7 +307,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v142</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v144</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1163,10 +1163,11 @@ table td{vertical-align:middle}
       <input type="search" id="rh-search" placeholder="Pesquisar colaborador, função..." oninput="renderRHColab()">
       <select id="rh-filtro-dep" onchange="renderRHColab()"><option value="">Todos os departamentos</option></select>
       <select id="rh-filtro-obra" onchange="renderRHColab()"><option value="">Todas as obras</option></select>
-      <select id="rh-filtro-mes" onchange="renderRHColab()"><option value="">Mês mais recente</option></select>
+      <span style="font-size:11px;color:var(--muted);align-self:center;margin-left:4px">Mês de ref.:</span><select id="rh-filtro-mes" onchange="renderRHColab()"><option value="">Mês mais recente</option></select>
       <button class="btn" onclick="abrirPainelColunas('rh')"><i class="ti ti-columns"></i>Colunas</button>
     <button class="btn" onclick="exportarRHExcel()"><i class="ti ti-file-spreadsheet"></i>Excel</button>
     <button class="btn" onclick="imprimirRH()"><i class="ti ti-printer"></i>Imprimir</button>
+    <button class="btn" onclick="imprimirEvolucaoRH()" title="Relatório de evolução salarial (individual + global)"><i class="ti ti-chart-line"></i>Evolução salarial</button>
       <button class="btn" onclick="abrirModalColab()"><i class="ti ti-plus"></i>Novo colaborador</button>
       <button class="btn" onclick="aplicarImputacaoRHManual()" title="Lança o custo do pessoal nas obras conforme as distribuições definidas"><i class="ti ti-arrow-bar-to-down"></i>Recalcular imputação nas obras</button>
     </div>
@@ -1509,7 +1510,7 @@ table td{vertical-align:middle}
       <div class="form-group"><label>Função</label><select id="col-funcao"><option value="">— escolher centro primeiro —</option></select></div>
       <div class="form-group"><label>Salário base (€)</label><input type="number" id="col-base" placeholder="0" step="0.01" title="Base para o cálculo dos encargos."></div>
       <div class="form-group"><label>Salário líquido (€)</label><input type="number" id="col-liquido" placeholder="0" step="0.01" title="Salário líquido pago no mês."></div>
-      <div class="form-group"><label>Mês/Ano (ex: Janeiro/2026)</label><input type="text" id="col-mes" placeholder="Janeiro/2026"></div>
+      <div class="form-group"><label>Mês de referência</label><div style="display:flex;gap:6px"><select id="col-mes-m" style="flex:2;padding:8px;border:1px solid var(--border);border-radius:8px"></select><select id="col-mes-a" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px"></select></div></div>
     </div>
     <div id="col-evolucao" style="margin-top:6px"></div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
@@ -2749,7 +2750,9 @@ function rhMesesDisponiveis(){
   });
 }
 function rhSalBaseMes(col,mesAno){
-  // salario base; se nao definido, usa o liquido do mes como aproximacao
+  // 1) base por mes (novo) tem prioridade
+  if(col.salBase&&mesAno&&col.salBase[mesAno]!==undefined&&col.salBase[mesAno]!==null&&col.salBase[mesAno]!=='')return +col.salBase[mesAno]||0;
+  // 2) base global; se nao definido, usa o liquido do mes como aproximacao
   var b=(col.base!==undefined&&col.base!==null&&+col.base>0)?+col.base:rhSalarioMes(col,mesAno);
   return b||0;
 }
@@ -2764,6 +2767,39 @@ function rhMesEfetivo(mesSel){ if(mesSel)return mesSel; const ms=rhMesesDisponiv
 function rhMesAnterior(mesAno){ if(!mesAno||mesAno.indexOf('/')<0)return ''; const p=mesAno.split('/'); let idx=RH_MESES.indexOf(p[0]), ano=parseInt(p[1]); if(idx<0||!ano)return ''; idx--; if(idx<0){idx=11;ano--;} return RH_MESES[idx]+'/'+ano; }
 function rhLiquidoExato(col,mesAno){ if(!col.sal||!mesAno||col.sal[mesAno]===undefined)return null; return +col.sal[mesAno]||0; }
 function rhCrescPct(atual,anterior){ if(anterior==null||anterior<=0||atual==null)return null; return (atual-anterior)/anterior*100; }
+function rhBaseRawMes(col,mes){
+  if(col.salBase&&mes&&col.salBase[mes]!==undefined&&col.salBase[mes]!==null&&col.salBase[mes]!=='')return +col.salBase[mes]||0;
+  if(col.base!==undefined&&col.base!==null&&+col.base>0)return +col.base;
+  return null;
+}
+function _rhMesRefAtual(){var el=document.getElementById('rh-filtro-mes');return rhMesEfetivo(el?el.value:'');}
+function rhSetLiquidoInline(id,val){
+  var c=rhColab.find(function(x){return String(x.id)===String(id);});if(!c)return;
+  var mes=_rhMesRefAtual();
+  if(!mes){alert('Escolha primeiro o mês de referência.');return;}
+  c.sal=c.sal||{};
+  if(String(val).trim()==='')delete c.sal[mes]; else c.sal[mes]=parseNum(val);
+  guardarRH();renderRHColab();
+}
+function rhSetBaseInline(id,val){
+  var c=rhColab.find(function(x){return String(x.id)===String(id);});if(!c)return;
+  var mes=_rhMesRefAtual();
+  if(!mes){alert('Escolha primeiro o mês de referência.');return;}
+  c.salBase=c.salBase||{};
+  if(String(val).trim()==='')delete c.salBase[mes]; else c.salBase[mes]=parseNum(val);
+  // manter c.base = base do mes mais recente (retrocompat dos calculos existentes)
+  var ks=Object.keys(c.salBase).sort(function(a,b){var pa=a.split('/'),pb=b.split('/');return (parseInt(pa[1])-parseInt(pb[1]))||(RH_MESES.indexOf(pa[0])-RH_MESES.indexOf(pb[0]));});
+  if(ks.length)c.base=+c.salBase[ks[ks.length-1]]||c.base;
+  guardarRH();renderRHColab();
+}
+function _rhPreencherMesPicker(idM,idA,valMes){
+  var sm=document.getElementById(idM),sa=document.getElementById(idA);
+  if(sm)sm.innerHTML='<option value="">—</option>'+RH_MESES.map(function(m){return '<option>'+m+'</option>';}).join('');
+  if(sa){var ai=new Date().getFullYear(),o='';for(var y=ai-6;y<=ai+1;y++)o+='<option>'+y+'</option>';sa.innerHTML=o;}
+  var mm=RH_MESES[new Date().getMonth()],aa=String(new Date().getFullYear());
+  if(valMes&&valMes.indexOf('/')>=0){var pp=valMes.split('/');mm=pp[0];aa=pp[1];}
+  if(sm)sm.value=mm; if(sa)sa.value=aa;
+}
 function rhCrescAno(col,ano){ if(!col.sal)return null; const ks=Object.keys(col.sal).filter(k=>k.split('/')[1]===String(ano)).sort((a,b)=>RH_MESES.indexOf(a.split('/')[0])-RH_MESES.indexOf(b.split('/')[0])); if(ks.length<2)return null; return rhCrescPct(+col.sal[ks[ks.length-1]]||0, +col.sal[ks[0]]||0); }
 function rhEvolucaoHTML(col){
   if(!col||!col.sal)return '';
@@ -2956,7 +2992,16 @@ function popularFiltrosRH(){
   const fo=document.getElementById('rh-filtro-obra');
   if(fo){const a=fo.value;fo.innerHTML='<option value="">Todas as obras</option>'+obras.map(o=>`<option value="${o.num}"${a===o.num?' selected':''}>${o.num} — ${o.nome}</option>`).join('');}
   const fm=document.getElementById('rh-filtro-mes');
-  if(fm){const a=fm.value;fm.innerHTML='<option value="">Mês mais recente</option>'+meses.map(m=>`<option${a===m?' selected':''}>${m}</option>`).join('');}
+  if(fm){
+    const anoAtual=new Date().getFullYear();
+    const mesAtual=RH_MESES[new Date().getMonth()]+'/'+anoAtual;
+    const setM=new Set(meses);RH_MESES.forEach(m=>setM.add(m+'/'+anoAtual));
+    const todos=[...setM].sort((x,y)=>{const px=x.split('/'),py=y.split('/');return (parseInt(px[1])-parseInt(py[1]))||(RH_MESES.indexOf(px[0])-RH_MESES.indexOf(py[0]));});
+    let a=fm.value;
+    if(!window._rhMesInit){a=mesAtual;window._rhMesInit=true;}
+    fm.innerHTML='<option value="">Mês mais recente</option>'+todos.map(m=>`<option${a===m?' selected':''}>${m}</option>`).join('');
+    fm.value=a;
+  }
   const am=document.getElementById('rh-an-mes');
   if(am){const a=am.value;am.innerHTML='<option value="">Todos os meses</option>'+meses.map(m=>`<option${a===m?' selected':''}>${m}</option>`).join('');}
   const dl=document.getElementById('dl-rh-deps');
@@ -3023,7 +3068,7 @@ function renderRHColab(){
   const tb=document.getElementById('rh-colab-tbody');
   if(lista.length===0){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">Sem colaboradores. Use "Importar RH".</td></tr>';return;}
   const linhaColab=(c)=>{
-    const sal=rhSalarioMes(c,mes);const base=rhSalBaseMes(c,mes);
+    const sal=rhSalarioMes(c,mes);const base=rhSalBaseMes(c,mes);const baseRaw=rhBaseRawMes(c,mesEf);const liqRaw=rhLiquidoExato(c,mesEf);
     const enc=rhEncargosMes(c,mes);const tot=sal+enc;
     const liqAnt=rhLiquidoExato(c,mesAnt);const liqAt=rhLiquidoExato(c,mesEf);const cr=rhCrescPct(liqAt!=null?liqAt:sal,liqAnt);
     const dist=(c.distrib||[]);
@@ -3032,8 +3077,8 @@ function renderRHColab(){
       <td style="padding-left:22px;font-size:11px"><strong>${c.nome}</strong></td>
       <td style="font-size:10.5px">${c.dep||'—'}</td>
       <td style="font-size:10.5px">${c.funcao||'—'}</td>
-      <td style="text-align:center">${fmt(base,2)}€</td>
-      <td style="text-align:center">${fmt(sal,2)}€</td>
+      <td style="text-align:center"><input type="number" step="0.01" value="${baseRaw!=null?baseRaw:''}" placeholder="—" onclick="event.stopPropagation()" onchange="rhSetBaseInline('${c.id}',this.value)" style="width:82px;text-align:right;border:1px solid var(--border);border-radius:6px;padding:3px 5px;font-size:10.5px" title="Base do mês ${mesEf||'—'}"></td>
+      <td style="text-align:center"><input type="number" step="0.01" value="${liqRaw!=null?liqRaw:''}" placeholder="—" onclick="event.stopPropagation()" onchange="rhSetLiquidoInline('${c.id}',this.value)" style="width:82px;text-align:right;border:1px solid var(--border);border-radius:6px;padding:3px 5px;font-size:10.5px" title="Líquido do mês ${mesEf||'—'}"></td>
       <td style="text-align:center;font-size:11px">${liqAnt!=null?fmt(liqAnt,2)+'€':'—'}</td>
       <td style="text-align:center;font-size:11px${cr!=null?(cr>=0?';color:var(--green)':';color:var(--red)'):''}">${cr!=null?(cr>=0?'+':'')+cr.toFixed(1)+'%':'—'}</td>
       <td style="text-align:center;color:var(--purple)">${fmt(enc,2)}€</td>
@@ -3325,10 +3370,10 @@ function abrirModalColab(id){
     _preencherSelectCentros('col-dep',c.dep||'');
     _preencherSelectFuncoes(c.dep||'',c.funcao||'');
     document.getElementById('col-base').value=c.base||0;
-    const ks=c.sal?Object.keys(c.sal):[];const ultMes=ks.length?ks[ks.length-1]:'';document.getElementById('col-mes').value=ultMes;document.getElementById('col-liquido').value=(ultMes&&c.sal?c.sal[ultMes]:'')||'';
+    const ks=c.sal?Object.keys(c.sal):[];const ultMes=ks.length?ks[ks.length-1]:'';_rhPreencherMesPicker('col-mes-m','col-mes-a',ultMes);document.getElementById('col-liquido').value=(ultMes&&c.sal?c.sal[ultMes]:'')||'';
     var _ev=document.getElementById('col-evolucao');if(_ev)_ev.innerHTML=rhEvolucaoHTML(c);}}
   else{document.getElementById('modal-colab-title').textContent='Novo colaborador';
-    ['col-nome','col-base','col-liquido','col-mes'].forEach(i=>document.getElementById(i).value='');
+    ['col-nome','col-base','col-liquido'].forEach(i=>document.getElementById(i).value='');_rhPreencherMesPicker('col-mes-m','col-mes-a','');
     _preencherSelectCentros('col-dep','');
     _preencherSelectFuncoes('','');
     var _ev2=document.getElementById('col-evolucao');if(_ev2)_ev2.innerHTML='';}
@@ -3341,14 +3386,14 @@ function saveColab(){
   const base=parseNum(document.getElementById('col-base').value);
   const liqRaw=document.getElementById('col-liquido').value;
   const liquido=(String(liqRaw).trim()!=='')?parseNum(liqRaw):base;
-  const mes=document.getElementById('col-mes').value.trim();
+  const _mm=document.getElementById('col-mes-m').value.trim();const _ma=document.getElementById('col-mes-a').value.trim();const mes=(_mm&&_ma)?(_mm+'/'+_ma):'';
   garantirCentro(dep);
   garantirFuncaoNoCentro(dep,funcao);
   if(editColabId){const c=rhColab.find(x=>String(x.id)===String(editColabId));if(c){
     c.nome=nome;c.dep=dep;c.funcao=funcao;c.base=base;
-    if(mes){c.sal=c.sal||{};c.sal[mes]=liquido;}}}
-  else{const sal={};if(mes)sal[mes]=liquido;
-    rhColab.push({id:Date.now()+Math.random(),nome,dep,funcao,base,encargosPct:rhConfig.encargosPct,sal,distrib:[],centroId:null});}
+    if(mes){c.sal=c.sal||{};c.sal[mes]=liquido;c.salBase=c.salBase||{};c.salBase[mes]=base;}}}
+  else{const sal={};if(mes)sal[mes]=liquido;const salBase={};if(mes)salBase[mes]=base;
+    rhColab.push({id:Date.now()+Math.random(),nome,dep,funcao,base,encargosPct:rhConfig.encargosPct,sal,salBase,distrib:[],centroId:null});}
   guardarRH();closeModal('modal-colab');renderRHColab();
 }
 function removeColab(id){if(!confirm('Eliminar este colaborador? Os custos RH associados também serão removidos.'))return;
@@ -4642,8 +4687,8 @@ function populateSelects(){
   // filtros obras
   const fto=document.getElementById('filter-tipo-obra');
   const ftcO=document.getElementById('filter-cliente');
-  if(fto){fto.innerHTML='<option value="">Todos os tipos</option>'+tiposObra.map(t=>`<option>${t}</option>`).join('');}
-  if(ftcO){ftcO.innerHTML='<option value="">Todos os clientes</option>'+tiposCliente.map(t=>`<option>${t}</option>`).join('');}
+  if(fto){const _v=fto.value;fto.innerHTML='<option value="">Todos os tipos</option>'+tiposObra.map(t=>`<option>${t}</option>`).join('');fto.value=_v;}
+  if(ftcO){const _v=ftcO.value;ftcO.innerHTML='<option value="">Todos os clientes</option>'+tiposCliente.map(t=>`<option>${t}</option>`).join('');ftcO.value=_v;}
   // filtro relatorio tipo obra
   const rtpo=document.getElementById('rel-tipo-obra');
   if(rtpo){rtpo.innerHTML='<option value="">Todos os tipos</option>'+tiposObra.map(t=>`<option>${t}</option>`).join('');}
@@ -5003,7 +5048,7 @@ function editFatMes(ev,num,mes,campo){
 }
 
 function changeEstado(num,val){
-  const o=obras.find(x=>x.num===num);
+  const o=obras.find(x=>String(x.num)===String(num));
   if(!o)return;
   o.estado=val;
   if(typeof agendarGravacao==='function')agendarGravacao();
@@ -9587,6 +9632,7 @@ window.addEventListener('message',function(ev){
   if(m&&m.tipo==='autosmed:req'){ var v=null; try{v=localStorage.getItem('autosmed_store_v1');}catch(e){} try{ var alvo=ev.source||((document.getElementById('frame-autosmed')||{}).contentWindow); if(alvo) alvo.postMessage({tipo:'autosmed:data',valor:v},'*'); }catch(e){} return; }
 });
 function escP(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+try{window.esc=window.esc||escP;}catch(_){}
 function tipoLabelAuto(t){return t==='sub'?'Subempreitada':t==='alug'?'Aluguer':t==='mo'?'Mão de obra':(t||'');}
 function familiaPorTipo(t){if(t==='sub')return 2;if(t==='alug')return 3;if(t==='mo')return 8;return 2;}
 function abrirModalPassarCustos(){voltarListaPassar();renderListaPassar();openModal('modal-passar-autos');}
@@ -12494,9 +12540,47 @@ function exportarRHExcel(){
 function imprimirRH(){
   var mes=document.getElementById('rh-filtro-mes')?document.getElementById('rh-filtro-mes').value:'';
   var tSB=0,tCT=0;
-  var linhas=rhColab.map(function(c){var sb=rhSalarioMes(c,mes),ct=rhCustoTotalMes(c,mes);tSB+=sb;tCT+=ct;return '<tr><td class="B">'+esc(c.nome||'')+'</td><td>'+esc(c.dep||'')+'</td><td>'+esc(c.funcao||'')+'</td><td class="R">'+fmt(sb,2)+'</td><td class="R">'+fmt(ct-sb,2)+'</td><td class="R B">'+fmt(ct,2)+'</td></tr>';});
-  var html='<table><thead><tr><th>Colaborador</th><th>Departamento</th><th>Função</th><th class="R">Sal. Base (€)</th><th class="R">Encargos (€)</th><th class="R">Custo Total (€)</th></tr></thead><tbody>'+linhas.join('')+'</tbody><tfoot><tr><td colspan="3" class="B">TOTAL ('+rhColab.length+')</td><td class="R B">'+fmt(tSB,2)+'</td><td></td><td class="R B">'+fmt(tCT,2)+'</td></tr></tfoot></table>';
+  var tLIQ=0;
+  var linhas=rhColab.map(function(c){var sbase=rhSalBaseMes(c,mes),liq=rhSalarioMes(c,mes),ct=rhCustoTotalMes(c,mes);tSB+=sbase;tLIQ+=liq;tCT+=ct;return '<tr><td class="B">'+esc(c.nome||'')+'</td><td>'+esc(c.dep||'')+'</td><td>'+esc(c.funcao||'')+'</td><td class="R">'+fmt(sbase,2)+'</td><td class="R">'+fmt(liq,2)+'</td><td class="R">'+fmt(ct-sbase,2)+'</td><td class="R B">'+fmt(ct,2)+'</td></tr>';});
+  var html='<table><thead><tr><th>Colaborador</th><th>Departamento</th><th>Função</th><th class="R">Sal. Base (€)</th><th class="R">Líquido (€)</th><th class="R">Encargos (€)</th><th class="R">Custo Total (€)</th></tr></thead><tbody>'+linhas.join('')+'</tbody><tfoot><tr><td colspan="3" class="B">TOTAL ('+rhColab.length+')</td><td class="R B">'+fmt(tSB,2)+'</td><td class="R B">'+fmt(tLIQ,2)+'</td><td></td><td class="R B">'+fmt(tCT,2)+'</td></tr></tfoot></table>';
   _abrirImpressao('Recursos Humanos',mes?'Mês: '+mes:'Acumulado',html);
+}
+
+function imprimirEvolucaoRH(){
+  var anosSet=new Set(); rhColab.forEach(function(c){if(c.sal)Object.keys(c.sal).forEach(function(k){anosSet.add(k.split('/')[1]);});});
+  var anos=[...anosSet].sort(); var ano=anos.length?anos[anos.length-1]:String(new Date().getFullYear());
+  // ---- global ----
+  var gCells='',gAnt=null,gPrim=null,gUlt=null;
+  RH_MESES.forEach(function(m){
+    var k=m+'/'+ano,tot=0,tem=false;
+    rhColab.forEach(function(c){if(c.sal&&c.sal[k]!==undefined){tot+=+c.sal[k]||0;tem=true;}});
+    var crTxt='\u2014';
+    if(tem){ if(gPrim==null)gPrim=tot; gUlt=tot;
+      if(gAnt!=null&&gAnt>0){var cc=(tot-gAnt)/gAnt*100;crTxt='<span style="color:'+(cc>=0?'#166534':'#c0392b')+'">'+(cc>=0?'+':'')+cc.toFixed(1)+'%</span>';}
+      gAnt=tot; }
+    gCells+='<tr><td>'+m+'</td><td class="R">'+(tem?fmt(tot,2):'\u2014')+'</td><td class="R">'+crTxt+'</td></tr>';
+  });
+  var gCr=(gPrim!=null&&gUlt!=null&&gPrim>0)?((gUlt-gPrim)/gPrim*100):null;
+  var globalTab='<h3 style="font-size:13px;margin:6px 0 4px;color:#1e3a5f">Evolução global '+ano+' ('+rhColab.length+' colaboradores)</h3>'
+    +'<table><thead><tr><th>Mês</th><th class="R">Líquido total (€)</th><th class="R">% vs mês ant.</th></tr></thead><tbody>'+gCells+'</tbody>'
+    +(gCr!=null?'<tfoot><tr><td class="B">Crescimento no ano</td><td></td><td class="R B" style="color:'+(gCr>=0?'#166534':'#c0392b')+'">'+(gCr>=0?'+':'')+gCr.toFixed(1)+'%</td></tr></tfoot>':'')+'</table>';
+  // ---- por colaborador ----
+  var perColab=rhColab.slice().sort(function(a,b){return String(a.nome||'').localeCompare(String(b.nome||''),'pt');}).map(function(c){
+    var cells='',ant=null,prim=null,ult=null,tem0=false;
+    RH_MESES.forEach(function(m){
+      var k=m+'/'+ano,v=(c.sal&&c.sal[k]!==undefined)?(+c.sal[k]||0):null,crTxt='\u2014';
+      if(v!=null){tem0=true; if(prim==null)prim=v; ult=v;
+        if(ant!=null&&ant>0){var cc=(v-ant)/ant*100;crTxt='<span style="color:'+(cc>=0?'#166534':'#c0392b')+'">'+(cc>=0?'+':'')+cc.toFixed(1)+'%</span>';}
+        ant=v;}
+      cells+='<tr><td>'+m+'</td><td class="R">'+(v!=null?fmt(v,2):'\u2014')+'</td><td class="R">'+crTxt+'</td></tr>';
+    });
+    if(!tem0)return '';
+    var cr=(prim!=null&&ult!=null&&prim>0)?((ult-prim)/prim*100):null;
+    return '<h3 style="font-size:12px;margin:14px 0 4px;color:#1e3a5f">'+escP(c.nome||'')+' <span style="font-weight:400;color:#666">'+escP(c.dep||'')+(c.funcao?(' \u00b7 '+escP(c.funcao)):'')+'</span></h3>'
+      +'<table><thead><tr><th>Mês</th><th class="R">Líquido (€)</th><th class="R">% vs mês ant.</th></tr></thead><tbody>'+cells+'</tbody>'
+      +(cr!=null?'<tfoot><tr><td class="B">Crescimento no ano</td><td></td><td class="R B" style="color:'+(cr>=0?'#166534':'#c0392b')+'">'+(cr>=0?'+':'')+cr.toFixed(1)+'%</td></tr></tfoot>':'')+'</table>';
+  }).join('');
+  _abrirImpressao('Evolução salarial','Ano: '+ano,globalTab+perColab);
 }
 
 /* — Base de Preços — */
