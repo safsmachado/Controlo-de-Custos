@@ -309,7 +309,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v155</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v156</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -961,7 +961,7 @@ table td{vertical-align:middle}
       <button class="btn sm" onclick="abrirSnapshots()" style="margin-left:auto"><i class="ti ti-camera"></i>Snapshots mensais</button>
       <input type="search" id="aud-filtro" placeholder="Filtrar por utilizador, ação..." oninput="renderAuditoria()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);min-width:220px">
     </div>
-    <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Regista automaticamente quem criou/alterou/apagou obras, custos, compras, fechos de mês, utilizadores e sessões. Guarda os últimos 800 registos.</div>
+    <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Regista automaticamente quem criou/alterou/apagou obras, custos, compras, fechos de mês, utilizadores e sessões. Mostra a atividade de todos os computadores ligados (registo partilhado na cloud).</div>
     <div class="table-wrap" style="max-height:340px;overflow-y:auto">
       <table>
         <thead><tr><th>Data/Hora</th><th>Utilizador</th><th>Ação</th><th>Detalhe</th></tr></thead>
@@ -2248,6 +2248,8 @@ function carregarTudo(){
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
     if(d.prazos&&typeof d.prazos==='object'){try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(d.prazos));}catch(e){}}
     if(d.avisosAuto&&typeof d.avisosAuto==='object'){try{localStorage.setItem('gc_avisos_auto_v1',JSON.stringify(d.avisosAuto));}catch(e){}}
+    if(Array.isArray(d.auditoria)){try{var _au=d.auditoria.slice().sort(function(x,y){return String(y.d).localeCompare(String(x.d));}).slice(0,1500);localStorage.setItem('gc_auditoria_v1',JSON.stringify(_au));}catch(e){}}
+    if(d.indiretosVal&&typeof d.indiretosVal==='object'){try{localStorage.setItem('indiretos_validados_v1',JSON.stringify(d.indiretosVal));}catch(e){}}
     return true;
   }catch(e){console.warn('Falha a carregar:',e);return false;}
 }
@@ -2275,7 +2277,8 @@ function montarEstadoPartilhado(){
     custosArquivo:_ccLS('custos_arquivo_v1',[]),
     navOrdem:_ccLS('navOrdem_v1',null), rhDepOrdem:_ccLS('rh_dep_ordem_v1',null),
     autos:_ccLS('autosmed_store_v1',null),
-    subautos:_ccLS('subautos_v1',null), fechos:_ccLS('fechosMensais_v1',null), prazos:_ccLS('prazos_fornecedor_v1',null), avisosAuto:_ccLS('gc_avisos_auto_v1',null)
+    subautos:_ccLS('subautos_v1',null), fechos:_ccLS('fechosMensais_v1',null), prazos:_ccLS('prazos_fornecedor_v1',null), avisosAuto:_ccLS('gc_avisos_auto_v1',null), auditoria:_ccLS('gc_auditoria_v1',[]),
+    indiretosVal:_ccLS('indiretos_validados_v1',{})
   };
 }
 window.montarEstadoPartilhado=montarEstadoPartilhado;
@@ -2306,6 +2309,8 @@ function aplicarEstadoPartilhado(d){
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
     if(d.prazos&&typeof d.prazos==='object'){try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(d.prazos));}catch(e){}}
     if(d.avisosAuto&&typeof d.avisosAuto==='object'){try{localStorage.setItem('gc_avisos_auto_v1',JSON.stringify(d.avisosAuto));}catch(e){}}
+    if(Array.isArray(d.auditoria)){try{var _au=d.auditoria.slice().sort(function(x,y){return String(y.d).localeCompare(String(x.d));}).slice(0,1500);localStorage.setItem('gc_auditoria_v1',JSON.stringify(_au));}catch(e){}}
+    if(d.indiretosVal&&typeof d.indiretosVal==='object'){try{localStorage.setItem('indiretos_validados_v1',JSON.stringify(d.indiretosVal));}catch(e){}}
     return true;
   }catch(e){console.warn('aplicarEstado falhou',e);return false;}
 }
@@ -5551,6 +5556,7 @@ function _obrasAlvoIndireto(ind){
   return obras.slice(); // global -> todas (o filtro por custos do mês é feito a seguir)
 }
 function recalcularIndiretosProporcionais(){
+  var _iv=(function(){try{return JSON.parse(localStorage.getItem('indiretos_validados_v1')||'{}')||{};}catch(e){return {};}})();
   // 1) limpar lançamentos automáticos anteriores
   custos=custos.filter(c=>!c.origemIndireto);
   // 2) mapa de custos DIRETOS por obra e mês: dir[obraNum][mesNum-ano] = total
@@ -5595,8 +5601,9 @@ function recalcularIndiretosProporcionais(){
       pesos.forEach(p=>{
         const quota=valorBase*(p.d/total);
         if(quota<=0)return;
+        var _idInd='IND'+ind.id+'_'+p.o.num+'_'+k;
         custos.push({
-          id:'IND'+ind.id+'_'+p.o.num+'_'+k, origemIndireto:true, indiretoId:ind.id,
+          id:_idInd, origemIndireto:true, validado:(_iv[_idInd]===true), indiretoId:ind.id,
           obraNum:p.o.num, mesNum:mn, ano:an, data:mesNomeDe(mn)+'/'+an,
           familiaId:ind.familiaId||'', categoria:ind.categ||'Indiretos',
           fornecedor:'Indireto (auto)', documento:'',
@@ -8361,7 +8368,7 @@ function ordenarCustoObra(num,campo){
 }
 // ── validação / edição / email de custos por obra (v68) ───────────────────
 function _refreshCustosObra(num){var div=document.getElementById('obra-custos-'+num);if(div)div.innerHTML=tabelaCustosObra(num);}
-function toggleValidarCusto(id,num){var c=custos.find(x=>x.id===id);if(!c)return;c.validado=!c.validado;if(typeof agendarGravacao==='function')agendarGravacao();_refreshCustosObra(num);}
+function toggleValidarCusto(id,num){var c=custos.find(function(x){return String(x.id)===String(id);});if(!c)return;c.validado=!c.validado;if(c.origemIndireto){try{var _mv=JSON.parse(localStorage.getItem('indiretos_validados_v1')||'{}')||{};if(c.validado)_mv[c.id]=true;else delete _mv[c.id];localStorage.setItem('indiretos_validados_v1',JSON.stringify(_mv));if(window._syncAgendar)window._syncAgendar();}catch(e){}}if(typeof agendarGravacao==='function')agendarGravacao();_refreshCustosObra(num);}
 var custoEditId=null;
 function editarLinhaCusto(id,num){custoEditId=id;_refreshCustosObra(num);}
 function cancelarLinhaCusto(num){custoEditId=null;_refreshCustosObra(num);}
@@ -8498,7 +8505,7 @@ function tabelaCustosObra(num){
         <td style="text-align:right;font-weight:600">${fmt(custoTotalCIva(c),2)}</td>
         <td style="text-align:center;font-size:11px;white-space:nowrap;color:${(_estadoCusto(c)!=='pago'&&_diasAtraso(c)>0)?'#dc2626':'inherit'}">${pgFmtD(_vencCusto(c))}</td>
         <td style="text-align:center;cursor:pointer" title="Clique para marcar Pago / Por pagar" onclick="event.stopPropagation();togglePagoCusto('${c.id}')">${_estadoBadge(c)}</td>
-        <td style="text-align:center"><button class="btn sm" title="${val?'Validado — clique para marcar por validar':'Por validar — clique para validar'}" onclick="toggleValidarCusto(${c.id},'${num}')" style="padding:2px 7px;background:${val?'#1e8e3e':'#c0392b'};color:#fff;border:none"><i class="ti ti-${val?'check':'x'}"></i></button></td>
+        <td style="text-align:center"><button class="btn sm" title="${val?'Validado — clique para marcar por validar':'Por validar — clique para validar'}" onclick="toggleValidarCusto('${c.id}','${num}')" style="padding:2px 7px;background:${val?'#1e8e3e':'#c0392b'};color:#fff;border:none"><i class="ti ti-${val?'check':'x'}"></i></button></td>
         <td style="text-align:center"><button class="btn sm" title="Editar no formulário de custo" onclick="abrirModalCusto(${c.id})" style="padding:2px 7px"><i class="ti ti-pencil"></i></button></td>
       </tr>`;
   });
@@ -10475,6 +10482,7 @@ function confirmarLancamento(){
       arr.unshift({d:new Date().toISOString(),u:nomeOpc||sx.nome||sx.user||'(sem sessão)',p:perfilOpc||sx.perfil||'',a:String(accao||''),t:String(detalhe||'')});
       if(arr.length>800)arr.length=800;
       localStorage.setItem(AUD_KEY,JSON.stringify(arr));
+      try{if(window._syncAgendar)window._syncAgendar();}catch(e){}
     }catch(e){}
   };
   window.renderAuditoria=function(){
@@ -12066,8 +12074,10 @@ function confirmarLancamento(){
     }).join('');
   }
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciarGateLogin);
-  else iniciarGateLogin();try{setTimeout(reenquadrarAssinaturasLogin,600);}catch(e){}
+  function _arrancarLogin(){ iniciarGateLogin(); try{setTimeout(reenquadrarAssinaturasLogin,600);}catch(e){} }
+  function _preLoginCloud(){ (async function(){ try{ if(typeof client==='function'&&client()){ var _cl=await cloudPuxarEstado(); if(_cl&&Array.isArray(_cl.utilizadores)&&_cl.utilizadores.length){ try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(_cl.utilizadores));}catch(e){} } } }catch(e){} _arrancarLogin(); })(); }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_preLoginCloud);
+  else _preLoginCloud();
   setInterval(atualizarDataHeader,60000);
 })();
 </script>
@@ -12174,8 +12184,8 @@ function confirmarLancamento(){
     }
   }
   window.cloudRetomar=function(){ _syncPausado=false; _syncFalhas=0; _syncAvisado={}; try{cloudIniciarSync();}catch(e){} };
-  var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes','custosArquivo'];
-  var _CC_OBJ=['rhConfig','utilizadores','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','subautos','fechos','prazos','avisosAuto'];
+  var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes','custosArquivo','auditoria'];
+  var _CC_OBJ=['rhConfig','utilizadores','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','subautos','fechos','prazos','avisosAuto','indiretosVal'];
   function _ccChave(o){
     if(o&&typeof o==='object'){
       if(o.id!=null)return '#'+o.id;
