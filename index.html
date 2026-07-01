@@ -146,20 +146,20 @@ table td{vertical-align:middle}
 .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 @media(max-width:900px){.two-col,.three-col{grid-template-columns:1fr}}
 /* FORMS */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.form-grid-3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px}
 @media(max-width:600px){.form-grid,.form-grid-3{grid-template-columns:1fr}}
-.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group{display:flex;flex-direction:column;gap:5px;min-width:0}
 .form-group label{font-size:11px;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-.form-group input,.form-group select,.form-group textarea{padding:8px 10px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text)}
+.form-group input,.form-group select,.form-group textarea{width:100%;max-width:100%;padding:8px 10px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text)}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:2px solid var(--blue);border-color:var(--blue)}
 .form-section{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;grid-column:1/-1;border-bottom:1px solid var(--border);padding-bottom:6px;margin-top:6px}
 /* MODAL */
 .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
 .modal-backdrop.open{display:flex}
-.modal{background:var(--surface);border-radius:16px;border:none;padding:24px;width:min(650px,95vw);max-height:92vh;overflow-y:auto;box-shadow:0 24px 70px rgba(16,42,74,.30)}
+.modal{background:var(--surface);border-radius:16px;border:none;padding:24px;width:min(650px,95vw);max-height:92vh;overflow-y:auto;overflow-x:hidden;box-shadow:0 24px 70px rgba(16,42,74,.30)}
 .modal.wide{width:min(1180px,97vw)}
-.modal.wide .form-grid{grid-template-columns:repeat(3,1fr)}
+.modal.wide .form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .modal-lg{width:min(800px,95vw)}
 .modal-xl{width:min(1200px,97vw)}.modal-obra-full{width:97vw;max-width:1700px}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
@@ -309,7 +309,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v157</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v167</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1241,6 +1241,7 @@ table td{vertical-align:middle}
   <div class="tabs-inner" style="margin-bottom:14px">
     <button class="tab-inner-btn active" id="cp-tab-btn-lista" onclick="switchComprasTab('lista')">Processos</button>
     <button class="tab-inner-btn" id="cp-tab-btn-analise" onclick="switchComprasTab('analise')">Análise</button>
+    <button class="tab-inner-btn" id="cp-tab-btn-arquivo" onclick="switchComprasTab('arquivo')"><i class="ti ti-archive"></i> Arquivo</button>
   </div>
 
   <!-- ===== LISTA DE PROCESSOS ===== -->
@@ -1250,17 +1251,17 @@ table td{vertical-align:middle}
       <button class="btn sm" onclick="comprasExpandirTodos(false)" title="Colapsar todos"><i class="ti ti-fold"></i></button>
       <button class="btn success" onclick="abrirImportCompras()"><i class="ti ti-file-import"></i>Importar Compras</button>
       <button class="btn" onclick="abrirModalCompra()"><i class="ti ti-plus"></i>Novo processo</button>
-      <button class="btn" id="compras-btn-arquivo" onclick="toggleModoComprasArquivo()"><i class="ti ti-archive"></i>Ver arquivo</button>
       <button class="btn" onclick="arquivarComprasSelecionadas()" title="Arquivar os contratos selecionados"><i class="ti ti-archive"></i>Arquivar selec.</button>
       <button class="btn danger" onclick="apagarComprasSelecionadas()" title="Apagar os contratos selecionados"><i class="ti ti-trash"></i>Apagar selec.</button>
     </div>
     <div class="metric-grid" id="compras-metrics"></div>
     <div class="toolbar">
-      <input type="search" id="compras-search" placeholder="Pesquisar processo, fornecedor, observações..." oninput="renderCompras()">
+      <input type="search" id="compras-search" placeholder="Pesquisar processo, fornecedor, observações..." oninput="_cpSearchDebounced()">
       <select id="compras-filtro-obra" onchange="renderCompras()"><option value="">Todas as obras</option></select>
       <select id="compras-filtro-sit" onchange="renderCompras()"><option value="">Todas as situações</option></select>
       <select id="compras-filtro-tipo" onchange="renderCompras()"><option value="">Todos os tipos</option></select>
       <select id="compras-filtro-resp" onchange="renderCompras()"><option value="">Todos os responsáveis</option></select>
+      <select id="compras-filtro-fornecedor" onchange="renderCompras()"><option value="">Todos os fornecedores</option></select>
       <button class="btn" onclick="abrirPainelColunas('compras')"><i class="ti ti-columns"></i>Colunas</button>
     <button class="btn" onclick="exportarComprasExcel()"><i class="ti ti-file-spreadsheet"></i>Excel</button>
     <button class="btn" onclick="imprimirCompras()"><i class="ti ti-printer"></i>Imprimir</button>
@@ -1270,13 +1271,13 @@ table td{vertical-align:middle}
         <thead><tr>
           <th onclick="cpOrd.campo==='obra'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='obra',cpOrd.dir='asc');renderCompras()" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="cpOrd.campo==='nome'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='nome',cpOrd.dir='asc');renderCompras()" style="cursor:pointer">Processo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
-          <th onclick="cpOrd.campo==='tipo'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='tipo',cpOrd.dir='asc');renderCompras()" style="cursor:pointer">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
-          <th onclick="cpOrd.campo==='resp'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='resp',cpOrd.dir='asc');renderCompras()" style="cursor:pointer">Resp. <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+          <th onclick="cpOrd.campo==='tipo'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='tipo',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;text-align:center">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+          <th onclick="cpOrd.campo==='resp'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='resp',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;text-align:center">Resp. <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="cpOrd.campo==='custo'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='custo',cpOrd.dir='desc');renderCompras()" style="cursor:pointer;text-align:right">Orçamento <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="cpOrd.campo==='adjud'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='adjud',cpOrd.dir='desc');renderCompras()" style="cursor:pointer;text-align:right">Adjudicado <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right">Desvio</th>
-          <th onclick="cpOrd.campo==='situacao'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='situacao',cpOrd.dir='asc');renderCompras()" style="cursor:pointer">Situação <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
-          <th onclick="cpOrd.campo==='dataAdj'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='dataAdj',cpOrd.dir='desc');renderCompras()" style="cursor:pointer">Data adj. <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+          <th onclick="cpOrd.campo==='situacao'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='situacao',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;text-align:center">Situação <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+          <th onclick="cpOrd.campo==='dataAdj'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='dataAdj',cpOrd.dir='desc');renderCompras()" style="cursor:pointer;text-align:center">Data adj. <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th></th>
         </tr></thead>
         <tbody id="compras-tbody"></tbody>
@@ -1556,7 +1557,7 @@ table td{vertical-align:middle}
   <div class="modal modal-lg">
     <div class="modal-header"><h3 id="modal-compra-title">Novo processo de compra</h3><button class="modal-close" onclick="closeModal('modal-compra')">&times;</button></div>
     <div class="form-grid">
-      <div class="form-group" style="grid-column:1/-1"><label>Obra</label><input type="text" id="cp-obra" list="dl-cp-obras" placeholder="ex: 0285 - Posto..."><datalist id="dl-cp-obras"></datalist></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Obra</label><select id="cp-obra"></select></div>
       <div class="form-group" style="grid-column:1/-1"><label>Nome do processo</label><input type="text" id="cp-nome" placeholder="ex: Betão, Tubagens..."></div>
       <div class="form-group"><label>Tipo</label>
         <select id="cp-tipo"><option>FORNECIMENTO</option><option>SUBEMPREITADA</option><option>SERVIÇO</option><option>ALUGUER</option><option value="">(sem tipo)</option></select>
@@ -3040,7 +3041,7 @@ function popularFiltrosRH(){
     const setM=new Set(meses);RH_MESES.forEach(m=>setM.add(m+'/'+anoAtual));
     const todos=[...setM].sort((x,y)=>{const px=x.split('/'),py=y.split('/');return (parseInt(px[1])-parseInt(py[1]))||(RH_MESES.indexOf(px[0])-RH_MESES.indexOf(py[0]));});
     let a=fm.value;
-    if(!window._rhMesInit){a=mesAtual;window._rhMesInit=true;}
+    if(window._rhAbrirFresco){a=mesAtual;window._rhAbrirFresco=false;} // [v161->] avanca para o mes atual so ao ABRIR o separador RH de novo, nunca durante a edicao (pedido explicito do Sergio)
     fm.innerHTML='<option value="">Mês mais recente</option>'+todos.map(m=>`<option${a===m?' selected':''}>${m}</option>`).join('');
     fm.value=a;
   }
@@ -3650,39 +3651,82 @@ function confirmarImportCompras(){
 
 // ---- sub-abas ----
 function switchComprasTab(tab){
-  ['lista','analise'].forEach(t=>{
-    const el=document.getElementById('compras-sub-'+t);const btn=document.getElementById('cp-tab-btn-'+t);
-    if(el)el.style.display=t===tab?'':'none';
-    if(btn)btn.classList.toggle('active',t===tab);
-  });
-  if(tab==='lista')renderCompras();
+  modoComprasArquivo=(tab==='arquivo');
+  const mostraLista=(tab==='lista'||tab==='arquivo');
+  const elL=document.getElementById('compras-sub-lista');if(elL)elL.style.display=mostraLista?'':'none';
+  const elA=document.getElementById('compras-sub-analise');if(elA)elA.style.display=(tab==='analise')?'':'none';
+  ['lista','analise','arquivo'].forEach(t=>{const b=document.getElementById('cp-tab-btn-'+t);if(b)b.classList.toggle('active',t===tab);});
+  comprasSel.clear();
+  if(mostraLista)renderCompras();
   if(tab==='analise')renderComprasAnalise();
 }
 
 // ---- render lista ----
+function _cpNomeObra(codigo){
+  if(!codigo)return '';
+  var o=obras.find(function(x){return String(x.num)===String(codigo);});
+  return o?o.nome:'';
+}
+function _cpPopularObraSelect(valorAtual){
+  var sel=document.getElementById('cp-obra'); if(!sel)return;
+  var opts='<option value="">— escolher obra —</option>'+(obras||[]).map(function(o){
+    return '<option value="'+o.num+'"'+(String(o.num)===String(valorAtual)?' selected':'')+'>'+o.num+' — '+o.nome+'</option>';
+  }).join('');
+  // compatibilidade: se o valor atual (compra antiga) nao corresponder a nenhuma obra real, mantem-se visivel como opcao extra
+  if(valorAtual&&!obras.some(function(o){return String(o.num)===String(valorAtual);})){
+    opts+='<option value="'+valorAtual+'" selected>'+valorAtual+' (obra antiga/texto livre)</option>';
+  }
+  sel.innerHTML=opts;
+  if(valorAtual)sel.value=valorAtual;
+}
+let _cpFiltrosCache={};
 function cpPopularFiltros(){
   const obrasU=[...new Set(compras.map(c=>c.obra).filter(Boolean))].sort();
   const sits=[...new Set(compras.map(c=>c.situacao).filter(Boolean))].sort();
   const tipos=[...new Set(compras.map(c=>c.tipo).filter(Boolean))].sort();
   const resps=[...new Set(compras.map(c=>c.resp).filter(Boolean))].sort();
-  const set=(id,arr,label)=>{const el=document.getElementById(id);if(!el)return;const a=el.value;el.innerHTML=`<option value="">${label}</option>`+arr.map(x=>`<option${a===x?' selected':''}>${x}</option>`).join('');};
+  const forns=[...new Set(compras.map(c=>c.fornecedor).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
+  // [v164->] so reconstroi as opcoes do <select> quando a lista de valores unicos MUDOU desde a ultima vez;
+  // isto evita reconstruir 5 selects inteiros (todo o DOM de opcoes) em cada clique/tecla quando nada mudou de facto,
+  // que era o principal custo repetido a cada interacao (expandir/colapsar grupo, escrever na pesquisa, etc.)
+  const set=(id,arr,label)=>{
+    const el=document.getElementById(id);if(!el)return;
+    const assinatura=arr.join('\u0001');
+    if(_cpFiltrosCache[id]===assinatura)return; // nada mudou -> nao mexe no DOM
+    _cpFiltrosCache[id]=assinatura;
+    const a=el.value;
+    el.innerHTML=`<option value="">${label}</option>`+arr.map(x=>`<option${a===x?' selected':''}>${x}</option>`).join('');
+    el.value=a; // preserva a seleção mesmo depois de reconstruir
+  };
   set('compras-filtro-obra',obrasU,'Todas as obras');
   set('compras-filtro-sit',sits,'Todas as situações');
   set('compras-filtro-tipo',tipos,'Todos os tipos');
   set('compras-filtro-resp',resps,'Todos os responsáveis');
+  set('compras-filtro-fornecedor',forns,'Todos os fornecedores');
   const dlo=document.getElementById('dl-cp-obras');if(dlo)dlo.innerHTML=obrasU.map(o=>`<option value="${o}">`).join('');
   const dlr=document.getElementById('dl-cp-resp');if(dlr)dlr.innerHTML=resps.map(r=>`<option value="${r}">`).join('');
 }
+function _cpSearchDebounced(){clearTimeout(window._cpSearchTimer);window._cpSearchTimer=setTimeout(renderCompras,180);}
 function cpSitBadge(s){
   const map={'Adjudicado':'concluida','Negociação':'emcurso','Consulta':'adjudicado','Não Iniciado':'suspensa'};
   return `<span class="badge ${map[s]||'cancelada'}">${s||'—'}</span>`;
 }
 let comprasColaps={};
 function toggleCompraGrupo(k){comprasColaps[k]=!comprasColaps[k];renderCompras();}
+let cpEstadoColaps={};
+function toggleCpEstadoGrupo(estado){cpEstadoColaps[estado]=!cpEstadoColaps[estado];renderCompras();}
 function comprasExpandirTodos(ab){const tb=document.getElementById('compras-tbody');if(!tb)return;const obs=[...new Set(compras.map(c=>c.obra||'(sem obra)'))];obs.forEach(o=>{comprasColaps[btoa(unescape(encodeURIComponent(o)))]=!ab;});renderCompras();}
 let modoComprasArquivo=false;
 let comprasSel=new Set();
 function toggleModoComprasArquivo(){modoComprasArquivo=!modoComprasArquivo;comprasSel.clear();renderCompras();}
+function toggleSelGrupoCompras(obraVal,ck){
+  compras.forEach(function(c){
+    if(c.obra===obraVal && (!!c.arquivada)===modoComprasArquivo){
+      if(ck)comprasSel.add(String(c.id));else comprasSel.delete(String(c.id));
+    }
+  });
+  renderCompras();
+}
 function toggleSelCompra(id,ck){if(ck)comprasSel.add(String(id));else comprasSel.delete(String(id));}
 function arquivarCompra(id){const c=compras.find(x=>String(x.id)===String(id));if(!c)return;c.arquivada=true;if(typeof guardarCompras==='function')guardarCompras();renderCompras();}
 function reporCompra(id){const c=compras.find(x=>String(x.id)===String(id));if(!c)return;c.arquivada=false;if(typeof guardarCompras==='function')guardarCompras();renderCompras();}
@@ -3705,12 +3749,14 @@ function renderCompras(){
   const fs=document.getElementById('compras-filtro-sit').value;
   const ft=document.getElementById('compras-filtro-tipo').value;
   const fr=document.getElementById('compras-filtro-resp').value;
+  const ff=document.getElementById('compras-filtro-fornecedor')?document.getElementById('compras-filtro-fornecedor').value:'';
   let lista=compras.slice();
-  if(q)lista=lista.filter(c=>(c.nome||'').toLowerCase().includes(q)||(c.obra||'').toLowerCase().includes(q)||(c.obs||'').toLowerCase().includes(q));
+  if(q)lista=lista.filter(c=>(c.nome||'').toLowerCase().includes(q)||(c.obra||'').toLowerCase().includes(q)||(c.obs||'').toLowerCase().includes(q)||(c.fornecedor||'').toLowerCase().includes(q));
   if(fo)lista=lista.filter(c=>c.obra===fo);
   if(fs)lista=lista.filter(c=>c.situacao===fs);
   if(ft)lista=lista.filter(c=>c.tipo===ft);
   if(fr)lista=lista.filter(c=>c.resp===fr);
+  if(ff)lista=lista.filter(c=>c.fornecedor===ff);
   lista=lista.filter(c=>(!!c.arquivada)===modoComprasArquivo);
   lista.sort((a,b)=>{
     let va=a[cpOrd.campo]??'', vb=b[cpOrd.campo]??'';
@@ -3718,7 +3764,6 @@ function renderCompras(){
     if(typeof va==='number')return cpOrd.dir==='asc'?va-vb:vb-va;
     return cpOrd.dir==='asc'?String(va).localeCompare(String(vb),'pt',{numeric:true}):String(vb).localeCompare(String(va),'pt',{numeric:true});
   });
-  {const bA=document.getElementById('compras-btn-arquivo');if(bA)bA.innerHTML='<i class="ti ti-archive"></i>'+(modoComprasArquivo?'Ver ativos':'Ver arquivo');}
   const totCusto=lista.reduce((s,c)=>s+(c.custo||0),0);
   const totAdj=lista.reduce((s,c)=>s+(c.adjud||0),0);
   const desvio=totCusto-totAdj;
@@ -3734,18 +3779,48 @@ function renderCompras(){
   const grupos={};
   lista.forEach(c=>{const k=(c.obra||'(sem obra)');(grupos[k]=grupos[k]||[]).push(c);});
   const obrasOrd=Object.keys(grupos).sort((a,b)=>String(a).localeCompare(String(b),'pt',{numeric:true,sensitivity:'base'}));
+  // [v165->] #15: agrupar as obras (ja agrupadas acima) por ESTADO da obra (Em Curso/Pos-Venda/Concluida),
+  // reaproveitando grpEstadoNorm/GRUPO_STYLE/GRUPOS_ORDEM ja usados nas Obras, para consistencia visual.
+  const _porEstadoCp={};GRUPOS_ORDEM.forEach(e=>{_porEstadoCp[e]=[];});
+  obrasOrd.forEach(obraKey=>{
+    const _o=obras.find(x=>String(x.num)===String(obraKey));
+    const _est=(window.grpEstadoNorm||function(){return 'Em Curso';})(_o?_o.estado:'Em Curso');
+    (_porEstadoCp[_est]=_porEstadoCp[_est]||[]).push(obraKey);
+  });
   let html='';
-  obrasOrd.forEach(obra=>{
+  GRUPOS_ORDEM.forEach(estadoGrp=>{
+    const obrasDoEstado=_porEstadoCp[estadoGrp]||[];
+    if(!obrasDoEstado.length)return;
+    const colE=!!cpEstadoColaps[estadoGrp];
+    const styE=GRUPO_STYLE[estadoGrp]||{cor:'#334',bg:'#eef'};
+    let nProcE=0,custoE=0,adjE=0;
+    obrasDoEstado.forEach(k=>{grupos[k].forEach(c=>{nProcE++;custoE+=c.custo||0;adjE+=c.adjud||0;});});
+    html+=`<tr style="cursor:pointer;background:${styE.bg}" onclick="toggleCpEstadoGrupo('${estadoGrp}')">
+      <td colspan="6" style="padding:9px 10px;font-weight:700;color:${styE.cor}">
+        <i class="ti ${colE?'ti-chevron-right':'ti-chevron-down'}"></i>
+        <i class="ti ${styE.icone||''}" style="margin-left:6px"></i>
+        <span style="margin-left:6px">${estadoGrp.toUpperCase()}</span>
+        <span style="margin-left:8px;background:${styE.cor};color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${nProcE}</span>
+        <span style="margin-left:10px;font-weight:400;font-size:11.5px;color:var(--muted)">${fmt(custoE,2)}€ orç. · ${fmt(adjE,2)}€ adj.</span>
+      </td>
+      <td colspan="4"></td>
+    </tr>`;
+    if(colE)return;
+  obrasDoEstado.forEach(obra=>{
     const arr=grupos[obra];
     const key=btoa(unescape(encodeURIComponent(obra)));
     const col=!!comprasColaps[key];
     const sCusto=arr.reduce((s,c)=>s+(c.custo||0),0);
     const sAdj=arr.reduce((s,c)=>s+(c.adjud||0),0);
     const sDv=sCusto-sAdj;
+    const _nomeObraGrp=_cpNomeObra(obra);
+    const _grpTodosSel=arr.length>0&&arr.every(c=>comprasSel.has(String(c.id)));
+    const _obraEsc=String(obra).replace(/'/g,"\\'").replace(/"/g,'&quot;');
     html+=`<tr style="cursor:pointer;background:#eef2f7" onclick="toggleCompraGrupo('${key}')">
-      <td colspan="4" style="padding:8px 10px">
+      <td colspan="4" style="padding:8px 10px 8px 26px">
+        <input type="checkbox" ${_grpTodosSel?'checked':''} title="Selecionar todos os processos desta obra" onclick="event.stopPropagation();toggleSelGrupoCompras('${_obraEsc}',this.checked)" style="cursor:pointer;margin-right:8px;vertical-align:middle">
         <i class="ti ${col?'ti-chevron-right':'ti-chevron-down'}"></i>
-        <strong style="margin-left:6px">${obra}</strong>
+        <strong style="margin-left:6px;color:var(--blue)">${obra}</strong>${_nomeObraGrp?` <span style="font-weight:400;color:var(--text);font-size:12.5px">— ${_nomeObraGrp}</span>`:''}
         <span style="margin-left:8px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${arr.length}</span>
       </td>
       <td style="text-align:right;font-weight:700">${fmt(sCusto,2)}€</td>
@@ -3762,13 +3837,13 @@ function renderCompras(){
         html+=`<tr>
           <td style="padding-left:18px"><input type="checkbox" ${comprasSel.has(String(c.id))?'checked':''} onclick="event.stopPropagation();toggleSelCompra('${c.id}',this.checked)" style="cursor:pointer"></td>
           <td style="font-size:11px"><strong>${(c.nome||'—').substring(0,28)}</strong>${anex}</td>
-          <td style="font-size:10px">${c.tipo||'—'}</td>
-          <td style="font-size:11px">${c.resp||'—'}</td>
+          <td style="font-size:10px;text-align:center">${c.tipo||'—'}</td>
+          <td style="font-size:11px;text-align:center">${c.resp||'—'}</td>
           <td style="text-align:right">${fmt(c.custo,2)}€</td>
           <td style="text-align:right;font-weight:600">${fmt(c.adjud,2)}€</td>
           <td style="text-align:right" class="${dv<0?'negative':'positive'}">${fmt(dv,2)}€</td>
-          <td>${cpSitBadge(c.situacao)}</td>
-          <td style="font-size:10px">${c.dataAdj||'—'}</td>
+          <td style="text-align:center">${cpSitBadge(c.situacao)}</td>
+          <td style="font-size:10px;text-align:center">${c.dataAdj||'—'}</td>
           <td style="display:flex;gap:4px">
             <button class="btn sm" title="Editar" onclick="abrirModalCompra('${c.id}')"><i class="ti ti-pencil"></i></button>
             ${btnAuto}
@@ -3777,6 +3852,7 @@ function renderCompras(){
           </td></tr>`;
       });
     }
+  });
   });
   tb.innerHTML=html;
 }
@@ -3792,7 +3868,7 @@ function abrirModalCompra(id){
   editCompraId=id||null;cpPopularFiltros();
   if(id){const c=compras.find(x=>String(x.id)===String(id));if(c){
     document.getElementById('modal-compra-title').textContent='Editar processo de compra';
-    document.getElementById('cp-obra').value=c.obra||'';document.getElementById('cp-nome').value=c.nome||'';
+    _cpPopularObraSelect(c.obra||'');document.getElementById('cp-nome').value=c.nome||'';
     document.getElementById('cp-tipo').value=c.tipo||'';document.getElementById('cp-resp').value=c.resp||'';
     document.getElementById('cp-situacao').value=c.situacao||'Adjudicado';document.getElementById('cp-dataAdj').value=c.dataAdj||'';
     document.getElementById('cp-custo').value=c.custo||'';document.getElementById('cp-adjud').value=c.adjud||'';
@@ -3803,7 +3879,8 @@ function abrirModalCompra(id){
     _cpPropostas=Array.isArray(c.propostas)?c.propostas.map(pp=>({fornecedor:pp.fornecedor||'',valor:+pp.valor||0,prazo:pp.prazo||'',obs:pp.obs||'',escolhida:!!pp.escolhida})):[];
     cpRenderArtigos();cpRenderAnexos();cpRenderPropostas();cpCalcDesvio();}}
   else{document.getElementById('modal-compra-title').textContent='Novo processo de compra';
-    ['cp-obra','cp-nome','cp-resp','cp-dataAdj','cp-custo','cp-adjud','cp-obs','cp-fornecedor'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+    _cpPopularObraSelect('');
+    ['cp-nome','cp-resp','cp-dataAdj','cp-custo','cp-adjud','cp-obs','cp-fornecedor'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
     _cpArtigos=[];cpRenderArtigos();
     _cpPropostas=[];cpRenderPropostas();
     _cpAnexos={contrato:null,lista:null};cpRenderAnexos();
@@ -4263,7 +4340,7 @@ function showTab(id,btn){
     if(id==='gestao')renderGestao();
     if(id==='definicoes'){renderDefinicoes();renderFamilias();if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
     if(id==='importacao')initImportTab();
-    if(id==='rh')switchRHTab(window._rhFull===false?'centros':'colab');
+    if(id==='rh'){window._rhAbrirFresco=true;switchRHTab(window._rhFull===false?'centros':'colab');}
     if(id==='compras')switchComprasTab('lista');
     if(id==='pagamentos')renderPagamentos();
     if(id==='precos')renderPrecos();
@@ -5247,7 +5324,7 @@ function openObra(num){
           <th></th>
         </tr></thead>
         <tbody>${mesesDet.map((ms,idx)=>`<tr class="${ms.liquidez<0?'loss':''}">
-          <td><input type="text" value="${ms.mes||''}" placeholder="Mês/Ano" style="width:84px" data-foco="${idx}-mes" onchange="updMes('${o.num}',${idx},'mes',this.value)"></td>
+          <td>${_mesSelectHTML(idx,'mes',ms.mes)}</td>
           <td><input type="number" value="${ms.custosDir||0}" style="width:80px;text-align:right" data-foco="${idx}-custos" onchange="updMes('${o.num}',${idx},'custos',this.value)"></td>
           <td><input type="number" value="${ms.custosInd||0}" style="width:80px;text-align:right" data-foco="${idx}-indir" onchange="updMes('${o.num}',${idx},'indir',this.value)"></td>
           <td style="text-align:right;background:#f4f6ff;font-weight:600">${fmt(ms.custosTot)}</td>
@@ -5510,6 +5587,33 @@ function aplicarAutosRapido(num){
   openObra(num);
 }
 
+function _mesAnoParse(v){
+  var d=new Date(); var mi=d.getMonth(), ano=d.getFullYear();
+  if(v&&typeof v==='string'){
+    var partes=v.split('/'); if(partes.length===2){
+      var idx=MESES_PROX.indexOf(partes[0]); var a=parseInt(partes[1],10);
+      if(idx>=0)mi=idx; if(a&&!isNaN(a))ano=a;
+    }
+  }
+  return {mi:mi,ano:ano};
+}
+function _mesSelectHTML(idx,campo,mesAtual){
+  var pa=_mesAnoParse(mesAtual);
+  var anoIni=pa.ano-4, anoFim=pa.ano+4;
+  var optsMes=MESES_PROX.map(function(nm,i){return '<option value=\''+i+'\''+(i===pa.mi?' selected':'')+'>'+nm+'</option>';}).join('');
+  var optsAno=''; for(var a=anoIni;a<=anoFim;a++){optsAno+='<option value=\''+a+'\''+(a===pa.ano?' selected':'')+'>'+a+'</option>';}
+  return '<div style="display:flex;gap:2px">'
+    +'<select style="width:52px;font-size:11px" data-foco="'+idx+'-mescal" onchange="updMesData(this)">'+optsMes+'</select>'
+    +'<select style="width:56px;font-size:11px" data-foco="'+idx+'-anocal" onchange="updMesData(this)">'+optsAno+'</select>'
+    +'</div>';
+}
+function updMesData(el){
+  var td=el.closest('td'); var selMes=td.querySelector('select:nth-child(1)'), selAno=td.querySelector('select:nth-child(2)');
+  var tr=el.closest('tr'); var tbody=el.closest('tbody'); var idx=Array.prototype.indexOf.call(tbody.children,tr);
+  var num=window._obraAberta;
+  var composto=MESES_PROX[parseInt(selMes.value,10)]+'/'+selAno.value;
+  updMes(num,idx,'mes',composto);
+}
 function updMes(num,idx,campo,valor){
   const o=obras.find(x=>x.num===num);if(!o||!o.mesesMensais[idx])return;
   const m=o.mesesMensais[idx];
@@ -5649,7 +5753,11 @@ function agregarCustosNasObras(){
   const mapa={};
   custos.forEach(c=>{
     if(!c.obraNum)return;
-    const mes=mesNomeDe(c.mesNum);
+    // [v166->] FIX: tinha de incluir o ANO (formato "Mês/Ano", igual ao resto de mesesMensais[].mes) —
+    // sem o ano, este mapa criava sempre uma entrada NOVA ("Jan" em vez de "Jan/2026") que nunca coincidia
+    // com os meses já existentes, duplicando/fragmentando os lançamentos financeiros da obra a cada execução,
+    // e ainda misturava anos diferentes no mesmo mês (ex: Jan/2025 e Jan/2026 no mesmo balde "Jan").
+    const mes=mesNomeDe(c.mesNum)+'/'+(c.ano||new Date().getFullYear());
     if(!mapa[c.obraNum])mapa[c.obraNum]={};
     if(!mapa[c.obraNum][mes])mapa[c.obraNum][mes]={dir:0,ind:0};
     if(custoEhIndireto(c))mapa[c.obraNum][mes].ind+=Math.abs(c.valor||0);
@@ -7523,6 +7631,59 @@ function switchObrasTab(tab){
 function arquivarObra(num){const o=obras.find(x=>x.num===num);if(!o)return;o.arquivada=true;compras.forEach(c=>{if(c.obra===num)c.arquivada=true;});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
 function reporObra(num){const o=obras.find(x=>x.num===num);if(!o)return;o.arquivada=false;compras.forEach(c=>{if(c.obra===num)c.arquivada=false;});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
 function apagarObraArquivo(num){if(!confirm('Apagar definitivamente a obra '+num+', incluindo os seus contratos e custos? Esta ação não pode ser anulada.'))return;obras=obras.filter(x=>x.num!==num);compras=compras.filter(c=>c.obra!==num);if(typeof custos!=='undefined')custos=custos.filter(c=>c.obraNum!==num);if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
+// [v166->] #16 FUNDIR OBRAS — utilitario de consola, o Sergio corre uma vez: window.fundirObras('0380','0382')
+// A obra de ORIGEM e absorvida pela obra de DESTINO (fica tudo em destNum) e a origem e eliminada no fim.
+// Reaproveita fundirDadosObra(dest,src) -- a MESMA funcao ja usada quando se renomeia uma obra para um
+// codigo ja existente (fluxo "Editar obra"), que soma adj/autos/custos/gastosGerais/trabalhosMais/revPrecos/
+// errosOmissoes/orcamentoCusto, funde mesesMensais mes-a-mes, e junta trabMaisHist/errosHist -- e acrescenta
+// o que esse fluxo NAO cobre: compras, distribuicao de RH e o registo de Caucoes (Clientes).
+// NAO mexe no modulo de Autos de Medicao (sistema a parte, identificado pelo NOME da obra, nao pelo numero).
+window.fundirObras=function(origNum,destNum){
+  origNum=String(origNum);destNum=String(destNum);
+  if(origNum===destNum){alert('As duas obras têm de ser diferentes.');return false;}
+  var oOrig=obras.find(function(x){return String(x.num)===origNum;});
+  var oDest=obras.find(function(x){return String(x.num)===destNum;});
+  if(!oOrig){alert('Obra de origem "'+origNum+'" não encontrada.');return false;}
+  if(!oDest){alert('Obra de destino "'+destNum+'" não encontrada.');return false;}
+  ensureFin(oOrig);ensureFin(oDest);
+  var nComp=compras.filter(function(c){return c.obra===origNum;}).length;
+  var nCust=(typeof custos!=='undefined'?custos:[]).filter(function(c){return c.obraNum===origNum;}).length;
+  var nMeses=(oOrig.mesesMensais||[]).length;
+  var resumo='Vai fundir a obra "'+origNum+' — '+(oOrig.nome||'')+'" DENTRO de "'+destNum+' — '+(oDest.nome||'')+'".\n\n'
+    +'- '+nComp+' processo(s) de compra passam a ficar na obra '+destNum+'\n'
+    +'- '+nCust+' custo(s) diretos passam a ficar na obra '+destNum+'\n'
+    +'- '+nMeses+' mês(es) de lançamentos financeiros são somados aos de '+destNum+' (mês igual soma-se; mês novo é acrescentado)\n'
+    +'- distribuições de RH que apontavam para '+origNum+' passam a apontar para '+destNum+'\n'
+    +'- a obra '+origNum+' é ELIMINADA no final — esta ação não pode ser anulada\n\n'
+    +'NOTA: isto NÃO mexe no módulo de Autos de Medição (sistema à parte, identificado pelo nome da obra, não pelo número) — se as duas obras também tiverem contratos lá, isso precisa de ser tratado à parte.\n\n'
+    +'Confirma que quer continuar?';
+  if(!confirm(resumo))return false;
+  fundirDadosObra(oDest,oOrig);
+  // [v166->] recalcular os totais de topo (revPrecos/trabalhosMais/custos/autos) a partir dos meses
+  // ja corretamente fundidos -- sem isto, os campos de topo ficavam com a soma "crua" do fundirDadosObra
+  // ate a proxima vez que algo os recalculasse, o que era inconsistente.
+  if(typeof sincronizarObra==='function')sincronizarObra(oDest);
+  compras.forEach(function(c){if(c.obra===origNum)c.obra=destNum;});
+  if(typeof custos!=='undefined')custos.forEach(function(c){if(c.obraNum===origNum)c.obraNum=destNum;});
+  (rhColab||[]).forEach(function(col){(col.distrib||[]).forEach(function(d){if(d.obraNum===origNum)d.obraNum=destNum;});});
+  // [v166->] Cauções (Clientes/Fornecedores): NÃO tentar mover/fundir automaticamente aqui.
+  // Esse registo vive numa área da app com o seu próprio estado em memória (carregado uma única vez);
+  // escrever diretamente no localStorage por fora arrisca ser reposto/perdido pelo próximo guardar dessa
+  // área, o que seria pior do que não mexer. Em vez disso, só avisamos se havia algo a rever à mão.
+  var avisoCauc='';
+  try{
+    var cli=JSON.parse(localStorage.getItem('caucoes_clientes_v1')||'{}');
+    if(cli[origNum]){
+      avisoCauc='\n\nATENÇÃO: a obra '+origNum+' tinha registo em Cauções (Clientes) — isso NÃO foi movido automaticamente (é uma área com estado próprio, arriscado mexer por fora). Confirma manualmente no separador Cauções se é preciso transferir algo para a obra '+destNum+'.';
+    }
+  }catch(e){}
+  obras=obras.filter(function(x){return String(x.num)!==origNum;});
+  if(typeof guardarCompras==='function')guardarCompras();
+  if(typeof guardarTudo==='function')guardarTudo();
+  if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{try{agendarGravacao();}catch(e){}try{filterObras();}catch(e){}}
+  alert('Fusão concluída: a obra '+origNum+' foi absorvida por '+destNum+'.'+avisoCauc);
+  return true;
+};
 function esvaziarArquivo(){
   const obrasArq=obras.filter(o=>o.arquivada),comprasArq=compras.filter(c=>c.arquivada);
   const nums=new Set(obrasArq.map(o=>o.num));
@@ -8100,10 +8261,11 @@ function _vencCusto(c){
 }
 function _estadoCusto(c){if(c.pagoFlag===true)return 'pago';if(c.pagoFlag===false)return 'porpagar';var tot=_totalComIva(c),f=_faltaCusto(c);if(tot>0.005&&f<=0.005)return 'pago';if(_pagoCusto(c)>0.005)return 'parcial';return 'porpagar';}
 function _diasAtraso(c){if(_estadoCusto(c)==='pago')return -99999;var h=new Date();h.setHours(0,0,0,0);var v=_vencCusto(c);v.setHours(0,0,0,0);return Math.floor((h-v)/86400000);}
+function _rmPagAuto(c){if(!Array.isArray(c.pagamentos))return;c.pagamentos=c.pagamentos.filter(function(p){return p.obs!=='Marcado pago em Custos'&&p.obs!=='Marcado pago (selecao)';});}
 function togglePagoCusto(id){
   var c=custos.find(function(x){return String(x.id)===String(id);});
   if(!c)return;
-  if(_estadoCusto(c)==='pago'){ c.pagoFlag=false; c.pagamentos=[]; }
+  if(_estadoCusto(c)==='pago'){ c.pagoFlag=false; _rmPagAuto(c); }
   else{ c.pagoFlag=true; var falta=_faltaCusto(c); if(falta>0.005){ c.pagamentos=c.pagamentos||[]; c.pagamentos.push({data:new Date().toISOString().split('T')[0],valor:falta,obs:'Marcado pago em Custos'}); } }
   if(typeof agendarGravacao==='function')agendarGravacao();
   try{if(typeof renderCustos==='function')renderCustos();}catch(e){}
@@ -8111,6 +8273,25 @@ function togglePagoCusto(id){
 }
 // todos os custos com valor passam para Pagamentos (inclui sem fornecedor); só fica de fora o RH interno
 function _contasPagaveis(){return custos.filter(function(c){var fn=(c.fornecedor||'').trim().toLowerCase();return !c.origemRH && !c.origemIndireto && fn!=='rh (interno)' && fn!=='rh' && Math.abs(_totalComIva(c))>0.005;});}
+
+// [v158] DIAGNOSTICO: window.diagPagar('andaime') -> mostra na consola porque cada custo aparece por pagar
+window.diagPagar=function(txt){
+  txt=(txt||'').toString().toLowerCase();
+  function _norm(x){return (x||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+  var alvo=_norm(txt);
+  var pag=_contasPagaveis();var setPag=new Set(pag.map(function(c){return String(c.id);}));
+  var res=(custos||[]).filter(function(c){return !alvo || _norm((c.fornecedor||'')+' '+(c.desc||'')+' '+(c.obraNum||'')).indexOf(alvo)>=0;})
+   .map(function(c){var tot=_totalComIva(c),pg=_pagoCusto(c),fa=_faltaCusto(c);
+     return {id:c.id, obra:c.obraNum||'', fornecedor:c.fornecedor||'', desc:(c.desc||'').slice(0,40),
+       valor:Math.round((parseFloat(c.valor)||0)*100)/100, totalCIVA:Math.round(tot*100)/100,
+       pago:Math.round(pg*100)/100, falta:Math.round(fa*100)/100,
+       pagoFlag:(c.pagoFlag===undefined?'—':c.pagoFlag), indireto:!!c.origemIndireto, rh:!!c.origemRH,
+       estado:_estadoCusto(c), apareceEmPagamentos:setPag.has(String(c.id))};});
+  try{console.table(res);}catch(e){console.log(res);}
+  console.log('Encontrados '+res.length+' custo(s) para "'+txt+'". (indireto=true e rh=true nunca aparecem em Pagamentos.)');
+  return res;
+};
+
 
 // vencimento rapido por prazo fixo (15/30/60/90 dias) a contar da data do documento
 function vencRapido(dias){
@@ -8972,7 +9153,7 @@ function marcarSelecionadosPago(pago){
   custos.forEach(function(c){
     if(!custosSel.has(c.id))return;
     if(pago){ c.pagoFlag=true; var falta=_faltaCusto(c); if(falta>0.005){c.pagamentos=c.pagamentos||[];c.pagamentos.push({data:new Date().toISOString().split('T')[0],valor:falta,obs:'Marcado pago (selecao)'});} }
-    else { c.pagoFlag=false; c.pagamentos=[]; }
+    else { c.pagoFlag=false; _rmPagAuto(c); }
   });
   if(typeof agendarGravacao==='function')agendarGravacao();
   try{if(typeof renderCustos==='function')renderCustos();}catch(e){}
@@ -9670,19 +9851,7 @@ function aplicarZoom(){ try{
   var z1=(z/100);
   b.style.zoom=z1;
   var el=document.getElementById('zoom-val'); if(el)el.textContent=z+'%';
-  // controlo de zoom fixo no canto inferior direito, sempre do mesmo tamanho (contra-zoom)
-  try{
-    var zc=document.getElementById('zoom-ctrl');
-    if(zc){
-      if(zc.parentNode!==document.body){
-        document.body.appendChild(zc);
-        zc.style.position='fixed'; zc.style.right='8px'; zc.style.bottom='8px';
-        zc.style.zIndex='300'; zc.style.transformOrigin='100% 100%';
-        zc.style.boxShadow='0 2px 10px rgba(0,0,0,.18)';
-      }
-      zc.style.zoom=(1/z1);
-    }
-  }catch(e){}
+  // [v158] controlo de zoom fica sempre no cabecalho (nao flutua sobre o conteudo)
 }catch(e){} }
 function _ajustarIframeAutos(){ try{
   var f=document.getElementById('frame-autosmed'); if(f) f.style.height='';
@@ -12217,6 +12386,7 @@ function confirmarLancamento(){
   function _ccChave(o){
     if(o&&typeof o==='object'){
       if(o.id!=null)return '#'+o.id;
+      if(o.num!=null)return 'num#'+o.num; // [v159] obras nao tem .id, a chave estavel e o numero da obra (nao o nome, que pode ser editado)
       if(o.codigo!=null)return 'c#'+o.codigo;
       if(o.nome!=null)return 'n#'+o.nome;
       return 'j#'+JSON.stringify(o);
