@@ -309,7 +309,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v156</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v157</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -2316,13 +2316,19 @@ function aplicarEstadoPartilhado(d){
 }
 window.aplicarEstadoPartilhado=aplicarEstadoPartilhado;
 window._ccUltimaInteracao=0;
+window._campoAtivo=false;
 try{ ['pointerdown','click','keydown','input','change'].forEach(function(ev){ document.addEventListener(ev,function(){ window._ccUltimaInteracao=Date.now(); },true); }); }catch(e){}
+try{
+  document.addEventListener('focusin',function(e){ var t=e.target; if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)){ window._campoAtivo=true; window._ccUltimaInteracao=Date.now(); } },true);
+  document.addEventListener('focusout',function(){ window._campoAtivo=false; window._ccUltimaInteracao=Date.now(); },true);
+}catch(e){}
 window.ccReDesenhar=function(){
   try{
     // Nao perturbar o utilizador enquanto ele esta a trabalhar:
     var ocupado=false;
     var ae=document.activeElement;
     if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) ocupado=true;       // a escrever num campo
+    if(window._campoAtivo) ocupado=true;                                     // dropdown/campo aberto (robusto no WebKit)
     if(document.querySelector('.modal-backdrop.open')) ocupado=true;          // tem um formulario aberto
     if(Date.now()-(window._ccUltimaInteracao||0) < 3500) ocupado=true;        // clicou/mexeu ha menos de 2,5s
     if(ocupado){
@@ -5241,7 +5247,7 @@ function openObra(num){
           <th></th>
         </tr></thead>
         <tbody>${mesesDet.map((ms,idx)=>`<tr class="${ms.liquidez<0?'loss':''}">
-          <td><input type="text" value="${ms.mes||''}" style="width:54px" data-foco="${idx}-mes" onchange="updMes('${o.num}',${idx},'mes',this.value)"></td>
+          <td><input type="text" value="${ms.mes||''}" placeholder="Mês/Ano" style="width:84px" data-foco="${idx}-mes" onchange="updMes('${o.num}',${idx},'mes',this.value)"></td>
           <td><input type="number" value="${ms.custosDir||0}" style="width:80px;text-align:right" data-foco="${idx}-custos" onchange="updMes('${o.num}',${idx},'custos',this.value)"></td>
           <td><input type="number" value="${ms.custosInd||0}" style="width:80px;text-align:right" data-foco="${idx}-indir" onchange="updMes('${o.num}',${idx},'indir',this.value)"></td>
           <td style="text-align:right;background:#f4f6ff;font-weight:600">${fmt(ms.custosTot)}</td>
@@ -5357,15 +5363,36 @@ function gerarMeses(o){
 
 // ── GESTÃO DOS LANÇAMENTOS MENSAIS ───────────────────────────────────
 const MESES_PROX=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+// ── Mês/Ano nos lançamentos (obras com mais de 12 meses precisam do ano) ──
+function _parseMesAno(txt){
+  txt=String(txt||'').trim();
+  var partes=txt.split('/');
+  var nome=(partes[0]||'').trim();
+  var i=MESES_PROX.indexOf(nome);
+  var ano=parseInt(partes[1],10);
+  if(!(ano>1900)) ano=new Date().getFullYear();
+  return {idx:i, ano:ano};
+}
+function _mesAnoAtual(){ var d=new Date(); return MESES_PROX[d.getMonth()]+'/'+d.getFullYear(); }
+function _proxMesAno(ult){
+  var p=_parseMesAno(ult);
+  if(p.idx<0) return _mesAnoAtual();
+  var ni=p.idx+1, ano=p.ano;
+  if(ni>11){ ni=0; ano++; }
+  return MESES_PROX[ni]+'/'+ano;
+}
+function _mesAnoSeq(baseIdx, baseAno, k){
+  var tot=baseIdx+k; var ano=baseAno+Math.floor(tot/12); var mi=((tot%12)+12)%12;
+  return MESES_PROX[mi]+'/'+ano;
+}
 function addMesObra(num){
   const o=obras.find(x=>x.num===num);if(!o)return;
   ensureFin(o);
-  // sugerir o mês seguinte ao último
-  let proximo='Jan';
+  // sugerir o mês/ano seguinte ao último (com ano, para obras > 12 meses)
+  let proximo=_mesAnoAtual();
   if(o.mesesMensais.length){
     const ult=o.mesesMensais[o.mesesMensais.length-1].mes;
-    const i=MESES_PROX.indexOf(ult);
-    proximo=i>=0?MESES_PROX[(i+1)%12]:'';
+    proximo=_proxMesAno(ult);
   }
   o.mesesMensais.push({mes:proximo,custos:0,indir:0,autos:0,revPrecos:0,trabMais:0,
     iva:o.iva,adiantPct:o.adiantPct,retencaoPct:o.retencaoPct,estadoFat:'nao'});
@@ -5440,14 +5467,15 @@ function aplicarAutosRapido(num){
   if(modo==='nmeses'){
     const n=Math.max(1,parseInt(document.getElementById('ar-nmeses').value,10)||12);
     // sugerir nomes de meses sequenciais a partir do último
-    let baseIdx=0;
+    let baseIdx=0, baseAno=new Date().getFullYear();
     if(o.mesesMensais.length){
       const ult=o.mesesMensais[o.mesesMensais.length-1].mes;
-      const i=MESES_PROX.indexOf(ult); baseIdx=i>=0?i+1:0;
-    }
+      const p=_parseMesAno(ult);
+      if(p.idx>=0){ baseIdx=p.idx+1; baseAno=p.ano; }
+    } else { const d=new Date(); baseIdx=d.getMonth(); baseAno=d.getFullYear(); }
     const valorPorMes=total/n;
     for(let k=0;k<n;k++){
-      o.mesesMensais.push({mes:MESES_PROX[(baseIdx+k)%12],custos:0,indir:0,
+      o.mesesMensais.push({mes:_mesAnoSeq(baseIdx,baseAno,k),custos:0,indir:0,
         autos:valorPorMes,revPrecos:0,trabMais:0,
         iva:o.iva,adiantPct:o.adiantPct,retencaoPct:o.retencaoPct,estadoFat:estado});
     }
@@ -5457,9 +5485,9 @@ function aplicarAutosRapido(num){
     if(alvo.length===0)alvo=o.mesesMensais.slice();
     // se mesmo assim não há meses, cria 12 meses-base
     if(alvo.length===0){
-      let baseIdx=0;
+      const _d0=new Date(); let baseIdx=_d0.getMonth(), baseAno=_d0.getFullYear();
       for(let k=0;k<12;k++){
-        const linha={mes:MESES_PROX[(baseIdx+k)%12],custos:0,indir:0,autos:0,revPrecos:0,trabMais:0,
+        const linha={mes:_mesAnoSeq(baseIdx,baseAno,k),custos:0,indir:0,autos:0,revPrecos:0,trabMais:0,
           iva:o.iva,adiantPct:o.adiantPct,retencaoPct:o.retencaoPct,estadoFat:estado};
         o.mesesMensais.push(linha); alvo.push(linha);
       }
@@ -9642,7 +9670,7 @@ function aplicarZoom(){ try{
   var z1=(z/100);
   b.style.zoom=z1;
   var el=document.getElementById('zoom-val'); if(el)el.textContent=z+'%';
-  // controlo de zoom fixo no canto, a tamanho constante (contra-zoom para nao encolher/mover)
+  // controlo de zoom fixo no canto inferior direito, sempre do mesmo tamanho (contra-zoom)
   try{
     var zc=document.getElementById('zoom-ctrl');
     if(zc){
