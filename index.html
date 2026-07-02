@@ -309,7 +309,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v167</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v169</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -2163,6 +2163,7 @@ async function _migrarAnexosParaIDB(){
 }
 
 function guardarTudo(){
+  window._ccUltimaEdicaoLocal=Date.now(); // [v168] cobre tambem quem chama guardarTudo() diretamente (ex.: guardarCompras)
   const dump={
     v:4,ts:Date.now(),
     obras,indiretos,categorias,familias,tiposObra,tiposCliente,custos,
@@ -2200,6 +2201,7 @@ function sincronizarAutosSeAberto(){
 }
 function agendarGravacao(){
   marcarGuardado('a guardar');
+  window._ccUltimaEdicaoLocal=Date.now(); // [v168] marca "acabei de editar" p/ proteger de sobreposição da cloud
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(guardarTudo,600);
 }
@@ -2317,6 +2319,7 @@ function aplicarEstadoPartilhado(d){
 }
 window.aplicarEstadoPartilhado=aplicarEstadoPartilhado;
 window._ccUltimaInteracao=0;
+window._ccUltimaEdicaoLocal=0; // [v168] ver _ccAplicarDaCloud
 window._campoAtivo=false;
 try{ ['pointerdown','click','keydown','input','change'].forEach(function(ev){ document.addEventListener(ev,function(){ window._ccUltimaInteracao=Date.now(); },true); }); }catch(e){}
 try{
@@ -3795,15 +3798,18 @@ function renderCompras(){
     const styE=GRUPO_STYLE[estadoGrp]||{cor:'#334',bg:'#eef'};
     let nProcE=0,custoE=0,adjE=0;
     obrasDoEstado.forEach(k=>{grupos[k].forEach(c=>{nProcE++;custoE+=c.custo||0;adjE+=c.adjud||0;});});
+    const dvE=custoE-adjE;
     html+=`<tr style="cursor:pointer;background:${styE.bg}" onclick="toggleCpEstadoGrupo('${estadoGrp}')">
-      <td colspan="6" style="padding:9px 10px;font-weight:700;color:${styE.cor}">
+      <td colspan="4" style="padding:9px 10px;font-weight:700;color:${styE.cor}">
         <i class="ti ${colE?'ti-chevron-right':'ti-chevron-down'}"></i>
         <i class="ti ${styE.icone||''}" style="margin-left:6px"></i>
         <span style="margin-left:6px">${estadoGrp.toUpperCase()}</span>
         <span style="margin-left:8px;background:${styE.cor};color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${nProcE}</span>
-        <span style="margin-left:10px;font-weight:400;font-size:11.5px;color:var(--muted)">${fmt(custoE,2)}€ orç. · ${fmt(adjE,2)}€ adj.</span>
       </td>
-      <td colspan="4"></td>
+      <td style="text-align:right;font-weight:700;color:${styE.cor}">${fmt(custoE,2)}€</td>
+      <td style="text-align:right;font-weight:700;color:${styE.cor}">${fmt(adjE,2)}€</td>
+      <td style="text-align:right;font-weight:700;color:${styE.cor}">${fmt(dvE,2)}€</td>
+      <td colspan="3"></td>
     </tr>`;
     if(colE)return;
   obrasDoEstado.forEach(obra=>{
@@ -12464,6 +12470,12 @@ function confirmarLancamento(){
   window._syncAgendar=_syncAgendar;
   function _ccAplicarDaCloud(dados){
     if(!dados||_ccVazio(dados))return;
+    // [v168] Não aplicar dados da cloud por cima de uma edição local muito recente
+    // (ainda a caminho de ser enviada) - senão a versão antiga da cloud apaga o que
+    // o utilizador acabou de escolher (ex.: tipo de obra, cliente, categoria de custo,
+    // filtros). O envio local (agendarGravacao -> cloudEnviarEstado) reconcilia a seguir,
+    // porque esse caminho já prefere sempre os dados locais.
+    if(_syncEnviando||(Date.now()-(window._ccUltimaEdicaoLocal||0))<5000) return;
     var local=_ccLocal()||{};
     var rem=_ccRemovidos(_syncSnap,local);
     var merged=_ccMerge(dados,local,rem); /* cloud preferida + as minhas criacoes */
