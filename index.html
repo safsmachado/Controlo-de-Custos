@@ -309,7 +309,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v175</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v176</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -460,6 +460,7 @@ table td{vertical-align:middle}
   <div class="tabs-inner" style="margin-bottom:14px">
     <button class="tab-inner-btn active" id="fc-tab-btn-lista" onclick="switchFactTab('lista')">Faturação</button>
     <button class="tab-inner-btn" id="fc-tab-btn-analise" onclick="switchFactTab('analise')">Análise</button>
+    <button class="tab-inner-btn" id="fc-tab-btn-arquivo" onclick="switchFactTab('arquivo')"><i class="ti ti-archive"></i> Arquivo</button>
   </div>
   <div id="fact-sub-lista">
   <div class="metric-grid" id="fact-metrics"></div>
@@ -477,7 +478,7 @@ table td{vertical-align:middle}
     </select>
     <button class="btn" onclick="modeloValoresCSV()"><i class="ti ti-template"></i>Modelo CSV</button>
     <button class="btn" onclick="abrirTesouraria()"><i class="ti ti-cash"></i>Tesouraria</button>
-    <button class="btn" id="fact-arq-btn" onclick="toggleFatArquivo()" title="Alternar entre obras ativas e arquivadas"><i class="ti ti-archive"></i>Ver arquivo</button>
+
   </div>
   <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Valores importados automaticamente dos lançamentos mensais de cada obra. Verde = totalmente faturado, amarelo = parcial, vermelho = por faturar/liquidez negativa.</div>
   <div class="card" style="padding:0">
@@ -852,6 +853,15 @@ table td{vertical-align:middle}
 
 <!-- ═══════════════════════════════ DEFINIÇÕES ═══════════════════════════════ -->
 <div class="tab" id="tab-definicoes">
+  <div class="card">
+    <div class="section-title">Empresas</div>
+    <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Empresas do grupo (as mesmas do módulo Autos de Medição — alterar aqui altera lá e vice-versa, sincronizado sempre). São usadas em toda a aplicação, incluindo nos contratos das Compras.</div>
+    <div class="toolbar" style="margin-bottom:8px"><button class="btn primary" onclick="empAdicionar()"><i class="ti ti-plus"></i>Adicionar empresa</button></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Nome</th><th>NIF</th><th>Morada</th><th>Telefone</th><th>Email</th><th style="text-align:center">Ativa</th><th></th></tr></thead>
+      <tbody id="empresas-app-tbody"></tbody>
+    </table></div>
+  </div>
   <div class="card">
     <div class="section-title">Email automático (Cloud)</div>
     <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Os avisos automáticos são enviados pela função de email no Supabase. Usa o teste abaixo para confirmar que está a funcionar antes de ligar os automatismos.</div>
@@ -1270,9 +1280,10 @@ table td{vertical-align:middle}
     <div class="card" style="padding:0">
       <div class="table-wrap"><table>
         <thead><tr>
+          <th style="width:34px"></th>
           <th onclick="cpOrd.campo==='obra'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='obra',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;width:130px;min-width:110px">Cód. <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="cursor:pointer" onclick="cpOrd.campo==='obra'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='obra',cpOrd.dir='asc');renderCompras()">Obra</th>
-          <th onclick="cpOrd.campo==='estado'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='estado',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;text-align:center">Estado <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+
           <th onclick="cpOrd.campo==='nome'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='nome',cpOrd.dir='asc');renderCompras()" style="cursor:pointer">Processo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="cpOrd.campo==='tipo'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='tipo',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;text-align:center">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="cpOrd.campo==='resp'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='resp',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;text-align:center">Resp. <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
@@ -1377,6 +1388,7 @@ table td{vertical-align:middle}
   <div class="toolbar">
     <button class="sub-pill active" id="cau-tab-clientes" onclick="cauMostrar('clientes')"><i class="ti ti-building-bank"></i>Clientes</button>
     <button class="sub-pill" id="cau-tab-fornecedores" onclick="cauMostrar('fornecedores')"><i class="ti ti-truck-delivery"></i>Fornecedores</button>
+    <button class="sub-pill" id="cau-tab-arquivo" onclick="cauMostrar('arquivo')" title="Registos arquivados (clientes ou fornecedores, conforme a vista anterior)"><i class="ti ti-archive"></i>Arquivo</button>
     <span style="font-size:11px;color:var(--muted);margin-left:auto">Controlo de cauções, garantias e retenções: <b>Clientes</b> = o que o dono de obra retém à Sá Machado; <b>Fornecedores</b> = o que a Sá Machado retém aos subempreiteiros.</span>
   </div>
 
@@ -1387,7 +1399,9 @@ table td{vertical-align:middle}
       <select id="cauc-filtro" onchange="renderCaucClientes()" style="padding:7px 10px;font-size:12px;border:1px solid var(--border);border-radius:8px"><option value="">Todos os estados</option><option value="Em Curso">Em Curso</option><option value="Pós-Venda">Pós-Venda</option><option value="Concluída">Concluída</option></select>
       <button class="btn" onclick="cauSincronizarClientes()" title="Atualizar retenções a partir da faturação das obras"><i class="ti ti-refresh"></i>Sincronizar faturação</button>
       <button class="btn primary" onclick="document.getElementById('cauc-file-input').click()" title="Importar um mapa de cauções a partir de um ficheiro Excel (cria/atualiza obras)"><i class="ti ti-file-import"></i>Importar Mapa</button><input type="file" id="cauc-file-input" accept=".xlsx,.xls" style="display:none" onchange="cauImportarFicheiro(this)"><button class="btn" onclick="cauImportarMapa()" title="Repor o mapa Sá Machado embebido na aplicação" style="font-size:11px"><i class="ti ti-database-import"></i>Repor mapa embebido</button>
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><input type="checkbox" id="cauc-arq" onchange="renderCaucClientes()"> Arquivadas</label>
+      <input type="checkbox" id="cauc-arq" style="display:none">
+      <button class="btn sm" onclick="cauCliExpandir(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
+      <button class="btn sm" onclick="cauCliExpandir(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
     </div>
     <div id="cauc-libpanel"></div>
     <div class="metric-grid" id="cauc-kpis"></div>
@@ -1400,7 +1414,9 @@ table td{vertical-align:middle}
     <div class="toolbar" style="margin-bottom:10px;flex-wrap:wrap">
       <input type="search" id="cauf-search" placeholder="Pesquisar obra, fornecedor..." oninput="renderCaucFornecedores()" style="flex:1;min-width:200px;padding:7px 10px;font-size:12px;border:1px solid var(--border);border-radius:8px">
       <button class="btn" onclick="cauSincronizarFornecedores()" title="Atualizar a partir dos autos aos fornecedores"><i class="ti ti-refresh"></i>Sincronizar autos</button>
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><span>Agrupar:</span><select id="cauf-group" onchange="renderCaucFornecedores()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px"><option value="obra">Obra</option><option value="fornecedor">Fornecedor</option><option value="nenhum">Nenhum</option></select></label><label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><input type="checkbox" id="cauf-todos" onchange="renderCaucFornecedores()"> Mostrar todos</label><label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><input type="checkbox" id="cauf-arq" onchange="renderCaucFornecedores()"> Arquivados</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><span>Agrupar:</span><select id="cauf-group" onchange="renderCaucFornecedores()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px"><option value="obra">Obra</option><option value="fornecedor">Fornecedor</option><option value="nenhum">Nenhum</option></select></label><label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><input type="checkbox" id="cauf-todos" onchange="renderCaucFornecedores()"> Mostrar todos</label><input type="checkbox" id="cauf-arq" style="display:none">
+      <button class="btn sm" onclick="cauForExpandir(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
+      <button class="btn sm" onclick="cauForExpandir(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
     </div>
     <div id="cauf-libpanel"></div>
     <div class="metric-grid" id="cauf-kpis"></div>
@@ -1567,6 +1583,7 @@ table td{vertical-align:middle}
         <select id="cp-tipo"><option>FORNECIMENTO</option><option>SUBEMPREITADA</option><option>SERVIÇO</option><option>ALUGUER</option><option value="">(sem tipo)</option></select>
       </div>
       <div class="form-group"><label>Responsável</label><input type="text" id="cp-resp" list="dl-cp-resp" placeholder="ex: MP"><datalist id="dl-cp-resp"></datalist></div>
+      <div class="form-group"><label>Empresa (quem faz o contrato)</label><select id="cp-empresa"></select></div>
       <div class="form-group" style="grid-column:1/-1"><label>Fornecedor / Empreiteiro</label><input type="text" id="cp-fornecedor" placeholder="Nome do subempreiteiro/fornecedor (usado ao criar o auto)"></div>
       <div class="form-group"><label>Situação</label>
         <select id="cp-situacao"><option>Adjudicado</option><option>Negociação</option><option>Consulta</option><option>Não Iniciado</option></select>
@@ -3715,6 +3732,42 @@ function cpPopularFiltros(){
   const dlr=document.getElementById('dl-cp-resp');if(dlr)dlr.innerHTML=resps.map(r=>`<option value="${r}">`).join('');
 }
 function _cpSearchDebounced(){clearTimeout(window._cpSearchTimer);window._cpSearchTimer=setTimeout(renderCompras,180);}
+/* ===== [v176] Empresas partilhadas (fonte unica: autosmed_store_v1.empresas, a mesma do modulo Autos) ===== */
+function _empStore(){try{return JSON.parse(localStorage.getItem('autosmed_store_v1')||'{}')||{};}catch(e){return{};}}
+function _empGuardar(st){
+  try{localStorage.setItem('autosmed_store_v1',JSON.stringify(st));}catch(e){alert('Falha ao guardar empresas.');return;}
+  // avisar o modulo Autos (se aberto) e a cloud — sincronizacao sempre
+  try{var f=document.getElementById('frame-autosmed');if(f&&f.contentWindow&&f.contentWindow.__autosPronto)f.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(st)},'*');}catch(e){}
+  try{if(window._syncAgendar)window._syncAgendar();}catch(e){}
+}
+function appEmpresas(){var st=_empStore();return Array.isArray(st.empresas)?st.empresas:[];}
+function appEmpresasAtivas(){return appEmpresas().filter(function(e){return e&&e.ativa!==false;});}
+function renderEmpresasApp(){
+  var tb=document.getElementById('empresas-app-tbody');if(!tb)return;
+  var emps=appEmpresas();
+  if(!emps.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">Sem empresas definidas. Use "Adicionar empresa".</td></tr>';return;}
+  var esc=function(t){return String(t||'').replace(/"/g,'&quot;');};
+  tb.innerHTML=emps.map(function(e,i){
+    return '<tr>'+
+      '<td><input type="text" value="'+esc(e.nome)+'" onchange="empCampo('+i+',\'nome\',this.value)" style="width:100%"></td>'+
+      '<td><input type="text" value="'+esc(e.nif)+'" onchange="empCampo('+i+',\'nif\',this.value)" style="width:110px"></td>'+
+      '<td><input type="text" value="'+esc(e.morada)+'" onchange="empCampo('+i+',\'morada\',this.value)" style="width:100%"></td>'+
+      '<td><input type="text" value="'+esc(e.telefone)+'" onchange="empCampo('+i+',\'telefone\',this.value)" style="width:110px"></td>'+
+      '<td><input type="text" value="'+esc(e.email)+'" onchange="empCampo('+i+',\'email\',this.value)" style="width:100%"></td>'+
+      '<td style="text-align:center"><input type="checkbox" '+(e.ativa!==false?'checked':'')+' onchange="empCampo('+i+',\'ativa\',this.checked)"></td>'+
+      '<td><button class="btn sm danger" title="Apagar" onclick="empApagar('+i+')"><i class="ti ti-trash"></i></button></td>'+
+    '</tr>';
+  }).join('');
+}
+function empCampo(i,campo,val){var st=_empStore();if(!Array.isArray(st.empresas)||!st.empresas[i])return;st.empresas[i][campo]=(campo==='ativa')?!!val:String(val||'').trim();_empGuardar(st);if(typeof regAudit==='function')regAudit('Definições','Alterou empresa '+(st.empresas[i].nome||''));}
+function empAdicionar(){var n=prompt('Nome da nova empresa:');if(!n||!n.trim())return;var st=_empStore();if(!Array.isArray(st.empresas))st.empresas=[];st.empresas.push({id:'e'+Date.now(),nome:n.trim(),nif:'',morada:'',codPostal:'',localidade:'',telefone:'',email:'',logo:'',ativa:true});_empGuardar(st);renderEmpresasApp();if(typeof regAudit==='function')regAudit('Definições','Adicionou empresa '+n.trim());}
+function empApagar(i){var st=_empStore();if(!Array.isArray(st.empresas)||!st.empresas[i])return;if(!confirm('Apagar a empresa "'+(st.empresas[i].nome||'')+'"?\n\nOs contratos dos Autos que a usem passam a usar a primeira empresa da lista.'))return;var nm=st.empresas[i].nome||'';st.empresas.splice(i,1);_empGuardar(st);renderEmpresasApp();if(typeof regAudit==='function')regAudit('Definições','Apagou empresa '+nm);}
+function _cpPopularEmpresaSelect(valorAtual){ // [v176] select da empresa contratante no formulario das Compras
+  var sel=document.getElementById('cp-empresa');if(!sel)return;
+  var emps=appEmpresasAtivas();
+  sel.innerHTML='<option value="">— sem empresa —</option>'+emps.map(function(e){return '<option value="'+e.id+'"'+(String(e.id)===String(valorAtual)?' selected':'')+'>'+String(e.nome||'').replace(/</g,'&lt;')+'</option>';}).join('');
+  if(valorAtual&&!emps.some(function(e){return String(e.id)===String(valorAtual);}))sel.innerHTML+='<option value="'+valorAtual+'" selected>(empresa removida)</option>';
+}
 function _cpInitColResize(){ // [v175] pegas de redimensionamento nas colunas das Compras (arrastar o bordo direito de cada cabecalho)
   if(window._cpResizeOk)return;
   var tb=document.getElementById('compras-tbody'); if(!tb)return;
@@ -3722,6 +3775,9 @@ function _cpInitColResize(){ // [v175] pegas de redimensionamento nas colunas da
   var ths=table.querySelectorAll('thead th');
   if(!ths.length)return;
   window._cpResizeOk=true;
+  // [v176] repor larguras gravadas (por utilizador)
+  try{var _W=JSON.parse(uiLer('cpColW_v1')||'null');if(_W&&_W.length===ths.length){ths.forEach(function(t,i){if(_W[i])t.style.width=_W[i]+'px';});table.style.tableLayout='fixed';}}catch(e){}
+  function _cpGravarW(){try{var a=[];ths.forEach(function(t){a.push(t.offsetWidth);});uiGravar('cpColW_v1',JSON.stringify(a));}catch(e){}}
   ths.forEach(function(th){
     th.style.position='relative';
     var h=document.createElement('span');
@@ -3737,7 +3793,7 @@ function _cpInitColResize(){ // [v175] pegas de redimensionamento nas colunas da
       }
       var x0=e.pageX,w0=th.offsetWidth;
       function mv(ev){th.style.width=Math.max(40,w0+(ev.pageX-x0))+'px';}
-      function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);document.body.style.cursor='';}
+      function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);document.body.style.cursor='';_cpGravarW();}
       document.body.style.cursor='col-resize';
       document.addEventListener('mousemove',mv);
       document.addEventListener('mouseup',up);
@@ -3873,6 +3929,11 @@ function apagarComprasSelecionadas(){
 function renderCompras(){
   cpPopularFiltros();
   try{_cpInitColResize();}catch(_){}
+  // [v176] ordenacao lembrada por utilizador
+  try{
+    if(!window._cpOrdInit){window._cpOrdInit=true;var _sv=JSON.parse(uiLer('cpOrd_v1')||'null');if(_sv&&_sv.campo)cpOrd=_sv;}
+    else uiGravar('cpOrd_v1',JSON.stringify(cpOrd));
+  }catch(_){}
   const q=(document.getElementById('compras-search').value||'').toLowerCase();
   const fo=document.getElementById('compras-filtro-obra').value;
   const fs=document.getElementById('compras-filtro-sit').value;
@@ -3933,6 +3994,7 @@ function renderCompras(){
         <i class="ti ${styE.icone||''}" style="margin-left:6px"></i>
         <span style="margin-left:6px">${estadoGrp.toUpperCase()}</span>
         <span style="margin-left:8px;background:${styE.cor};color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${nProcE}</span>
+        <i class="ti ti-arrows-sort" title="Inverter a ordem dos grupos de estado" style="margin-left:10px;cursor:pointer;opacity:.55" onclick="event.stopPropagation();cpOrd.campo='estado';cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc';renderCompras()"></i>
       </td>
       <td style="text-align:right;font-weight:700;color:${styE.cor}">${fmt(custoE,2)}€</td>
       <td style="text-align:right;font-weight:700;color:${styE.cor}">${fmt(adjE,2)}€</td>
@@ -3958,13 +4020,15 @@ function renderCompras(){
         +GRUPOS_ORDEM.map(function(e){return '<option value="'+e+'"'+(e===_estGrp?' selected':'')+'>'+e+'</option>';}).join('')
         +'</select>';
     html+=`<tr style="cursor:pointer;background:#eef2f7" onclick="toggleCompraGrupo('${key}')">
-      <td style="padding:8px 4px 8px 26px">
-        <input type="checkbox" ${_grpTodosSel?'checked':''} title="Selecionar todos os processos desta obra" onclick="event.stopPropagation();toggleSelGrupoCompras('${_obraEsc}',this.checked)" style="cursor:pointer;margin-right:6px;vertical-align:middle">
+      <td style="padding:8px 2px 8px 8px;text-align:center">
+        <input type="checkbox" ${_grpTodosSel?'checked':''} title="Selecionar todos os processos desta obra" onclick="event.stopPropagation();toggleSelGrupoCompras('${_obraEsc}',this.checked)" style="cursor:pointer">
+      </td>
+      <td style="padding:8px 4px">
         <i class="ti ${col?'ti-chevron-right':'ti-chevron-down'}"></i>
         <strong style="margin-left:4px;color:var(--blue);cursor:text" title="Duplo-clique para corrigir o código" ondblclick="event.stopPropagation();editarCodigoObraGrupo('${_obraEsc}')">${obra}</strong>
+        <span style="margin-left:8px">${_estadoSelHtml}</span>
       </td>
       <td style="padding:8px 4px;cursor:text" title="Duplo-clique para corrigir o nome" ondblclick="event.stopPropagation();editarNomeObraGrupo('${_obraEsc}')">${_nomeObraGrp||'—'}<span style="margin-left:8px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${arr.length}</span></td>
-      <td style="text-align:center">${_estadoSelHtml}</td>
       <td colspan="3"></td>
       <td style="text-align:right;font-weight:700">${fmt(sCusto,2)}€</td>
       <td style="text-align:right;font-weight:700">${fmt(sAdj,2)}€</td>
@@ -3978,7 +4042,8 @@ function renderCompras(){
         const verde=c.autoCriado?'background:var(--green);color:#fff;border-color:var(--green)':'';
         const btnAuto=c.situacao==='Adjudicado'?`<button class="btn sm" style="${verde}" title="${c.autoCriado?'Já passado para os Autos (verde). Clicar volta a criar.':'Criar auto de medição (subempreitada) nos Autos'}" onclick="criarAutoDaCompra('${c.id}')"><i class="ti ti-ruler-2"></i></button>`:'';
         html+=`<tr>
-          <td colspan="3" style="padding-left:18px"><input type="checkbox" ${comprasSel.has(String(c.id))?'checked':''} onclick="event.stopPropagation();toggleSelCompra('${c.id}',this.checked)" style="cursor:pointer"></td>
+          <td style="padding:6px 2px;text-align:center"><input type="checkbox" ${comprasSel.has(String(c.id))?'checked':''} onclick="event.stopPropagation();toggleSelCompra('${c.id}',this.checked)" style="cursor:pointer"></td>
+          <td colspan="2"></td>
           <td style="font-size:11px"><strong>${(c.nome||'—').substring(0,28)}</strong>${anex}</td>
           <td style="font-size:10px;text-align:center">${c.tipo||'—'}</td>
           <td style="font-size:11px;text-align:center">${c.resp||'—'}</td>
@@ -4011,7 +4076,7 @@ function abrirModalCompra(id){
   editCompraId=id||null;cpPopularFiltros();
   if(id){const c=compras.find(x=>String(x.id)===String(id));if(c){
     document.getElementById('modal-compra-title').textContent='Editar processo de compra';
-    _cpPopularObraSelect(c.obra||'');document.getElementById('cp-nome').value=c.nome||'';
+    _cpPopularObraSelect(c.obra||'');_cpPopularEmpresaSelect(c.empresaId||'');document.getElementById('cp-nome').value=c.nome||'';
     document.getElementById('cp-tipo').value=c.tipo||'';document.getElementById('cp-resp').value=c.resp||'';
     document.getElementById('cp-situacao').value=c.situacao||'Adjudicado';document.getElementById('cp-dataAdj').value=c.dataAdj||'';
     document.getElementById('cp-custo').value=c.custo||'';document.getElementById('cp-adjud').value=c.adjud||'';
@@ -4022,7 +4087,7 @@ function abrirModalCompra(id){
     _cpPropostas=Array.isArray(c.propostas)?c.propostas.map(pp=>({fornecedor:pp.fornecedor||'',valor:+pp.valor||0,prazo:pp.prazo||'',obs:pp.obs||'',escolhida:!!pp.escolhida})):[];
     cpRenderArtigos();cpRenderAnexos();cpRenderPropostas();cpCalcDesvio();}}
   else{document.getElementById('modal-compra-title').textContent='Novo processo de compra';
-    _cpPopularObraSelect('');
+    _cpPopularObraSelect('');_cpPopularEmpresaSelect('');
     ['cp-nome','cp-resp','cp-dataAdj','cp-custo','cp-adjud','cp-obs','cp-fornecedor'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
     _cpArtigos=[];cpRenderArtigos();
     _cpPropostas=[];cpRenderPropostas();
@@ -4040,6 +4105,8 @@ async function saveCompra(){
   const data={obra,nome:document.getElementById('cp-nome').value.trim(),tipo:cpNormTipo(document.getElementById('cp-tipo').value),
     resp:document.getElementById('cp-resp').value.trim(),situacao:document.getElementById('cp-situacao').value,
     fornecedor:(document.getElementById('cp-fornecedor')?document.getElementById('cp-fornecedor').value.trim():''),
+    empresaId:(document.getElementById('cp-empresa')?document.getElementById('cp-empresa').value:''),
+    empresaNome:(function(){var el=document.getElementById('cp-empresa');return el&&el.selectedIndex>=0&&el.value?el.options[el.selectedIndex].text:'';})(),
     artigos,
     propostas:cpLerPropostas(),
     dataAdj:document.getElementById('cp-dataAdj').value,custo,adjud,desvio:+(custo-adjud).toFixed(2),
@@ -4481,7 +4548,7 @@ function showTab(id,btn){
     if(id==='relatorios')renderRelatorio();
     if(id==='indiretos')setTimeout(function(){try{renderIndiretos();}catch(e){try{console.warn('indiretos:',e);}catch(_){}}},50);
     if(id==='gestao')renderGestao();
-    if(id==='definicoes'){renderDefinicoes();renderFamilias();if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
+    if(id==='definicoes'){renderDefinicoes();renderFamilias();try{renderEmpresasApp();}catch(_){}if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
     if(id==='importacao')initImportTab();
     if(id==='rh'){window._rhAbrirFresco=true;switchRHTab(window._rhFull===false?'centros':'colab');}
     if(id==='compras')switchComprasTab('lista');
@@ -7712,13 +7779,13 @@ function removeDocObra(num,idx){
 // FACTURAÇÃO
 // ══════════════════════════════════════════════════════════════
 // ══════ SEPARADOR FACTURAÇÃO — sub-abas ══════
-function switchFactTab(tab){
-  ['lista','analise'].forEach(t=>{
-    const el=document.getElementById('fact-sub-'+t);const btn=document.getElementById('fc-tab-btn-'+t);
-    if(el)el.style.display=t===tab?'':'none';
-    if(btn)btn.classList.toggle('active',t===tab);
-  });
-  if(tab==='lista')renderFacturacao();
+function switchFactTab(tab){ // [v176] 'arquivo' e um 3o separador que reaproveita a mesma lista (padrao das Obras/Compras)
+  const mostraLista=(tab==='lista'||tab==='arquivo');
+  const el=document.getElementById('fact-sub-lista');if(el)el.style.display=mostraLista?'':'none';
+  const ea=document.getElementById('fact-sub-analise');if(ea)ea.style.display=tab==='analise'?'':'none';
+  ['lista','analise','arquivo'].forEach(t=>{const btn=document.getElementById('fc-tab-btn-'+t);if(btn)btn.classList.toggle('active',t===tab);});
+  modoFatArquivo=(tab==='arquivo');
+  if(mostraLista)renderFacturacao();
   if(tab==='analise')renderFactAnalise();
 }
 function renderFactAnalise(){
@@ -9689,9 +9756,14 @@ const COL_TABELAS = {
   compras:{tbody:'compras-tbody', titulo:'Colunas — Compras'},
   relatorios:{tbody:null, titulo:'Colunas — Relatórios', container:'rel-container'},
 };
+/* [v176] preferencias de interface gravadas POR UTILIZADOR (larguras, ordem e visibilidade de colunas, zoom, ordenacoes).
+   A chave no localStorage ganha o sufixo ::utilizador; se nao existir, le o valor global antigo (ninguem perde o que ja tinha). */
+function _uSuf(){try{var ss=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'{}');return ss&&ss.user?('::'+ss.user):'';}catch(e){return '';}}
+function uiLer(chave){try{var v=localStorage.getItem(chave+_uSuf());if(v==null)v=localStorage.getItem(chave);return v;}catch(e){return null;}}
+function uiGravar(chave,val){try{localStorage.setItem(chave+_uSuf(),val);}catch(e){}}
 let colPrefs = {};   // { chaveTabela: [{idx,nome,visivel,largura}] }
-function carregarColPrefs(){try{const s=localStorage.getItem('colPrefs_v2');colPrefs=s?JSON.parse(s):{};}catch(e){colPrefs={};}}
-function guardarColPrefs(){try{localStorage.setItem('colPrefs_v2',JSON.stringify(colPrefs));}catch(e){}}
+function carregarColPrefs(){try{const s=uiLer('colPrefs_v2');colPrefs=s?JSON.parse(s):{};}catch(e){colPrefs={};}}
+function guardarColPrefs(){try{uiGravar('colPrefs_v2',JSON.stringify(colPrefs));}catch(e){}}
 
 function tabelaDe(chave){
   const def=COL_TABELAS[chave];if(!def)return null;
@@ -9785,8 +9857,8 @@ function aplicarColunaEstilo(table,posVisual,col,nCols){
 }
 
 // ===== Arrasto de colunas (eventos de rato — fiável em qualquer separador) =====
-let colOrdemGen={}; try{colOrdemGen=JSON.parse(localStorage.getItem('colOrdemGen_v1')||'{}');}catch(e){colOrdemGen={};}
-function guardarColOrdemGen(){try{localStorage.setItem('colOrdemGen_v1',JSON.stringify(colOrdemGen));}catch(e){}}
+let colOrdemGen={}; try{colOrdemGen=JSON.parse(uiLer('colOrdemGen_v1')||'{}');}catch(e){colOrdemGen={};}
+function guardarColOrdemGen(){try{uiGravar('colOrdemGen_v1',JSON.stringify(colOrdemGen));}catch(e){}}
 function infoTabelaArrasto(table){
   for(const ch in COL_TABELAS){ if(tabelaDe(ch)===table) return {tipo:'pref',chave:ch}; }
   const tb=table.querySelector('tbody');
@@ -10023,7 +10095,7 @@ function instalarObservadoresColunas(){
 
 carregarColPrefs();
 function aplicarZoom(){ try{
-  var z=parseInt(localStorage.getItem('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100;
+  var z=parseInt((typeof uiLer==='function'?uiLer('crm_zoom'):localStorage.getItem('crm_zoom'))||'100',10); if(!(z>=70&&z<=150))z=100;
   // limpar quaisquer restos de versoes anteriores (wrapper/transform/width/--zf)
   var wrap=document.getElementById('zoomwrap');
   if(wrap){ try{ var par=wrap.parentNode; while(wrap.firstChild){ par.insertBefore(wrap.firstChild, wrap); } par.removeChild(wrap); }catch(e){} }
@@ -10039,7 +10111,7 @@ function _ajustarIframeAutos(){ try{
   var f=document.getElementById('frame-autosmed'); if(f) f.style.height='';
 }catch(e){} }
 try{ window.addEventListener('resize', function(){ try{_ajustarIframeAutos();}catch(e){} }); }catch(e){}
-function ajustarZoom(delta,repor){ try{ var z=parseInt(localStorage.getItem('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100; if(repor)z=100; else z=Math.min(150,Math.max(70,z+delta)); localStorage.setItem('crm_zoom',String(z)); aplicarZoom(); }catch(e){} }
+function ajustarZoom(delta,repor){ try{ var z=parseInt(uiLer('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100; if(repor)z=100; else z=Math.min(150,Math.max(70,z+delta)); uiGravar('crm_zoom',String(z)); aplicarZoom(); }catch(e){} }
 aplicarZoom();
 carregarConfigGraficos();
 carregarCustomCharts();
@@ -10107,7 +10179,7 @@ window.addEventListener('message',function(ev){
     if(md&&md.classList.contains('open')&&document.getElementById('passar-vista-lista').style.display!=='none')renderListaPassar();
     return;
   }
-  if(m&&m.tipo==='autosmed:save'){ try{localStorage.setItem('autosmed_store_v1', m.valor);}catch(e){} try{if(window._syncAgendar)window._syncAgendar();}catch(e){} return; }
+  if(m&&m.tipo==='autosmed:save'){ try{localStorage.setItem('autosmed_store_v1', m.valor);}catch(e){} try{if(window._syncAgendar)window._syncAgendar();}catch(e){} try{if(typeof renderEmpresasApp==='function')renderEmpresasApp();}catch(e){} return; }
   if(m&&m.tipo==='autosmed:req'){ var v=null; try{v=localStorage.getItem('autosmed_store_v1');}catch(e){} try{ var alvo=ev.source||((document.getElementById('frame-autosmed')||{}).contentWindow); if(alvo) alvo.postMessage({tipo:'autosmed:data',valor:v},'*'); }catch(e){} return; }
 });
 function escP(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -11487,16 +11559,21 @@ function confirmarLancamento(){
   }
 
   /* =================================================================== */
-  window.cauMostrar=function(qual){
-    ['clientes','fornecedores'].forEach(function(q){var p=g('cau-pane-'+q),t=g('cau-tab-'+q);if(p)p.style.display=q===qual?'':'none';if(t)t.classList.toggle('active',q===qual);});
-    if(qual==='clientes')renderCaucClientes();
-    if(qual==='fornecedores')renderCaucFornecedores();
+  window.cauMostrar=function(qual){ // [v176] 'arquivo' mostra os arquivados da vista anterior (clientes ou fornecedores)
+    var arq=(qual==='arquivo');
+    if(!arq)window._cauUlt=qual;
+    var pane=arq?(window._cauUlt||'clientes'):qual;
+    ['clientes','fornecedores'].forEach(function(q){var p=g('cau-pane-'+q),t=g('cau-tab-'+q);if(p)p.style.display=q===pane?'':'none';if(t)t.classList.toggle('active',!arq&&q===qual);});
+    var ta=g('cau-tab-arquivo');if(ta)ta.classList.toggle('active',arq);
+    var c1=g('cauc-arq');if(c1)c1.checked=arq;
+    var c2=g('cauf-arq');if(c2)c2.checked=arq;
+    if(pane==='clientes')renderCaucClientes();else renderCaucFornecedores();
   };
   function ativarArr(scopeEl){try{if(typeof ativarArrastoColunas==='function')ativarArrastoColunas(scopeEl);}catch(e){}}
   /* redimensionar largura das colunas (arrastar a borda), guardado por tabela */
   function ativarResize(table,chave){
     if(!table)return;
-    var W={};try{W=JSON.parse(localStorage.getItem('caucColW_'+chave)||'{}');}catch(e){}
+    var W={};try{W=JSON.parse((typeof uiLer==='function'?uiLer('caucColW_'+chave):localStorage.getItem('caucColW_'+chave))||'{}');}catch(e){}
     var ths=table.querySelectorAll('thead th');
     ths.forEach(function(th,i){
       if(W[i])th.style.width=W[i]+'px';
@@ -11508,7 +11585,7 @@ function confirmarLancamento(){
         ev.preventDefault();ev.stopPropagation();
         var sx=ev.clientX,sw=th.offsetWidth;
         function mv(e){var w=Math.max(36,sw+(e.clientX-sx));th.style.width=w+'px';}
-        function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);W[i]=th.offsetWidth;try{localStorage.setItem('caucColW_'+chave,JSON.stringify(W));}catch(e){}}
+        function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);W[i]=th.offsetWidth;try{if(typeof uiGravar==='function')uiGravar('caucColW_'+chave,JSON.stringify(W));else localStorage.setItem('caucColW_'+chave,JSON.stringify(W));}catch(e){}}
         document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
       });
       th.appendChild(h);
@@ -11565,6 +11642,7 @@ function confirmarLancamento(){
     return String(r[campo]||'').toLowerCase();
   }
   window.cauEstToggle=function(g){cauEstCol[g]=!cauEstCol[g];renderCaucClientes();};
+  window.cauCliExpandir=function(ab){['Em Curso','Pós-Venda','Concluída'].forEach(function(e){cauEstCol[e]=!ab;});renderCaucClientes();}; // [v176]
   window.renderCaucClientes=function(){
     var tab=g('cauc-tabela'),kp=g('cauc-kpis');if(!tab)return;
     if(autoArquivar(cli))cliSave();
@@ -11881,6 +11959,10 @@ function confirmarLancamento(){
   }
   function ordenarL(L){L.sort(function(a,b){var x=cfVal(a,ordForn.campo),y=cfVal(b,ordForn.campo);if(x<y)return ordForn.dir==='asc'?-1:1;if(x>y)return ordForn.dir==='asc'?1:-1;return 0;});return L;}
   window.cauGrpToggle=function(ch){grpCol[ch]=!grpCol[ch];renderCaucFornecedores();};
+  window.cauForExpandir=function(ab){ // [v176] expandir/colapsar todos os grupos (qualquer agrupamento)
+    if(ab){Object.keys(grpCol).forEach(function(k){grpCol[k]=false;});}
+    else{comprasArr().forEach(function(c){grpCol['obra::'+(c.obra||'(sem obra)')]=true;grpCol['fornecedor::'+(c.fornecedor||'(sem nome)')]=true;});}
+    renderCaucFornecedores();};
   function linhaForn(row){
     var r=row.reg,ch=escA(row.fkey),c=row.c,p=proxLib(r),sub=(c.tipo||'').toUpperCase()==='SUBEMPREITADA';
     var vermelha=p&&p.vencida;
