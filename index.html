@@ -312,7 +312,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v199</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v200</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -681,11 +681,12 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
     <div class="alert info"><i class="ti ti-info-circle"></i> Empresas executantes (que emitem os autos) e empresas fornecedoras / subempreiteiros. Ao criar um contrato com uma entidade nova, ela fica guardada aqui automaticamente como fornecedor.</div>
     <div class="toolbar">
       <button class="btn primary" onclick="window.AutosNat.abrirModalEmpresa()"><i class="ti ti-plus"></i>Nova empresa</button>
-      <select id="emp-filtro" onchange="window.AutosNat.renderEmpresas()">
-        <option value="">Todas</option>
-        <option value="exec">Só executantes</option>
-        <option value="forn">Só fornecedores</option>
-      </select>
+    </div>
+    <div class="tabs-inner" id="emp-filtro-tabs">
+      <button class="tab-inner-btn active" data-f="" onclick="window.AutosNat.empFiltroTab('')">Todas</button>
+      <button class="tab-inner-btn" data-f="exec" onclick="window.AutosNat.empFiltroTab('exec')">Executantes</button>
+      <button class="tab-inner-btn" data-f="forn" onclick="window.AutosNat.empFiltroTab('forn')">Fornecedores</button>
+      <button class="tab-inner-btn" data-f="sub" onclick="window.AutosNat.empFiltroTab('sub')">Subempreiteiros</button>
     </div>
     <div class="card" style="padding:0"><div class="table-wrap">
       <table><thead><tr><th>Logótipo</th><th>Nome</th><th>NIF</th><th>Localidade</th><th>Fornecedor</th><th>Tipo</th><th>Ativa</th><th></th></tr></thead>
@@ -711,39 +712,39 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
 <div id="print-zone" style="display:none"></div>
 
 <!-- ═══════════ MODAL NOVA/EDITAR OBRA (igual ao Controlo de Obras v19) ═══════════ -->
-<div class="modal-backdrop" id="modal-nova-obra">
+<div class="modal-backdrop" id="an-modal-nova-obra">
   <div class="modal modal-lg">
     <div class="modal-header">
-      <h3 id="modal-nova-obra-title">Nova Obra</h3>
-      <button class="modal-close" onclick="window.AutosNat.closeModal('modal-nova-obra')">&times;</button>
+      <h3 id="an-modal-nova-obra-title">Nova Obra</h3>
+      <button class="modal-close" onclick="window.AutosNat.closeModal('an-modal-nova-obra')">&times;</button>
     </div>
     <div class="form-grid">
       <div class="form-section">Identificação</div>
-      <div class="form-group"><label>N.º Obra</label><input type="text" id="nf-num" placeholder="ex: OBR120"></div>
+      <div class="form-group"><label>N.º Obra</label><input type="text" id="an-nf-num" placeholder="ex: OBR120"></div>
       <div class="form-group"><label>Estado</label>
-        <select id="nf-estado"><option>Em Curso</option><option>Adjudicado</option><option>Concluída</option><option>Suspensa</option><option>Pós-Venda</option><option>Cancelada</option></select>
+        <select id="an-nf-estado"><option>Em Curso</option><option>Adjudicado</option><option>Concluída</option><option>Suspensa</option><option>Pós-Venda</option><option>Cancelada</option></select>
       </div>
-      <div class="form-group" style="grid-column:1/-1"><label>Designação</label><input type="text" id="nf-nome" placeholder="Nome da empreitada"></div>
-      <div class="form-group"><label>Dono de Obra</label><input type="text" id="nf-dono" placeholder="Entidade"></div>
-      <div class="form-group"><label>Tipo de Obra</label><select id="nf-tipo-obra"></select></div>
-      <div class="form-group"><label>Tipo de Cliente</label><select id="nf-tipo-cliente"></select></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Designação</label><input type="text" id="an-nf-nome" placeholder="Nome da empreitada"></div>
+      <div class="form-group"><label>Dono de Obra</label><input type="text" id="an-nf-dono" placeholder="Entidade"></div>
+      <div class="form-group"><label>Tipo de Obra</label><select id="an-nf-tipo-obra"></select></div>
+      <div class="form-group"><label>Tipo de Cliente</label><select id="an-nf-tipo-cliente"></select></div>
       <div class="form-section">Valores Contratuais</div>
-      <div class="form-group"><label>Adjudicação (€)</label><input type="number" id="nf-adj" placeholder="0"></div>
-      <div class="form-group"><label>Revisão de Preços (€)</label><input type="number" id="nf-rev-precos" placeholder="0"></div>
-      <div class="form-group"><label>Trabalhos a Mais (€)</label><input type="number" id="nf-trabalhos-mais" placeholder="0"></div>
-      <div class="form-group"><label>Erros e Omissões (€)</label><input type="number" id="nf-erros-omissoes" placeholder="0"></div>
+      <div class="form-group"><label>Adjudicação (€)</label><input type="number" id="an-nf-adj" placeholder="0"></div>
+      <div class="form-group"><label>Revisão de Preços (€)</label><input type="number" id="an-nf-rev-precos" placeholder="0"></div>
+      <div class="form-group"><label>Trabalhos a Mais (€)</label><input type="number" id="an-nf-trabalhos-mais" placeholder="0"></div>
+      <div class="form-group"><label>Erros e Omissões (€)</label><input type="number" id="an-nf-erros-omissoes" placeholder="0"></div>
       <div class="form-section">Prazos</div>
-      <div class="form-group"><label>Data Consignação</label><input type="date" id="nf-data"></div>
-      <div class="form-group"><label>Prazo (meses)</label><input type="number" id="nf-prazo" placeholder="12"></div>
-      <div class="form-group"><label>Prazo atualizado (meses)</label><input type="number" id="nf-prazo-atual" placeholder="12"></div>
+      <div class="form-group"><label>Data Consignação</label><input type="date" id="an-nf-data"></div>
+      <div class="form-group"><label>Prazo (meses)</label><input type="number" id="an-nf-prazo" placeholder="12"></div>
+      <div class="form-group"><label>Prazo atualizado (meses)</label><input type="number" id="an-nf-prazo-atual" placeholder="12"></div>
       <div class="form-section">Custos</div>
-      <div class="form-group"><label>Orçamento de custo (€)</label><input type="number" id="nf-orcamento" placeholder="0" title="Custo previsto da obra à partida (do orçamento de produção)."></div>
-      <div class="form-group"><label>GG / Estaleiro (%)</label><input type="number" id="nf-estaleiro" step="0.01" placeholder="5"></div>
-      <div class="form-group"><label>Custos acum. (€)</label><input type="number" id="nf-custos" placeholder="0"></div>
-      <div class="form-group"><label>Autos acum. (€)</label><input type="number" id="nf-autos" placeholder="0"></div>
+      <div class="form-group"><label>Orçamento de custo (€)</label><input type="number" id="an-nf-orcamento" placeholder="0" title="Custo previsto da obra à partida (do orçamento de produção)."></div>
+      <div class="form-group"><label>GG / Estaleiro (%)</label><input type="number" id="an-nf-estaleiro" step="0.01" placeholder="5"></div>
+      <div class="form-group"><label>Custos acum. (€)</label><input type="number" id="an-nf-custos" placeholder="0"></div>
+      <div class="form-group"><label>Autos acum. (€)</label><input type="number" id="an-nf-autos" placeholder="0"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
-      <button class="btn" onclick="window.AutosNat.closeModal('modal-nova-obra')">Cancelar</button>
+      <button class="btn" onclick="window.AutosNat.closeModal('an-modal-nova-obra')">Cancelar</button>
       <button class="btn primary" onclick="window.AutosNat.saveNovaObra()"><i class="ti ti-check"></i>Guardar</button>
     </div>
   </div>
@@ -764,6 +765,9 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       <div class="form-group"><label>Email</label><input type="text" id="emp-email" placeholder="opcional"></div>
       <div class="form-group"><label><input type="checkbox" id="emp-ativa" checked> Empresa ativa</label></div>
       <div class="form-group"><label><input type="checkbox" id="emp-fornecedor" onchange="window.AutosNat.toggleEmpFornecedor()"> É fornecedor / subempreiteiro</label></div>
+      <div class="form-group" id="emp-classe-wrap" style="display:none"><label>Classificação</label>
+        <select id="emp-classe"><option value="fornecedor">Fornecedor</option><option value="subempreiteiro">Subempreiteiro</option></select>
+      </div>
       <div class="form-group" id="emp-tipoforn-wrap" style="display:none;grid-column:1/-1"><label>Tipos de fornecedor (pode escolher vários)</label><div id="emp-tipoforn-box" style="display:flex;flex-wrap:wrap;gap:6px 16px;max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:8px"></div></div>
       <div class="form-section">Logótipo</div>
       <div class="form-group" style="grid-column:1/-1">
@@ -1380,7 +1384,7 @@ function saveContrato(){
   } else {
     contratos.push(Object.assign({id:uid(),artigos:[],autos:[]},data));
   }
-  garantirEmpresaFornecedor(data.entidade);
+  garantirEmpresaFornecedor(data.entidade,data.tipo);
   guardar();closeModal('modal-contrato');renderTudo();
 }
 function removeContrato(id){
@@ -2181,82 +2185,82 @@ function popularSelectObras(valorAtual){
   sel.value=valorAtual||'';
 }
 function popularSelectsObra(){
-  const to=document.getElementById('nf-tipo-obra');
+  const to=document.getElementById('an-nf-tipo-obra');
   if(to)to.innerHTML='<option value="">—</option>'+tiposObra.map(t=>`<option>${t}</option>`).join('');
-  const tc=document.getElementById('nf-tipo-cliente');
+  const tc=document.getElementById('an-nf-tipo-cliente');
   if(tc)tc.innerHTML='<option value="">—</option>'+tiposCliente.map(t=>`<option>${t}</option>`).join('');
 }
 function abrirModalNovaObra(){
   editObraNum=null;
-  document.getElementById('modal-nova-obra-title').textContent='Nova Obra';
+  document.getElementById('an-modal-nova-obra-title').textContent='Nova Obra';
   popularSelectsObra();
-  document.getElementById('nf-num').value='';
-  document.getElementById('nf-num').disabled=false;
-  document.getElementById('nf-nome').value='';
-  document.getElementById('nf-dono').value='';
-  document.getElementById('nf-estado').value='Em Curso';
-  document.getElementById('nf-adj').value='';
-  document.getElementById('nf-rev-precos').value='0';
-  document.getElementById('nf-trabalhos-mais').value='0';
-  document.getElementById('nf-erros-omissoes').value='0';
-  document.getElementById('nf-data').value=new Date().toISOString().split('T')[0];
-  document.getElementById('nf-prazo').value='12';
-  document.getElementById('nf-prazo-atual').value='12';
-  document.getElementById('nf-orcamento').value='0';
-  document.getElementById('nf-estaleiro').value='5';
-  document.getElementById('nf-custos').value='0';
-  document.getElementById('nf-autos').value='0';
-  openModal('modal-nova-obra');
+  document.getElementById('an-nf-num').value='';
+  document.getElementById('an-nf-num').disabled=false;
+  document.getElementById('an-nf-nome').value='';
+  document.getElementById('an-nf-dono').value='';
+  document.getElementById('an-nf-estado').value='Em Curso';
+  document.getElementById('an-nf-adj').value='';
+  document.getElementById('an-nf-rev-precos').value='0';
+  document.getElementById('an-nf-trabalhos-mais').value='0';
+  document.getElementById('an-nf-erros-omissoes').value='0';
+  document.getElementById('an-nf-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('an-nf-prazo').value='12';
+  document.getElementById('an-nf-prazo-atual').value='12';
+  document.getElementById('an-nf-orcamento').value='0';
+  document.getElementById('an-nf-estaleiro').value='5';
+  document.getElementById('an-nf-custos').value='0';
+  document.getElementById('an-nf-autos').value='0';
+  openModal('an-modal-nova-obra');
 }
 function abrirEditarObra(num){
   const o=obrasReg.find(x=>x.num===num);if(!o)return;
   editObraNum=num;
-  document.getElementById('modal-nova-obra-title').textContent='Editar — '+o.num;
+  document.getElementById('an-modal-nova-obra-title').textContent='Editar — '+o.num;
   popularSelectsObra();
-  document.getElementById('nf-num').value=o.num;
-  document.getElementById('nf-num').disabled=true;
-  document.getElementById('nf-nome').value=o.nome||'';
-  document.getElementById('nf-dono').value=o.dono||'';
-  document.getElementById('nf-estado').value=o.estado||'Em Curso';
-  document.getElementById('nf-adj').value=o.adj||0;
-  document.getElementById('nf-rev-precos').value=o.revPrecos||0;
-  document.getElementById('nf-trabalhos-mais').value=o.trabalhosMais||0;
-  document.getElementById('nf-erros-omissoes').value=o.errosOmissoes||0;
-  document.getElementById('nf-data').value=o.consignacao||'';
-  document.getElementById('nf-prazo').value=o.prazoMeses||12;
-  document.getElementById('nf-prazo-atual').value=o.prazoAtualMeses||o.prazoMeses||12;
-  document.getElementById('nf-orcamento').value=o.orcamentoCusto||0;
-  document.getElementById('nf-estaleiro').value=o.estaleiroPct||5;
-  document.getElementById('nf-custos').value=o.custos||0;
-  document.getElementById('nf-autos').value=o.autos||0;
+  document.getElementById('an-nf-num').value=o.num;
+  document.getElementById('an-nf-num').disabled=true;
+  document.getElementById('an-nf-nome').value=o.nome||'';
+  document.getElementById('an-nf-dono').value=o.dono||'';
+  document.getElementById('an-nf-estado').value=o.estado||'Em Curso';
+  document.getElementById('an-nf-adj').value=o.adj||0;
+  document.getElementById('an-nf-rev-precos').value=o.revPrecos||0;
+  document.getElementById('an-nf-trabalhos-mais').value=o.trabalhosMais||0;
+  document.getElementById('an-nf-erros-omissoes').value=o.errosOmissoes||0;
+  document.getElementById('an-nf-data').value=o.consignacao||'';
+  document.getElementById('an-nf-prazo').value=o.prazoMeses||12;
+  document.getElementById('an-nf-prazo-atual').value=o.prazoAtualMeses||o.prazoMeses||12;
+  document.getElementById('an-nf-orcamento').value=o.orcamentoCusto||0;
+  document.getElementById('an-nf-estaleiro').value=o.estaleiroPct||5;
+  document.getElementById('an-nf-custos').value=o.custos||0;
+  document.getElementById('an-nf-autos').value=o.autos||0;
   setTimeout(()=>{
-    document.getElementById('nf-tipo-obra').value=o.tipoObra||'';
-    document.getElementById('nf-tipo-cliente').value=o.tipoCliente||'';
+    document.getElementById('an-nf-tipo-obra').value=o.tipoObra||'';
+    document.getElementById('an-nf-tipo-cliente').value=o.tipoCliente||'';
   },30);
-  openModal('modal-nova-obra');
+  openModal('an-modal-nova-obra');
 }
 function saveNovaObra(){
-  const num=document.getElementById('nf-num').value.trim();
+  const num=document.getElementById('an-nf-num').value.trim();
   if(!num){alert('Introduza o número da obra');return;}
-  const estaleiroPct=+document.getElementById('nf-estaleiro').value||5;
+  const estaleiroPct=+document.getElementById('an-nf-estaleiro').value||5;
   const data={
     num,
-    nome:document.getElementById('nf-nome').value||'Nova Obra',
-    dono:document.getElementById('nf-dono').value,
-    tipoObra:document.getElementById('nf-tipo-obra').value,
-    tipoCliente:document.getElementById('nf-tipo-cliente').value,
-    estado:document.getElementById('nf-estado').value,
-    adj:+document.getElementById('nf-adj').value||0,
-    orcamentoCusto:+document.getElementById('nf-orcamento').value||0,
-    revPrecos:+document.getElementById('nf-rev-precos').value||0,
-    trabalhosMais:+document.getElementById('nf-trabalhos-mais').value||0,
-    errosOmissoes:+document.getElementById('nf-erros-omissoes').value||0,
-    autos:+document.getElementById('nf-autos').value||0,
-    custos:+document.getElementById('nf-custos').value||0,
+    nome:document.getElementById('an-nf-nome').value||'Nova Obra',
+    dono:document.getElementById('an-nf-dono').value,
+    tipoObra:document.getElementById('an-nf-tipo-obra').value,
+    tipoCliente:document.getElementById('an-nf-tipo-cliente').value,
+    estado:document.getElementById('an-nf-estado').value,
+    adj:+document.getElementById('an-nf-adj').value||0,
+    orcamentoCusto:+document.getElementById('an-nf-orcamento').value||0,
+    revPrecos:+document.getElementById('an-nf-rev-precos').value||0,
+    trabalhosMais:+document.getElementById('an-nf-trabalhos-mais').value||0,
+    errosOmissoes:+document.getElementById('an-nf-erros-omissoes').value||0,
+    autos:+document.getElementById('an-nf-autos').value||0,
+    custos:+document.getElementById('an-nf-custos').value||0,
     estaleiroPct,
-    prazoMeses:+document.getElementById('nf-prazo').value||12,
-    prazoAtualMeses:+document.getElementById('nf-prazo-atual').value||12,
-    consignacao:document.getElementById('nf-data').value,
+    prazoMeses:+document.getElementById('an-nf-prazo').value||12,
+    prazoAtualMeses:+document.getElementById('an-nf-prazo-atual').value||12,
+    consignacao:document.getElementById('an-nf-data').value,
   };
   data.gastosGerais=data.custos*(estaleiroPct/100);
   const existente=obrasReg.find(x=>x.num===num);
@@ -2272,7 +2276,7 @@ function saveNovaObra(){
     logAudit('Nova obra','Obra '+num+' — '+data.nome);
   }
   guardar();
-  closeModal('modal-nova-obra');
+  closeModal('an-modal-nova-obra');
   renderObras();
 }
 function removerObra(num){
@@ -3460,22 +3464,30 @@ function popularSelectEmpresas(selId,sel){
   el.innerHTML=empresas.map(e=>`<option value="${e.id}">${escEmp(e.nome)}${e.ativa===false?' (inativa)':''}</option>`).join('');
   if(sel)el.value=sel;
 }
+let _empFiltroAtual='';
+function empFiltroTab(f){
+  _empFiltroAtual=f||'';
+  document.querySelectorAll('#emp-filtro-tabs .tab-inner-btn').forEach(b=>b.classList.toggle('active',b.getAttribute('data-f')===_empFiltroAtual));
+  renderEmpresas();
+}
 function renderEmpresas(){
   const tb=document.getElementById('empresas-tbody');
-  const fEl=document.getElementById('emp-filtro');const filtro=fEl?fEl.value:'';
+  const filtro=_empFiltroAtual;
   if(tb){
     let lista=empresas.slice();
     if(filtro==='exec')lista=lista.filter(e=>!e.fornecedor);
-    else if(filtro==='forn')lista=lista.filter(e=>e.fornecedor);
+    else if(filtro==='forn')lista=lista.filter(e=>e.fornecedor&&e.tipoEntidade!=='subempreiteiro');
+    else if(filtro==='sub')lista=lista.filter(e=>e.fornecedor&&e.tipoEntidade==='subempreiteiro');
     if(!lista.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:18px">Sem empresas.</td></tr>';}
     else tb.innerHTML=lista.map(e=>{
       const logo=e.logo?`<img src="${e.logo}" style="max-height:34px;max-width:90px;object-fit:contain">`:'<span style="color:var(--muted)">—</span>';
+      const classe=e.fornecedor?(e.tipoEntidade==='subempreiteiro'?'<span style="color:var(--orange);font-weight:600">Subempreiteiro</span>':'<span style="color:var(--blue);font-weight:600">Fornecedor</span>'):'Não';
       return `<tr>
         <td>${logo}</td>
         <td>${escEmp(e.nome)}</td>
         <td>${escEmp(e.nif||'')}</td>
         <td>${escEmp(e.localidade||'')}</td>
-        <td>${e.fornecedor?'<span style="color:var(--blue);font-weight:600">Sim</span>':'Não'}</td>
+        <td>${classe}</td>
         <td>${e.fornecedor?(tiposFornDeEmpresa(e).map(escEmp).join(', ')||'—'):'—'}</td>
         <td>${e.ativa===false?'Não':'Sim'}</td>
         <td style="white-space:nowrap;text-align:right">
@@ -3489,10 +3501,11 @@ function renderEmpresas(){
 function renderTiposForn(){
   const tb=document.getElementById('tiposforn-tbody');if(!tb)return;
   if(!tiposFornecedor.length){tb.innerHTML='<tr><td colspan="2" style="text-align:center;color:var(--muted);padding:14px">Sem tipos definidos.</td></tr>';return;}
-  tb.innerHTML=tiposFornecedor.map((t,i)=>{
+  const ordenados=tiposFornecedor.slice().sort((a,b)=>a.localeCompare(b,'pt'));
+  tb.innerHTML=ordenados.map((t)=>{
     const usos=empresas.filter(e=>e.fornecedor&&tiposFornDeEmpresa(e).indexOf(t)>=0).length;
     return `<tr><td>${escEmp(t)}${usos?` <span style="color:var(--muted);font-size:11px">(${usos})</span>`:''}</td>
-      <td style="text-align:right"><button class="btn" title="Remover" style="color:#b91c1c" onclick="window.AutosNat.removeTipoForn(${i})"><i class="ti ti-trash"></i></button></td></tr>`;
+      <td style="text-align:right"><button class="btn" title="Remover" style="color:#b91c1c" onclick="window.AutosNat.removeTipoForn('${escEmp(t).replace(/'/g,"&#39;")}')"><i class="ti ti-trash"></i></button></td></tr>`;
   }).join('');
 }
 function addTipoForn(){
@@ -3501,8 +3514,8 @@ function addTipoForn(){
   if(tiposFornecedor.some(t=>t.toLowerCase()===v.toLowerCase())){alert('Esse tipo já existe.');return;}
   tiposFornecedor.push(v);inp.value='';guardar();renderTiposForn();
 }
-function removeTipoForn(i){
-  const t=tiposFornecedor[i];if(t===undefined)return;
+function removeTipoForn(t){
+  const i=tiposFornecedor.indexOf(t);if(i<0)return;
   const usos=empresas.filter(e=>e.fornecedor&&tiposFornDeEmpresa(e).indexOf(t)>=0).length;
   if(usos){alert('Não pode remover: '+usos+' fornecedor(es) usam o tipo "'+t+'".');return;}
   if(!confirm('Remover o tipo "'+t+'"?'))return;
@@ -3511,13 +3524,16 @@ function removeTipoForn(i){
 function toggleEmpFornecedor(){
   const ch=document.getElementById('emp-fornecedor');
   const wrap=document.getElementById('emp-tipoforn-wrap');
+  const wrapC=document.getElementById('emp-classe-wrap');
   if(wrap)wrap.style.display=(ch&&ch.checked)?'':'none';
+  if(wrapC)wrapC.style.display=(ch&&ch.checked)?'':'none';
 }
 function tiposFornDeEmpresa(e){ if(!e)return []; var t=e.tipoForn; if(Array.isArray(t))return t.slice(); if(typeof t==='string'&&t.trim())return [t.trim()]; return []; }
 function popularTiposFornBox(valores){
   var box=document.getElementById('emp-tipoforn-box'); if(!box)return;
   valores=valores||[];
-  box.innerHTML=tiposFornecedor.map(function(t){
+  var ordenados=tiposFornecedor.slice().sort(function(a,b){return a.localeCompare(b,'pt');});
+  box.innerHTML=ordenados.map(function(t){
     var ck=valores.indexOf(t)>=0?' checked':'';
     return '<label style="display:inline-flex;align-items:center;gap:5px;font-weight:400;white-space:nowrap"><input type="checkbox" class="emp-tf-ck" value="'+escEmp(t)+'"'+ck+'> '+escEmp(t)+'</label>';
   }).join('');
@@ -3526,10 +3542,11 @@ function popularTiposFornBox(valores){
 function lerTiposFornBox(){
   return Array.prototype.slice.call(document.querySelectorAll('#emp-tipoforn-box .emp-tf-ck')).filter(function(c){return c.checked;}).map(function(c){return c.value;});
 }
-function garantirEmpresaFornecedor(nome){
+function garantirEmpresaFornecedor(nome,tipoContrato){
   nome=(nome||'').trim();if(!nome)return false;
   if(empresas.some(e=>(e.nome||'').trim().toLowerCase()===nome.toLowerCase()))return false;
-  empresas.push({id:uid(),nome:nome,nif:'',morada:'',codPostal:'',localidade:'',telefone:'',email:'',logo:'',ativa:true,fornecedor:true,tipoForn:[]});
+  const tipoEntidade=(tipoContrato==='sub')?'subempreiteiro':'fornecedor';
+  empresas.push({id:uid(),nome:nome,nif:'',morada:'',codPostal:'',localidade:'',telefone:'',email:'',logo:'',ativa:true,fornecedor:true,tipoEntidade,tipoForn:[]});
   return true;
 }
 function renderLogoPreview(){
@@ -3568,6 +3585,7 @@ function abrirModalEmpresa(id){
     g('emp-localidade').value=e.localidade||'';g('emp-tel').value=e.telefone||'';
     g('emp-email').value=e.email||'';g('emp-ativa').checked=e.ativa!==false;
     g('emp-fornecedor').checked=!!e.fornecedor;
+    g('emp-classe').value=(e.tipoEntidade==='subempreiteiro')?'subempreiteiro':'fornecedor';
     popularTiposFornBox(tiposFornDeEmpresa(e));
     _logoTmp=e.logo||null;
   } else {
@@ -3575,6 +3593,7 @@ function abrirModalEmpresa(id){
     ['emp-nome','emp-nif','emp-morada','emp-cp','emp-localidade','emp-tel','emp-email'].forEach(i=>g(i).value='');
     g('emp-ativa').checked=true;
     g('emp-fornecedor').checked=false;
+    g('emp-classe').value='fornecedor';
     popularTiposFornBox([]);
   }
   toggleEmpFornecedor();
@@ -3585,7 +3604,7 @@ function saveEmpresa(){
   const g=i=>document.getElementById(i);
   const nome=g('emp-nome').value.trim();
   if(!nome){alert('Indique o nome da empresa.');return;}
-  const data={nome,nif:g('emp-nif').value.trim(),morada:g('emp-morada').value.trim(),codPostal:g('emp-cp').value.trim(),localidade:g('emp-localidade').value.trim(),telefone:g('emp-tel').value.trim(),email:g('emp-email').value.trim(),ativa:g('emp-ativa').checked,logo:_logoTmp||'',fornecedor:g('emp-fornecedor').checked,tipoForn:g('emp-fornecedor').checked?lerTiposFornBox():[]};
+  const data={nome,nif:g('emp-nif').value.trim(),morada:g('emp-morada').value.trim(),codPostal:g('emp-cp').value.trim(),localidade:g('emp-localidade').value.trim(),telefone:g('emp-tel').value.trim(),email:g('emp-email').value.trim(),ativa:g('emp-ativa').checked,logo:_logoTmp||'',fornecedor:g('emp-fornecedor').checked,tipoEntidade:g('emp-fornecedor').checked?(g('emp-classe').value||'fornecedor'):undefined,tipoForn:g('emp-fornecedor').checked?lerTiposFornBox():[]};
   if(empSel){const e=empresas.find(x=>String(x.id)===String(empSel));if(e)Object.assign(e,data);}
   else{empresas.push(Object.assign({id:uid()},data));}
   guardar();closeModal('modal-empresa');renderEmpresas();
@@ -3881,7 +3900,7 @@ function _criarContratoDeModelo(d,filename){
     data:hoje,valorManual:0,retencao:5,adiant:0,iva:0.23,bloqueioAdjud:true,autExcesso:{compras:false,producao:false},
     adicionais:[],obs:'Importado de Excel ('+filename+')'+(d.esp?(' - '+d.esp):''),especialidade:(d.esp||''),artigos:artigos,autos:autos};
   contratos.push(contrato);
-  garantirEmpresaFornecedor(contrato.entidade);
+  garantirEmpresaFornecedor(contrato.entidade,contrato.tipo);
   if(typeof normalizarContratos==='function') normalizarContratos();
   guardar(); if(typeof renderTudo==='function') renderTudo();
   try{ irAutos(contrato.id); }catch(e){}
@@ -3907,7 +3926,7 @@ function criarContratoDeAdjudicacao(d){
     linhas:{},linhasVal:{},justif:{},validacoes:{}};
   contrato.autos.push(auto);
   contratos.push(contrato);
-  garantirEmpresaFornecedor(contrato.entidade);
+  garantirEmpresaFornecedor(contrato.entidade,contrato.tipo);
   if(typeof logAudit==='function') logAudit('Importação de adjudicação','Contrato '+contrato.ref+' criado a partir das Compras');
   guardar();
   if(typeof renderTudo==='function') renderTudo();
@@ -4375,6 +4394,10 @@ try{ window.AutosNat.renderAuditoria = renderAuditoria; }catch(e){}
 try{ window.AutosNat.renderAutos = renderAutos; }catch(e){}
 try{ window.AutosNat.renderContratos = renderContratos; }catch(e){}
 try{ window.AutosNat.renderEmpresas = renderEmpresas; }catch(e){}
+try{ window.AutosNat.empFiltroTab = empFiltroTab; }catch(e){}
+try{ window.AutosNat.getEmpresas = function(){return empresas;}; }catch(e){}
+try{ window.AutosNat.getTiposFornecedor = function(){return tiposFornecedor;}; }catch(e){}
+try{ window.AutosNat.garantirEmpresaFornecedor = garantirEmpresaFornecedor; }catch(e){}
 try{ window.AutosNat.renderLogoPreview = renderLogoPreview; }catch(e){}
 try{ window.AutosNat.renderObras = renderObras; }catch(e){}
 try{ window.AutosNat.renderRosto = renderRosto; }catch(e){}
@@ -8418,9 +8441,10 @@ function aplicarOrdemNav(){
 function showTab(id,btn){
   if(id==='rh'){try{var s=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'null');var pr=s&&s.perfil;window._rhFull=['admin','financeiro','dep_financeiro'].indexOf(pr)>=0;var _bc=document.getElementById('rh-tab-btn-colab');if(_bc)_bc.style.display=window._rhFull?'':'none';}catch(e){window._rhFull=false;}}
   if(window._ccPermitido && id!=='inicio' && window._ccPermitido.indexOf(id)<0 && ['obras','facturacao','autosmed','custos','dashboard','relatorios','rh','compras','pagamentos','caucoes','precos','definicoes'].indexOf(id)>=0){ id='inicio'; btn=document.querySelector('.nav-btn'); }
+  var _tabTrocou=(tabAtual!==id); // [fix] só reset de sub-separador em navegação real, não em redesenhos (cloud sync)
   tabAtual=id;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>{if(!t.closest('#autosmed-native'))t.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(b=>{if(!b.closest('#autosmed-native'))b.classList.remove('active');});
   var _tabEl=document.getElementById('tab-'+id);
   if(!_tabEl){ console.warn('showTab: separador inexistente -> tab-'+id); return; }
   _tabEl.classList.add('active');
@@ -8428,16 +8452,16 @@ function showTab(id,btn){
   if(id==='autosmed'){ try{ requestAnimationFrame(_ajustarIframeAutos); }catch(e){ try{_ajustarIframeAutos();}catch(_){} } }
   try{ var _te=document.getElementById('tab-'+id); if(_te){var _old=_te.querySelector('.__tabErr'); if(_old)_old.remove();} }catch(_){}
   try{
-    if(id==='custos')switchCustosTab('lista');
-    if(id==='facturacao')switchFactTab('lista');
+    if(id==='custos'&&_tabTrocou)switchCustosTab('lista');
+    if(id==='facturacao'&&_tabTrocou)switchFactTab('lista');
     if(id==='dashboard')setTimeout(function(){try{renderDashboard();aplicarConfigGraficos();}catch(e){try{console.warn('dashboard:',e);}catch(_){}}},50);
     if(id==='relatorios')renderRelatorio();
     if(id==='indiretos')setTimeout(function(){try{renderIndiretos();}catch(e){try{console.warn('indiretos:',e);}catch(_){}}},50);
     if(id==='gestao')renderGestao();
     if(id==='definicoes'){renderDefinicoes();renderFamilias();try{renderEmpresasApp();}catch(_){}if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
     if(id==='importacao')initImportTab();
-    if(id==='rh'){window._rhAbrirFresco=true;switchRHTab(window._rhFull===false?'centros':'colab');}
-    if(id==='compras')switchComprasTab('lista');
+    if(id==='rh'&&_tabTrocou){window._rhAbrirFresco=true;switchRHTab(window._rhFull===false?'centros':'colab');}
+    if(id==='compras'&&_tabTrocou)switchComprasTab('lista');
     if(id==='pagamentos')renderPagamentos();
     if(id==='precos')renderPrecos();
   }catch(_showErr){
@@ -8445,7 +8469,7 @@ function showTab(id,btn){
     try{var _tb=document.getElementById('tab-'+id);if(_tb){var _n=document.createElement('div');_n.className='__tabErr';_n.style.cssText='margin:12px;padding:10px 14px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:10px;font-size:13px;line-height:1.4';_n.textContent='Não foi possível atualizar este separador com os dados atuais. O resto da aplicação continua a funcionar.';_tb.insertBefore(_n,_tb.firstChild);}}catch(_){}
   }
   setTimeout(function(){try{ativarArrastoColunas(document);}catch(e){}},220);
-  if(id==='autosmed'){try{var _obn=document.querySelector('#autosmed-native .nav-btn');if(_obn&&window.AutosNat&&window.AutosNat.showTab)window.AutosNat.showTab('obras',_obn);}catch(e){}setTimeout(sincronizarAutos,400);}
+  if(id==='autosmed'){if(_tabTrocou){try{var _obn=document.querySelector('#autosmed-native .nav-btn');if(_obn&&window.AutosNat&&window.AutosNat.showTab)window.AutosNat.showTab('obras',_obn);}catch(e){}}setTimeout(sincronizarAutos,400);}
 }
 
 // ══════════════════════════════════════════════════════════════
