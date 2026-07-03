@@ -312,7 +312,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v196</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v198</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -416,7 +416,7 @@ table td{vertical-align:middle}
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th onclick="ordenarObras('num')" style="cursor:pointer;width:60px;min-width:56px;max-width:60px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoObra')" style="cursor:pointer">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoCliente')" style="cursor:pointer">Cliente <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th>Estado</th>
+          <th onclick="ordenarObras('num')" style="cursor:pointer;width:48px;min-width:48px;max-width:48px;padding-left:6px;padding-right:2px">COD <i class="ti ti-arrows-sort" style="font-size:9px;opacity:.45"></i></th><th onclick="ordenarObras('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoObra')" style="cursor:pointer">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoCliente')" style="cursor:pointer">Cliente <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th>Estado</th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarObras('adj')">Adjudicação <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarObras('revPrecos')">Rev. Preços <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarObras('trabalhosMais')">Trab. a Mais <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
@@ -488,7 +488,7 @@ table td{vertical-align:middle}
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th onclick="ordenarFacturacao('num')" style="cursor:pointer;width:60px;min-width:56px;max-width:60px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarFacturacao('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+          <th onclick="ordenarFacturacao('num')" style="cursor:pointer;width:48px;min-width:48px;max-width:48px;padding-left:6px;padding-right:2px">COD <i class="ti ti-arrows-sort" style="font-size:9px;opacity:.45"></i></th><th onclick="ordenarFacturacao('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarFacturacao('autos')">Auto (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarFacturacao('trabMais')">Trab. a Mais (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarFacturacao('revPrecos')">Rev. Preços (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
@@ -9116,7 +9116,7 @@ function renderObrasTable(list){
         else desvTxt=`<span class="desvio-zero">0m</span>`;
 
         html += `<tr class="${loss?'loss':''}" style="cursor:pointer;border-left:3px solid ${st.cor}44" onclick="openObra('${o.num}')">
-          <td style="padding-left:20px;cursor:text" ondblclick="editObraCodigo(event,'${o.num}')" onclick="event.stopPropagation()" title="Duplo-clique para editar o código"><strong>${o.num}</strong></td>
+          <td style="width:48px;max-width:48px;overflow:hidden;padding-left:6px;padding-right:2px;cursor:text" ondblclick="editObraCodigo(event,'${o.num}')" onclick="event.stopPropagation()" title="Duplo-clique para editar o código"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40px">${o.num}</strong></td>
           <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;cursor:text;text-align:left" ondblclick="editObraNomeLocal(event,'${o.num}')" onclick="event.stopPropagation()" title="Duplo-clique para editar designação / localidade">${o.nome}${o.localidade?`<div style="font-size:10px;color:var(--muted)"><i class="ti ti-map-pin" style="font-size:9px"></i> ${o.localidade}</div>`:''}</td>
           <td onclick="event.stopPropagation()"><select onchange="setObraTipoInline('${o.num}',this.value)" style="width:100%;max-width:130px;border:1px solid var(--border);background:#fff;font-size:10.5px;color:var(--text);padding:3px 4px;border-radius:6px;cursor:pointer">${_optsObraSel(tiposObra,o.tipoObra)}</select></td>
           <td onclick="event.stopPropagation()"><select onchange="setObraClienteInline('${o.num}',this.value)" style="width:100%;max-width:130px;border:1px solid var(--border);background:#fff;font-size:10.5px;color:var(--text);padding:3px 4px;border-radius:6px;cursor:pointer">${_optsObraSel(tiposCliente,o.tipoCliente)}</select></td>
@@ -11928,7 +11928,7 @@ function renderFacturacao(){
     const liquidezRec=(recebidoMes?mc.totalCIva:0)-mc.custosTot;
     const bg=est==='total'?'#f0fdf4':est==='parcial'?'#fffbeb':'#fef5f5';
     return `<tr style="background:${bg}">
-      <td style="cursor:pointer" onclick="openObra('${o.num}')"><strong>${o.num}</strong></td>
+      <td style="width:48px;max-width:48px;overflow:hidden;cursor:pointer;padding-left:6px;padding-right:2px" onclick="openObra('${o.num}')"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40px">${o.num}</strong></td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;cursor:pointer;text-align:left" onclick="openObra('${o.num}')" title="${o.nome}">${o.nome} <span style="font-size:10px;color:var(--muted)">(${mc.mes})</span></td>
       <td style="text-align:right;cursor:text" ondblclick="editFatMes(event,'${o.num}','${mc.mes}','autos')" title="Duplo-clique para editar">${fmt(mc.autos||0,2)}€</td>
       <td style="text-align:right;color:var(--orange);cursor:text" ondblclick="editFatMes(event,'${o.num}','${mc.mes}','trabMais')" title="Duplo-clique para editar">${mc.trabMais?fmt(mc.trabMais,2)+'€':'—'}</td>
