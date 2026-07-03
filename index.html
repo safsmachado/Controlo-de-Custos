@@ -59,13 +59,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 body{font-family:'Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px}
 .app{display:flex;flex-direction:column;min-height:calc(100vh / var(--zf, 1))}
 /* TOPBAR */
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(16,42,74,.05);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(16,42,74,.05);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:5}
 .topbar-title{font-size:15px;font-weight:800;letter-spacing:-.2px;display:flex;align-items:center;gap:8px;color:var(--navy)}
 /* NAV */
-.nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;padding:8px 20px;overflow-x:auto;position:sticky;top:49px;z-index:40}
-.nav-btn{padding:8px 14px;font-size:12px;background:none;border:none;border-radius:10px;color:#5A5D61;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:background .15s,color .15s}
-.nav-btn.active{color:var(--navy);background:var(--blue-lt);font-weight:700}
-.nav-btn:hover{color:var(--navy);background:#F1F4F8}
+.nav{background:none;border-bottom:1px solid var(--border);display:flex;gap:4px;padding:0 20px;overflow-x:auto;position:relative;z-index:4}
+.nav-btn{padding:7px 14px;font-size:12px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-weight:500;margin-bottom:-1px;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
+.nav-btn.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:700;background:none}
+.nav-btn:hover{color:var(--blue);background:none}
+._legacy_navbtn_unused{padding:8px 14px;font-size:12px;background:none;border:none;border-radius:10px;color:#5A5D61;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:background .15s,color .15s}
+._legacy_navbtn_active_unused{color:var(--navy);background:var(--blue-lt);font-weight:700}
+._legacy_navbtn_hover_unused{color:var(--navy);background:#F1F4F8}
 .sub-pill{padding:7px 13px;font-size:12px;font-weight:600;border:1px solid var(--border);background:#fff;border-radius:999px;color:#5A5D61;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .sub-pill.active{background:var(--blue-lt);border-color:var(--blue-lt);color:var(--navy);font-weight:700}
 .sub-pill:hover{background:#F1F4F8}
@@ -309,7 +312,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v185</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v193</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -525,10 +528,6 @@ table td{vertical-align:middle}
 
 <!-- ═══════════════════════════════ CUSTOS ═══════════════════════════════ -->
 <div class="tab" id="tab-autosmed">
-  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-    <button class="btn primary" onclick="abrirModalPassarCustos()"><i class="ti ti-arrow-bar-to-down"></i>Lançar autos como custos da obra</button>
-    <span class="muted" style="font-size:11px">Passa um auto ou um contrato de subempreitada para os custos de uma obra (manual).</span>
-  </div>
   <style id="autosmed-native-style">#autosmed-native *{box-sizing:border-box;margin:0;padding:0}#autosmed-native{
   --blue:#185FA5;--blue-dk:#0C447C;--blue-lt:#dbeafe;
   --green:#27ae60;--red:#c0392b;--orange:#e67e22;--purple:#7F77DD;
@@ -549,8 +548,8 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
 <div class="app">
 
 <div class="topbar">
-  <div class="topbar-title"><i class="ti ti-file-invoice"></i>Módulo de Autos <span style="font-weight:400;color:var(--muted);font-size:12px">— Subempreitada · Aluguer · Mão de Obra</span></div>
-  <div style="display:flex;gap:8px;align-items:center">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn primary" onclick="abrirModalPassarCustos()" title="Passa um auto ou um contrato de subempreitada para os custos de uma obra (manual)"><i class="ti ti-arrow-bar-to-down"></i>Lançar autos como custos da obra</button>
     <div style="display:flex;align-items:center;gap:6px;background:#f0f4ff;border:1px solid var(--border);border-radius:8px;padding:3px 8px" title="Função herdada do utilizador com sessão iniciada na aplicação">
       <i class="ti ti-user-circle" style="color:var(--blue)"></i>
       <span id="user-atual-fixo" style="font-size:12px;font-weight:600;color:var(--blue)">—</span>
@@ -574,7 +573,6 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
 </div>
 
 <div class="content">
-  <div class="demo-banner"><i class="ti ti-flask"></i> Módulo autónomo para testes — desenhado para acoplar depois ao Controlo de Obras. Os dados ficam guardados neste navegador.</div>
 
   <!-- ═══════════ OBRAS ═══════════ -->
   <div class="tab active" id="autos-tab-obras">
@@ -4291,6 +4289,8 @@ function assinaturaDeValidacao(val){
 
 /* ===== Fase 3: exposicao controlada para chamadas inline (onclick) do modulo Autos ===== */
 window.AutosNat = window.AutosNat || {};
+try{ window.AutosNat.carregar = carregar; }catch(e){}
+try{ window.AutosNat.renderTudo = renderTudo; }catch(e){}
 try{ window.AutosNat.closeModal = closeModal; }catch(e){}
 try{ window.AutosNat.showTab = showTab; }catch(e){}
 try{ window.AutosNat.guardar = guardar; }catch(e){}
@@ -5155,9 +5155,7 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <div class="table-wrap"><table>
         <thead><tr>
           <th style="width:34px"></th>
-          <th onclick="cpOrd.campo==='obra'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='obra',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;width:60px;min-width:56px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
-          <th style="cursor:pointer" onclick="cpOrd.campo==='obra'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='obra',cpOrd.dir='asc');renderCompras()">Obra</th>
-          <th style="text-align:center">Estado</th>
+          <th onclick="cpOrd.campo==='obra'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='obra',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;width:170px;max-width:170px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
 
           <th onclick="cpOrd.campo==='nome'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='nome',cpOrd.dir='asc');renderCompras()" style="cursor:pointer">Processo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th onclick="cpOrd.campo==='tipo'?(cpOrd.dir=cpOrd.dir==='asc'?'desc':'asc'):(cpOrd.campo='tipo',cpOrd.dir='asc');renderCompras()" style="cursor:pointer;text-align:center">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
@@ -6144,6 +6142,7 @@ function carregarTudo(){
     if(d.navOrdem!=null){try{localStorage.setItem('navOrdem_v1',JSON.stringify(d.navOrdem));}catch(e){}}
     if(d.rhDepOrdem!=null){try{localStorage.setItem('rh_dep_ordem_v1',JSON.stringify(d.rhDepOrdem));}catch(e){}}
     if(d.autos&&typeof d.autos==='object'){try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
+    if(d.autosModulo&&typeof d.autosModulo==='object'){try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
     if(d.subautos&&typeof d.subautos==='object'){try{localStorage.setItem('subautos_v1',JSON.stringify(d.subautos));}catch(e){}}
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
     if(d.prazos&&typeof d.prazos==='object'){try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(d.prazos));}catch(e){}}
@@ -6177,6 +6176,7 @@ function montarEstadoPartilhado(){
     custosArquivo:_ccLS('custos_arquivo_v1',[]),
     navOrdem:_ccLS('navOrdem_v1',null), rhDepOrdem:_ccLS('rh_dep_ordem_v1',null),
     autos:_ccLS('autosmed_store_v1',null),
+    autosModulo:_ccLS('modulo_autos_v1',null),
     subautos:_ccLS('subautos_v1',null), fechos:_ccLS('fechosMensais_v1',null), prazos:_ccLS('prazos_fornecedor_v1',null), avisosAuto:_ccLS('gc_avisos_auto_v1',null), auditoria:_ccLS('gc_auditoria_v1',[]),
     indiretosVal:_ccLS('indiretos_validados_v1',{})
   };
@@ -6205,6 +6205,7 @@ function aplicarEstadoPartilhado(d){
     if(d.navOrdem!=null){try{localStorage.setItem('navOrdem_v1',JSON.stringify(d.navOrdem));}catch(e){}}
     if(d.rhDepOrdem!=null){try{localStorage.setItem('rh_dep_ordem_v1',JSON.stringify(d.rhDepOrdem));}catch(e){}}
     if(d.autos&&typeof d.autos==='object'){try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
+    if(d.autosModulo&&typeof d.autosModulo==='object'){try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
     if(d.subautos&&typeof d.subautos==='object'){try{localStorage.setItem('subautos_v1',JSON.stringify(d.subautos));}catch(e){}}
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
     if(d.prazos&&typeof d.prazos==='object'){try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(d.prazos));}catch(e){}}
@@ -7812,7 +7813,6 @@ function apagarComprasSelecionadas(){
 
 function renderCompras(){
   cpPopularFiltros();
-  try{_cpInitColResize();}catch(_){}
   // [v176] ordenacao lembrada por utilizador
   try{
     if(!window._cpOrdInit){window._cpOrdInit=true;var _sv=JSON.parse(uiLer('cpOrd_v1')||'null');if(_sv&&_sv.campo)cpOrd=_sv;}
@@ -7907,13 +7907,13 @@ function renderCompras(){
       <td style="padding:8px 2px 8px 8px;text-align:center">
         <input type="checkbox" ${_grpTodosSel?'checked':''} title="Selecionar todos os processos desta obra" onclick="event.stopPropagation();toggleSelGrupoCompras('${_obraEsc}',this.checked)" style="cursor:pointer">
       </td>
-      <td style="padding:8px 4px">
+      <td style="padding:8px 4px;text-align:left">
         <i class="ti ${col?'ti-chevron-right':'ti-chevron-down'}"></i>
-        <span style="margin-left:6px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:${_styGrp.bg};color:${_styGrp.cor}">${_estGrp}</span>
-        <strong style="margin-left:6px;color:var(--blue);cursor:text" title="Duplo-clique para corrigir o código" ondblclick="event.stopPropagation();editarCodigoObraGrupo('${_obraEsc}')">${obra}</strong>
+        <strong style="margin-left:6px;color:var(--blue);cursor:pointer" title="Duplo-clique para abrir a obra" ondblclick="event.stopPropagation();abrirEditarObra('${_obraEsc}')">${obra}</strong>
+        <span style="margin-left:6px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${arr.length}</span>
+        <span style="margin-left:6px">${_estadoSelHtml}</span>
+        <div style="font-size:10px;color:var(--muted);margin-left:20px;cursor:text" title="Duplo-clique para corrigir o nome" ondblclick="event.stopPropagation();editarNomeObraGrupo('${_obraEsc}')">${(_nomeObraGrp||'—').substring(0,22)}</div>
       </td>
-      <td style="padding:8px 4px;cursor:text;text-align:left" title="Duplo-clique para corrigir o nome" ondblclick="event.stopPropagation();editarNomeObraGrupo('${_obraEsc}')">${_nomeObraGrp||'—'}<span style="margin-left:8px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px">${arr.length}</span></td>
-      <td style="text-align:center">${_estadoSelHtml}</td>
       <td colspan="3"></td>
       <td style="text-align:right;font-weight:700">${fmt(sCusto,2)}€</td>
       <td style="text-align:right;font-weight:700">${fmt(sAdj,2)}€</td>
@@ -7928,8 +7928,8 @@ function renderCompras(){
         const btnAuto=c.situacao==='Adjudicado'?`<button class="btn sm" style="${verde}" title="${c.autoCriado?'Já passado para os Autos (verde). Clicar volta a criar.':'Criar auto de medição (subempreitada) nos Autos'}" onclick="criarAutoDaCompra('${c.id}')"><i class="ti ti-ruler-2"></i></button>`:'';
         html+=`<tr>
           <td style="padding:6px 2px;text-align:center"><input type="checkbox" ${comprasSel.has(String(c.id))?'checked':''} onclick="event.stopPropagation();toggleSelCompra('${c.id}',this.checked)" style="cursor:pointer"></td>
-          <td colspan="3"></td>
-          <td style="font-size:11px"><strong>${(c.nome||'—').substring(0,28)}</strong>${anex}</td>
+          <td colspan="1"></td>
+          <td style="font-size:11px;text-align:left"><strong>${(c.nome||'—').substring(0,28)}</strong>${anex}</td>
           <td style="font-size:10px;text-align:center">${c.tipo||'—'}</td>
           <td style="font-size:11px;text-align:center">${c.resp||'—'}</td>
           <td style="text-align:right">${fmt(c.custo,2)}€</td>
@@ -8444,7 +8444,7 @@ function showTab(id,btn){
     try{var _tb=document.getElementById('tab-'+id);if(_tb){var _n=document.createElement('div');_n.className='__tabErr';_n.style.cssText='margin:12px;padding:10px 14px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:10px;font-size:13px;line-height:1.4';_n.textContent='Não foi possível atualizar este separador com os dados atuais. O resto da aplicação continua a funcionar.';_tb.insertBefore(_n,_tb.firstChild);}}catch(_){}
   }
   setTimeout(function(){try{ativarArrastoColunas(document);}catch(e){}},220);
-  if(id==='autosmed'){setTimeout(sincronizarAutos,400);}
+  if(id==='autosmed'){try{var _obn=document.querySelector('#autosmed-native .nav-btn');if(_obn&&window.AutosNat&&window.AutosNat.showTab)window.AutosNat.showTab('obras',_obn);}catch(e){}setTimeout(sincronizarAutos,400);}
 }
 
 // ══════════════════════════════════════════════════════════════
