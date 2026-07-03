@@ -312,7 +312,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v193</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v196</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -416,7 +416,7 @@ table td{vertical-align:middle}
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th onclick="ordenarObras('num')" style="cursor:pointer;width:60px;min-width:56px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoObra')" style="cursor:pointer">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoCliente')" style="cursor:pointer">Cliente <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th>Estado</th>
+          <th onclick="ordenarObras('num')" style="cursor:pointer;width:60px;min-width:56px;max-width:60px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoObra')" style="cursor:pointer">Tipo <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarObras('tipoCliente')" style="cursor:pointer">Cliente <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th>Estado</th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarObras('adj')">Adjudicação <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarObras('revPrecos')">Rev. Preços <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarObras('trabalhosMais')">Trab. a Mais <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
@@ -488,7 +488,7 @@ table td{vertical-align:middle}
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th onclick="ordenarFacturacao('num')" style="cursor:pointer;width:60px;min-width:56px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarFacturacao('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
+          <th onclick="ordenarFacturacao('num')" style="cursor:pointer;width:60px;min-width:56px;max-width:60px">COD <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th><th onclick="ordenarFacturacao('nome')" style="cursor:pointer">Obra <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarFacturacao('autos')">Auto (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarFacturacao('trabMais')">Trab. a Mais (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th style="text-align:right;cursor:pointer" onclick="ordenarFacturacao('revPrecos')">Rev. Preços (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
@@ -4730,9 +4730,9 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   <div class="card">
     <div class="section-title">Empresas</div>
     <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Empresas do grupo (as mesmas do módulo Autos de Medição — alterar aqui altera lá e vice-versa, sincronizado sempre). São usadas em toda a aplicação, incluindo nos contratos das Compras.</div>
-    <div class="toolbar" style="margin-bottom:8px"><button class="btn primary" onclick="empAdicionar()"><i class="ti ti-plus"></i>Adicionar empresa</button></div>
+    <div class="toolbar" style="margin-bottom:8px"><button class="btn primary" onclick="window.AutosNat.abrirModalEmpresa()"><i class="ti ti-plus"></i>Adicionar empresa</button></div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Nome</th><th>NIF</th><th>Morada</th><th>Telefone</th><th>Email</th><th style="text-align:center">Ativa</th><th></th></tr></thead>
+      <thead><tr><th style="width:40px"></th><th>Nome</th><th>NIF</th><th>Morada</th><th>Telefone</th><th>Email</th><th style="text-align:center">Ativa</th><th></th></tr></thead>
       <tbody id="empresas-app-tbody"></tbody>
     </table></div>
   </div>
@@ -7630,17 +7630,18 @@ function appEmpresasAtivas(){return appEmpresas().filter(function(e){return e&&e
 function renderEmpresasApp(){
   var tb=document.getElementById('empresas-app-tbody');if(!tb)return;
   var emps=appEmpresas();
-  if(!emps.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">Sem empresas definidas. Use "Adicionar empresa".</td></tr>';return;}
+  if(!emps.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">Sem empresas definidas. Use "Adicionar empresa".</td></tr>';return;}
   var esc=function(t){return String(t||'').replace(/"/g,'&quot;');};
   tb.innerHTML=emps.map(function(e,i){
     return '<tr>'+
+      '<td style="text-align:center">'+(e.logo?'<img src="'+e.logo+'" style="width:28px;height:28px;object-fit:contain;border-radius:5px;border:1px solid var(--border)">':'<i class="ti ti-building" style="color:var(--muted)"></i>')+'</td>'+
       '<td><input type="text" value="'+esc(e.nome)+'" onchange="empCampo('+i+',\'nome\',this.value)" style="width:100%"></td>'+
       '<td><input type="text" value="'+esc(e.nif)+'" onchange="empCampo('+i+',\'nif\',this.value)" style="width:110px"></td>'+
       '<td><input type="text" value="'+esc(e.morada)+'" onchange="empCampo('+i+',\'morada\',this.value)" style="width:100%"></td>'+
       '<td><input type="text" value="'+esc(e.telefone)+'" onchange="empCampo('+i+',\'telefone\',this.value)" style="width:110px"></td>'+
       '<td><input type="text" value="'+esc(e.email)+'" onchange="empCampo('+i+',\'email\',this.value)" style="width:100%"></td>'+
       '<td style="text-align:center"><input type="checkbox" '+(e.ativa!==false?'checked':'')+' onchange="empCampo('+i+',\'ativa\',this.checked)"></td>'+
-      '<td><button class="btn sm danger" title="Apagar" onclick="empApagar('+i+')"><i class="ti ti-trash"></i></button></td>'+
+      '<td><button class="btn sm" title="Editar (com logótipo e mais dados)" onclick="window.AutosNat.abrirModalEmpresa(\''+esc(e.id)+'\')"><i class="ti ti-pencil"></i></button> <button class="btn sm danger" title="Apagar" onclick="empApagar('+i+')"><i class="ti ti-trash"></i></button></td>'+
     '</tr>';
   }).join('');
 }
@@ -11266,7 +11267,7 @@ function defConfigGraficos(){
   return CHART_DEFS.map((c,i)=>({id:c.id,visivel:true,tipo:c.tiposOk[0],cor:CHART_COLORS[i%CHART_COLORS.length],ordem:i,tamanho:'M'}));
 }
 function carregarConfigGraficos(){
-  try{const s=localStorage.getItem('dashCharts_v1');dashCharts=s?JSON.parse(s):defConfigGraficos();}catch(e){dashCharts=defConfigGraficos();}
+  try{const s=uiLer('dashCharts_v1');dashCharts=s?JSON.parse(s):defConfigGraficos();}catch(e){dashCharts=defConfigGraficos();}
   // garantir que todos os gráficos definidos existem na config
   CHART_DEFS.forEach((c,i)=>{if(!dashCharts.find(x=>x.id===c.id))dashCharts.push({id:c.id,visivel:true,tipo:c.tiposOk[0],cor:CHART_COLORS[i%CHART_COLORS.length],ordem:dashCharts.length,tamanho:'M'});});
   // garantir entrada para gráficos personalizados
@@ -11274,7 +11275,7 @@ function carregarConfigGraficos(){
     cs.forEach((cc,i)=>{if(!dashCharts.find(x=>x.id===cc.id))dashCharts.push({id:cc.id,visivel:true,tipo:'bar',cor:CHART_COLORS[(CHART_DEFS.length+i)%CHART_COLORS.length],ordem:dashCharts.length,tamanho:'M'});});
   }catch(e){}
 }
-function guardarConfigGraficos(){try{localStorage.setItem('dashCharts_v1',JSON.stringify(dashCharts));}catch(e){}}
+function guardarConfigGraficos(){try{uiGravar('dashCharts_v1',JSON.stringify(dashCharts));}catch(e){}}
 
 function cfgDe(id){return dashCharts.find(x=>x.id===id);}
 
@@ -13765,8 +13766,8 @@ function aplicarOrdemGen(table,key){
   });
 }
 let colLarguras={};
-try{colLarguras=JSON.parse(localStorage.getItem('colLarguras_v1')||'{}')||{};}catch(e){colLarguras={};}
-function guardarColLarguras(){try{localStorage.setItem('colLarguras_v1',JSON.stringify(colLarguras));}catch(e){}}
+try{colLarguras=JSON.parse(uiLer('colLarguras_v1')||'{}')||{};}catch(e){colLarguras={};}
+function guardarColLarguras(){try{uiGravar('colLarguras_v1',JSON.stringify(colLarguras));}catch(e){}}
 function _chaveTabelaLarg(table){try{var info=infoTabelaArrasto(table);return (info&&info.chave)?info.chave:(table.id||'');}catch(e){return table.id||'';}}
 function ativarResizeColunas(scope){
   var tabelas=(scope||document).querySelectorAll('table');
