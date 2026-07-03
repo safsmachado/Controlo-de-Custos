@@ -312,7 +312,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v198</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v199</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -16541,7 +16541,7 @@ function confirmarLancamento(){
   }
   window.cloudRetomar=function(){ _syncPausado=false; _syncFalhas=0; _syncAvisado={}; try{cloudIniciarSync();}catch(e){} };
   var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes','custosArquivo','auditoria'];
-  var _CC_OBJ=['rhConfig','utilizadores','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','subautos','fechos','prazos','avisosAuto','indiretosVal'];
+  var _CC_OBJ=['rhConfig','utilizadores','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','autosModulo','subautos','fechos','prazos','avisosAuto','indiretosVal'];
   function _ccChave(o){
     if(o&&typeof o==='object'){
       if(o.id!=null)return '#'+o.id;
