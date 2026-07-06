@@ -322,7 +322,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v217</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v219</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -582,7 +582,7 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       <input type="file" id="imp-modelo-file" accept=".xlsx,.xls" style="display:none" onchange="window.AutosNat.importarContratoAutosExcel(this.files[0])">
       <button class="btn" id="btn-arq-obras" onclick="window.AutosNat.toggleVerArquivoAutos()" title="Mostrar/ocultar obras e contratos arquivados"><i class="ti ti-archive"></i>Ver arquivo</button>
       <button class="btn" onclick="document.getElementById('imp-backup-parcial').click()" title="Importar um backup de auto, contrato ou obra (.json)"><i class="ti ti-upload"></i>Importar backup</button>
-      <input type="file" id="imp-backup-parcial" accept=".json" style="display:none" onchange="if(this.files[0]){importarBackupParcial(this.files[0]);this.value='';}">
+      <input type="file" id="imp-backup-parcial" accept=".json" style="display:none" onchange="if(this.files[0]&&window.AutosNat&&window.AutosNat.importarBackupParcial){window.AutosNat.importarBackupParcial(this.files[0]);this.value='';}">
     </div>
     <div id="obras-container"></div>
   </div>
@@ -4346,6 +4346,7 @@ function assinaturaDeValidacao(val){
 window.AutosNat = window.AutosNat || {};
 try{ window.AutosNat.carregar = carregar; }catch(e){}
 try{ window.AutosNat.renderTudo = renderTudo; }catch(e){}
+try{ window.AutosNat.importarBackupParcial = importarBackupParcial; }catch(e){}
 try{ window.AutosNat.closeModal = closeModal; }catch(e){}
 try{ window.AutosNat.showTab = showTab; }catch(e){}
 try{ window.AutosNat.guardar = guardar; }catch(e){}
@@ -6751,6 +6752,9 @@ function carregarRH(){
 }
 function guardarRH(){
   try{localStorage.setItem('rh_v1',JSON.stringify({rhColab,centrosCusto,rhConfig,rhRegrasDistrib}));}catch(e){}
+  // [v218] avisar a sincronização da cloud + proteger contra ser reposto por um snapshot antigo (padrão dos restantes saves)
+  try{ window._ccUltimaEdicaoLocal=Date.now(); }catch(e){}
+  try{ if(window._syncAgendar) window._syncAgendar(); }catch(e){}
 }
 
 // ---- helpers ----
@@ -17118,12 +17122,23 @@ function confirmarLancamento(){
     if(typeof v==='object'){ for(var k in v){ if(Object.prototype.hasOwnProperty.call(v,k))return false; } return true; }
     return false;
   }
+  // [v219] utilizadores fazem SEMPRE união por nome de acesso (nunca uma lista mais curta apaga a maior).
+  // O lado local tem precedência para o MESMO utilizador (mudanças recentes de password/perfil ganham),
+  // mas os utilizadores que só existem num dos lados são todos preservados.
+  function _ccUniaoUsers(a,b){
+    a=Array.isArray(a)?a:[]; b=Array.isArray(b)?b:[];
+    var map={},ordem=[];
+    function add(arr){ for(var i=0;i<arr.length;i++){ var u=arr[i]; if(!u||u.user==null)continue; var k=String(u.user).toLowerCase(); if(!(k in map)){map[k]=u;ordem.push(k);} } }
+    add(a); add(b);
+    return ordem.map(function(k){return map[k];});
+  }
   function _ccMerge(base,outro,rem){
     base=base||{}; outro=outro||{}; var out={};
     _CC_ARR.forEach(function(k){ out[k]=_ccUniao(base[k],outro[k],rem); });
     // [v214] campos-objeto: o local só ganha se tiver conteúdo; se estiver VAZIO, preserva o da cloud
     // (impede que um ficheiro sem utilizadores/autos apague os dados de toda a gente ao sincronizar).
     _CC_OBJ.forEach(function(k){
+      if(k==='utilizadores'){ out[k]=_ccUniaoUsers(base[k],outro[k]); return; }
       if(!_ccVazioObj(base[k])) out[k]=base[k];
       else if(!_ccVazioObj(outro[k])) out[k]=outro[k];
       else out[k]=(base[k]!==undefined&&base[k]!==null)?base[k]:outro[k];
