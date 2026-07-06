@@ -322,7 +322,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v219</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v220</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -5272,6 +5272,8 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   <div id="pg-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="pg-alertas"></div>
   <div class="toolbar" style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <button class="btn sm" onclick="pgExpandirTodos(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
+    <button class="btn sm" onclick="pgExpandirTodos(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
     <div class="msf-wrap" id="msf-pg-f-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('pg-f-obra')"><span class="msf-label">Todas as obras</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-pg-f-obra"></div></div>
     <input type="search" id="pg-f-forn" autocomplete="off" placeholder="Filtrar fornecedor..." oninput="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);min-width:180px">
     <div class="msf-wrap" id="msf-pg-f-estado"><button type="button" class="btn sm msf-btn" onclick="msfToggle('pg-f-estado')"><span class="msf-label">Todos os estados</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-pg-f-estado"></div></div>
@@ -5282,8 +5284,6 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <option value="mes">Agrupar por mês</option>
       <option value="familia">Agrupar por família</option>
     </select>
-    <button class="btn sm" onclick="pgExpandirTodos(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
-    <button class="btn sm" onclick="pgExpandirTodos(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
     <button class="btn" onclick="exportarPagamentos()"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
   </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;align-items:stretch">
@@ -5328,13 +5328,13 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   <!-- CLIENTES -->
   <div id="cau-pane-clientes">
     <div class="toolbar" style="margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn sm" onclick="cauCliExpandir(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
+      <button class="btn sm" onclick="cauCliExpandir(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
       <input type="search" id="cauc-search" placeholder="Pesquisar obra, código..." oninput="renderCaucClientes()" style="flex:1;min-width:200px;padding:7px 10px;font-size:12px;border:1px solid var(--border);border-radius:8px">
       <div class="msf-wrap" id="msf-cauc-filtro"><button type="button" class="btn sm msf-btn" onclick="msfToggle('cauc-filtro')"><span class="msf-label">Todos os estados</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-cauc-filtro"></div></div>
       <button class="btn" onclick="cauSincronizarClientes()" title="Atualizar retenções a partir da faturação das obras"><i class="ti ti-refresh"></i>Sincronizar faturação</button>
       <button class="btn primary" onclick="document.getElementById('cauc-file-input').click()" title="Importar um mapa de cauções a partir de um ficheiro Excel (cria/atualiza obras)"><i class="ti ti-file-import"></i>Importar Mapa</button><input type="file" id="cauc-file-input" accept=".xlsx,.xls" style="display:none" onchange="cauImportarFicheiro(this)"><button class="btn" onclick="cauImportarMapa()" title="Repor o mapa Sá Machado embebido na aplicação" style="font-size:11px"><i class="ti ti-database-import"></i>Repor mapa embebido</button>
       <input type="checkbox" id="cauc-arq" style="display:none">
-      <button class="btn sm" onclick="cauCliExpandir(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
-      <button class="btn sm" onclick="cauCliExpandir(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
     </div>
     <div id="cauc-libpanel"></div>
     <div class="metric-grid" id="cauc-kpis"></div>
@@ -5345,11 +5345,11 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   <div id="cau-pane-fornecedores" style="display:none">
     <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Por obra, as cauções e retenções que a Sá Machado retém a cada subempreiteiro/fornecedor. As retenções atualizam-se automaticamente a partir dos autos aos fornecedores.</div>
     <div class="toolbar" style="margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn sm" onclick="cauForExpandir(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
+      <button class="btn sm" onclick="cauForExpandir(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
       <input type="search" id="cauf-search" placeholder="Pesquisar obra, fornecedor..." oninput="renderCaucFornecedores()" style="flex:1;min-width:200px;padding:7px 10px;font-size:12px;border:1px solid var(--border);border-radius:8px">
       <button class="btn" onclick="cauSincronizarFornecedores()" title="Atualizar a partir dos autos aos fornecedores"><i class="ti ti-refresh"></i>Sincronizar autos</button>
       <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><span>Agrupar:</span><select id="cauf-group" onchange="renderCaucFornecedores()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px"><option value="obra">Obra</option><option value="fornecedor">Fornecedor</option><option value="nenhum">Nenhum</option></select></label><label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer"><input type="checkbox" id="cauf-todos" onchange="renderCaucFornecedores()"> Mostrar todos</label><input type="checkbox" id="cauf-arq" style="display:none">
-      <button class="btn sm" onclick="cauForExpandir(true)" title="Expandir todos os grupos"><i class="ti ti-unfold-more"></i></button>
-      <button class="btn sm" onclick="cauForExpandir(false)" title="Colapsar todos os grupos"><i class="ti ti-fold"></i></button>
     </div>
     <div id="cauf-libpanel"></div>
     <div class="metric-grid" id="cauf-kpis"></div>
@@ -17167,13 +17167,15 @@ function confirmarLancamento(){
   }
   function _ccQuem(){ try{return (JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'{}').nome)||'';}catch(e){return '';} }
 
+  var _puxarOk=false; // [v220] true só quando a última leitura da cloud foi mesmo bem-sucedida
   async function cloudPuxarEstado(){
-    var c=client(); if(!c)return null;
+    var c=client(); if(!c){_puxarOk=false;return null;}
     try{
       var r=await c.from('estado_partilhado').select('dados').eq('id',1).maybeSingle();
-      if(r.error){ _syncWarnOnce('puxar:',r.error.message); _syncRegistarFalha('puxar',r.error.message); return null; }
+      if(r.error){ _puxarOk=false; _syncWarnOnce('puxar:',r.error.message); _syncRegistarFalha('puxar',r.error.message); return null; }
+      _puxarOk=true;
       return (r.data&&r.data.dados)?r.data.dados:null;
-    }catch(e){ _syncWarnOnce('puxar ex:',e&&e.message||e); _syncRegistarFalha('puxar',e&&e.message||e); return null; }
+    }catch(e){ _puxarOk=false; _syncWarnOnce('puxar ex:',e&&e.message||e); _syncRegistarFalha('puxar',e&&e.message||e); return null; }
   }
   async function cloudEnviarEstado(){
     if(_syncEnviando||_syncPausado)return; _syncEnviando=true;
@@ -17182,6 +17184,9 @@ function confirmarLancamento(){
       var local=_ccLocal(); if(!local)return;
       var rem=_ccRemovidos(_syncSnap,local);
       var cloud=await cloudPuxarEstado();
+      // [v220] se a LEITURA falhou, não podemos juntar em segurança — adiar este envio
+      // (o temporizador volta a tentar; gravar só o local por cima apagaria dados de outros).
+      if(!_puxarOk){ _syncEstado('erro','leitura da cloud falhou; envio adiado'); try{if(window._syncAgendar)window._syncAgendar();}catch(e){} return; }
       var merged=_ccMerge(local,cloud,rem);
       var mergedStr=JSON.stringify(merged);
       var up=await c.from('estado_partilhado').upsert({id:1,dados:merged,atualizado_em:new Date().toISOString(),atualizado_por:_ccQuem()});
