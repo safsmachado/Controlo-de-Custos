@@ -109,7 +109,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;vertical-
 .msf-wrap{position:relative;display:inline-block}
 .msf-btn{display:flex;align-items:center;gap:6px;white-space:nowrap;max-width:190px}
 .msf-btn .msf-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;display:inline-block}
-.msf-panel{display:none;position:absolute;top:100%;left:0;z-index:80;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:6px;min-width:210px;max-height:260px;overflow:auto;margin-top:4px}
+.msf-panel{display:none;position:fixed;z-index:9000;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:6px;min-width:210px;max-height:260px;overflow:auto;margin-top:4px}
 .msf-panel.open{display:block}
 .msf-item{display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:400;text-transform:none}
 .msf-item:hover{background:#f4f5f7;border-radius:5px}
@@ -322,7 +322,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v203</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v217</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1067,6 +1067,9 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 var __pontePronta=false;
 function dentroDeIframe(){return true;} /* Fase 3: modulo passou a viver sempre na mesma janela que a app principal, por isso comporta-se sempre como 'embutido' */
 function guardar(){normalizarContratos();var js;try{js=JSON.stringify({contratos,obrasReg,obrasOcultasAutos,tiposObra,tiposCliente,utilizadores,auditoria,utilizadorAtual,empresas,tiposFornecedor});LS.setItem(STORE,js);}catch(e){console.warn('Falha ao guardar',e);}
+  // [fix] protege contra a cloud sobrepor com um snapshot antigo antes de o envio seguinte acontecer (mesmo padrão usado em todo o resto da app)
+  try{ window._ccUltimaEdicaoLocal=Date.now(); }catch(e){}
+  try{ if(window._syncAgendar) window._syncAgendar(); }catch(e){}
   try{ if(typeof window._empGuardar==='function'){ var _st=(typeof window._empStore==='function')?window._empStore():{}; _st.empresas=empresas; window._empGuardar(_st); } }catch(e){}
   try{ if(__pontePronta && !LS.persistente && dentroDeIframe() && js){ window.parent.postMessage({tipo:'autosmed:save',valor:js},'*'); } }catch(e){}
   publicarPonteFaturacao();}
@@ -1636,7 +1639,7 @@ function impDetectar(filename){
       else if(m.desc===undefined&&(c.includes('descri')||c.includes('designa')||c==='trabalho'))m.desc=idx;
       else if(m.un===undefined&&(c==='un.'||c==='un'||c==='und'||c==='unid'||c.includes('unidade')))m.un=idx;
       else if(m.qt===undefined&&(c.includes('quant')||c==='qtd'||c==='qt'||c.includes('medi')))m.qt=idx;
-      else if(m.pu===undefined&&(c.includes('unit')||c.includes('pr. un')||c.includes('preço un')||c.includes('preco un')))m.pu=idx;
+      else if(m.pu===undefined&&(c.includes('unit')||c.includes('pr. un')||c.includes('preço un')||c.includes('preco un')||c.includes('p.un')||c.includes('p un')))m.pu=idx;
     });
     if(m.desc!==undefined&&(m.qt!==undefined||m.pu!==undefined)){header=i;map=m;break;}
   }
@@ -1712,6 +1715,8 @@ function renderAutos(){
   const cont=document.getElementById('autos-container');
   if(!id){btn.disabled=true;cont.innerHTML='<div class="card muted center" style="padding:30px">Escolha um contrato para ver e criar autos.</div>';return;}
   const c=contratos.find(x=>String(x.id)===String(id));if(!c)return;
+  // [pedido Sérgio] se o contrato ainda não tem lista, tenta ligar automaticamente à Compra de origem (1 tentativa por contrato)
+  _tentarLigarListaCompra(c);
   btn.disabled=(c.artigos||[]).filter(a=>a.tipo==='ART').length===0;
   const vc=valorContrato(c),fa=faturadoAcum(c),pe=pctExec(c);
   let html=`<div class="card">
@@ -1789,6 +1794,23 @@ function removeAuto(cid,aid){
 // ══════════════════════════════════════════════════════════════
 // AUTO — folha de medição (introduzir quantidades do mês)
 // ══════════════════════════════════════════════════════════════
+function _tentarLigarListaCompra(c){
+  if((c.artigos||[]).filter(a=>a.tipo==='ART').length>0 || c._tentouLigarCompra || !window.buscarListaDeCompraLigada) return;
+  c._tentouLigarCompra=true;
+  window.buscarListaDeCompraLigada(c.origemCompraId,c.obra,c.entidade,(c.obraNum||(typeof _obraNumDe==='function'?_obraNumDe(c.obra||''):''))).then(function(res){
+    if(res && res.artigos && res.artigos.length){
+      c.artigos=res.artigos.map(function(a){return {ord:uid(),tipo:'ART',nivel:3,item:a.item||'',desc:a.desc||'',un:a.un||'',qtContrato:+a.qtContrato||0,precoUnit:+a.precoUnit||0};});
+      guardar();
+      // atualiza SEMPRE a vista aberta neste momento, independentemente de quem disparou o pedido (Folha de Rosto e/ou modal do Auto podem estar ambos abertos ou o utilizador pode ter navegado entretanto)
+      var selC=document.getElementById('autos-contrato');
+      if(selC && selC.value===String(c.id)) renderAutos();
+      if(typeof autoEdit!=='undefined' && autoEdit && String(autoEdit.cid)===String(c.id)){
+        var au=(c.autos||[]).find(a=>String(a.id)===String(autoEdit.aid));
+        if(au) renderAutoBody(c,au);
+      }
+    }
+  }).catch(function(){});
+}
 function abrirAuto(cid,aid){
   const c=contratos.find(x=>String(x.id)===String(cid));if(!c)return;
   const au=c.autos.find(a=>String(a.id)===String(aid));if(!au)return;
@@ -1796,6 +1818,8 @@ function abrirAuto(cid,aid){
   document.getElementById('modal-auto-title').textContent=`Auto ${au.numero} — ${c.ref}`;
   renderAutoBody(c,au);
   openModal('modal-auto');
+  // [pedido Sérgio] se o contrato ainda não tem lista, tenta ligar automaticamente à Compra de origem também ao abrir o Auto diretamente
+  _tentarLigarListaCompra(c);
 }
 function renderAutoBody(c,au){
   const arts=c.artigos||[];
@@ -1828,7 +1852,7 @@ function renderAutoBody(c,au){
       ${podeMedir?`<button class="btn sm" onclick="window.AutosNat.autoPreencher100('${c.id}','${au.id}')"><i class="ti ti-wand"></i>100%</button>
       <button class="btn sm" onclick="window.AutosNat.autoLimpar('${c.id}','${au.id}')"><i class="ti ti-eraser"></i>Limpar</button>`:''}
       <button class="btn sm" onclick="window.AutosNat.closeModal('modal-auto')"><i class="ti ti-x"></i>Fechar</button>
-      ${!readonly?`<button class="btn sm primary" onclick="window.AutosNat.guardar();window.AutosNat.renderAutos();renderTudo();window.AutosNat.closeModal('modal-auto')"><i class="ti ti-check"></i>Guardar</button>`:''}
+      ${!readonly?`<button class="btn sm primary" onclick="window.AutosNat.guardar();window.AutosNat.renderAutos();window.AutosNat.renderTudo();window.AutosNat.closeModal('modal-auto')"><i class="ti ti-check"></i>Guardar</button>`:''}
     </div>`;
   if(arts.filter(a=>a.tipo==='ART').length===0){
     html+=`<div class="alert warn"><i class="ti ti-alert-triangle"></i> Sem lista de quantidades. Importe primeiro a lista no contrato.</div>`;
@@ -1926,7 +1950,7 @@ function renderAutoBody(c,au){
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn" onclick="window.AutosNat.closeModal('modal-auto')">Fechar janela</button>
-        ${!readonly?`<button class="btn primary" onclick="window.AutosNat.guardar();window.AutosNat.renderAutos();renderTudo();window.AutosNat.closeModal('modal-auto')"><i class="ti ti-check"></i>Guardar auto</button>`:''}
+        ${!readonly?`<button class="btn primary" onclick="window.AutosNat.guardar();window.AutosNat.renderAutos();window.AutosNat.renderTudo();window.AutosNat.closeModal('modal-auto')"><i class="ti ti-check"></i>Guardar auto</button>`:''}
       </div>
     </div>`;
   document.getElementById('modal-auto-body').innerHTML=html;
@@ -2268,6 +2292,7 @@ function saveNovaObra(){
     data._nomeOriginal=num+' — '+data.nome; // formato usado em c.obra
     obrasReg.push(data);
     logAudit('Nova obra','Obra '+num+' — '+data.nome);
+    try{ if(window.criarOuAtualizarObraPrincipal) window.criarOuAtualizarObraPrincipal(Object.assign({},data)); }catch(e){}
   }
   guardar();
   closeModal('an-modal-nova-obra');
@@ -2425,7 +2450,7 @@ function renderObras(){
       // respeitar pesquisa por texto
       if(q){ var alvo=((o.num||'')+' '+(o.nome||'')+' '+(o.dono||'')).toLowerCase(); if(!alvo.includes(q)) return false; }
       // respeitar filtro de obra
-      if(fObra && fObra!==nomeP && fObra!==nomeS && fObra!==o.nome) return false;
+      if(fObra.length && !fObra.includes(nomeP) && !fObra.includes(nomeS) && !fObra.includes(o.nome)) return false;
       return true;
     });
     if(semContrato.length){
@@ -3860,6 +3885,24 @@ function importarContratoAutosExcel(file){
     try{
       var wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
       var d=_parseModeloAutos(wb);
+      var temArt=d.itens.some(function(x){return x.tipo==='ART';});
+      if(!temArt){
+        // não é o formato "Modelo" (várias colunas de autos lado a lado) -> tentar os formatos de anexo usados em Compras
+        try{
+          var best=wb.SheetNames[0],bestN=0;
+          wb.SheetNames.forEach(function(n){var dd=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''});if(dd.length>bestN){bestN=dd.length;best=n;}});
+          var data=XLSX.utils.sheet_to_json(wb.Sheets[best],{header:1,defval:''});
+          var rows=data.map(function(row){return row.map(function(cc){return window.xlsCell?window.xlsCell(cc):cc;});});
+          var alt=null;
+          if(window.cpParseFichaAdjudicacao) alt=window.cpParseFichaAdjudicacao(rows);
+          if((!alt||!alt.artigos.length)&&window.cpParseListaPrecos) alt=window.cpParseListaPrecos(rows);
+          if((!alt||!alt.artigos.length)&&window._cpParseListaGenerica){ var gen=window._cpParseListaGenerica(rows); if(gen.length) alt={ref:'',obra:'',cliente:'',empresa:'',artigos:gen}; }
+          if(alt&&alt.artigos.length){
+            d={folha:d.folha,obra:alt.obra||d.obra,ref:alt.ref||d.ref,esp:d.esp,sub:alt.empresa||d.sub,nAutos:1,
+              itens:alt.artigos.map(function(a){return {tipo:'ART',item:a.item||'',desc:a.desc,un:a.un,qt:a.qtContrato,pu:a.precoUnit,autos:[0]};})};
+          }
+        }catch(e2){}
+      }
       _criarContratoDeModelo(d,file.name);
     }catch(err){ alert('Erro a ler o ficheiro: '+(err&&err.message?err.message:err)); }
   };
@@ -3913,7 +3956,7 @@ function criarContratoDeAdjudicacao(d){
   var contrato={id:uid(),tipo:'sub',ref:((d.ref||'Subempreitada')+'').trim()||'Subempreitada',
     obra:nomeObra,entidade:((d.empreiteiro||'')+'').trim(),empresaId:EMPRESA_DEFAULT_ID,
     data:hoje,valorManual:(temArt?0:(+d.valor||0)),retencao:5,adiant:0,iva:0.23,
-    bloqueioAdjud:true,autExcesso:{compras:false,producao:false},adicionais:[],
+    bloqueioAdjud:true,autExcesso:{compras:false,producao:false},adicionais:[],origemCompraId:d.compraId||null,
     obs:'Criado a partir de processo adjudicado (Compras).',artigos:arts,autos:[]};
   var auto={id:uid(),numero:1,data:hoje,periodo:'',obs:'',estado:'rascunho',fechado:false,
     linhas:{},linhasVal:{},justif:{},validacoes:{}};
@@ -6126,9 +6169,24 @@ function agendarGravacao(){
 window.obrasMudaram=function(){
   try{ agendarGravacao(); }catch(e){}
   var renders=['filterObras','renderCustos','renderFacturacao','renderCompras',
-    'renderPagamentos','renderCaucClientes','renderGestao','renderIndiretos','renderDashboard'];
+    'renderPagamentos','renderCaucClientes','renderGestao','renderIndiretos','renderDashboard','renderRHColab'];
   renders.forEach(function(fn){ try{ if(typeof window[fn]==='function') window[fn](); }catch(e){} });
   try{ if(typeof sincronizarAutos==='function') sincronizarAutos(); }catch(e){}
+};
+// [pedido Sérgio] criar obra a partir do módulo Autos tem de aparecer de imediato em todos os separadores da app
+window.criarOuAtualizarObraPrincipal=function(dados){
+  try{
+    if(!dados||!dados.num)return;
+    var ex=obras.find(function(o){return String(o.num)===String(dados.num);});
+    if(ex){
+      ['nome','dono','tipoObra','tipoCliente','estado','estaleiroPct'].forEach(function(k){ if(dados[k]!=null&&dados[k]!=='') ex[k]=dados[k]; });
+    } else {
+      var novo=Object.assign({gastosGerais:0,mesesPassados:0,mesesMensais:[],trabMaisHist:[],errosHist:[]},dados);
+      if(typeof ensureFin==='function') ensureFin(novo);
+      obras.push(novo);
+    }
+    window.obrasMudaram();
+  }catch(e){}
 };
 function carregarTudo(){
   try{
@@ -7666,7 +7724,19 @@ function msfToggle(id){
   const alvo=document.getElementById('msf-panel-'+id);
   const abrir = alvo && !alvo.classList.contains('open');
   document.querySelectorAll('.msf-panel.open').forEach(function(p){p.classList.remove('open');});
-  if(alvo && abrir) alvo.classList.add('open');
+  if(alvo && abrir){
+    const wrap=document.getElementById('msf-'+id);
+    const btn=wrap?wrap.querySelector('.msf-btn'):null;
+    if(btn){
+      const r=btn.getBoundingClientRect();
+      alvo.style.top=(r.bottom+4)+'px';
+      alvo.style.left=r.left+'px';
+      // se sair da largura do ecrã, encosta à direita do botão em vez da esquerda
+      const larguraEstimativa=Math.max(210,r.width);
+      if(r.left+larguraEstimativa>window.innerWidth-8) alvo.style.left=Math.max(8,window.innerWidth-larguraEstimativa-8)+'px';
+    }
+    alvo.classList.add('open');
+  }
 }
 try{ document.addEventListener('click', function(e){ if(!e.target.closest('.msf-wrap')) document.querySelectorAll('.msf-panel.open').forEach(function(p){p.classList.remove('open');}); }); }catch(e){}
 function cpPopularFiltros(){
@@ -7945,7 +8015,7 @@ function renderCompras(){
     obrasDoEstado.forEach(k=>{grupos[k].forEach(c=>{nProcE++;custoE+=c.custo||0;adjE+=c.adjud||0;});});
     const dvE=custoE-adjE;
     html+=`<tr style="cursor:pointer;background:${styE.bg}" onclick="toggleCpEstadoGrupo('${estadoGrp}')">
-      <td colspan="6" style="padding:9px 10px;font-weight:700;color:${styE.cor}">
+      <td colspan="5" style="padding:9px 10px;font-weight:700;color:${styE.cor};text-align:left">
         <i class="ti ${colE?'ti-chevron-right':'ti-chevron-down'}"></i>
         <i class="ti ${styE.icone||''}" style="margin-left:6px"></i>
         <span style="margin-left:6px">${estadoGrp.toUpperCase()}</span>
@@ -8042,7 +8112,12 @@ function abrirModalCompra(id){
     _cpArtigos=Array.isArray(c.artigos)?c.artigos.map(a=>({item:a.item||'',desc:a.desc||'',un:a.un||'',qt:+a.qt||0,precoUnit:+a.precoUnit||0})):[];
     _cpAnexos={contrato:c.anexoContrato||null,lista:c.anexoLista||null};
     _cpPropostas=Array.isArray(c.propostas)?c.propostas.map(pp=>({fornecedor:pp.fornecedor||'',valor:+pp.valor||0,prazo:pp.prazo||'',obs:pp.obs||'',escolhida:!!pp.escolhida})):[];
-    cpRenderArtigos();cpRenderAnexos();cpRenderPropostas();cpCalcDesvio();}}
+    cpRenderArtigos();cpRenderAnexos();cpRenderPropostas();cpCalcDesvio();
+    // [pedido Sérgio] a lista de quantidades já gravada no processo deve ser lida automaticamente, sem precisar de clicar em "Importar do anexo"
+    if(!_cpArtigos.length && (_cpPareceExcel(_cpAnexos.lista)||_cpPareceExcel(_cpAnexos.contrato))){
+      setTimeout(()=>{ cpImportarArtigosDoAnexo(true); }, 50);
+    }
+  }}
   else{document.getElementById('modal-compra-title').textContent='Novo processo de compra';
     _cpPopularObraSelect('');_cpPopularEmpresaSelect('');
     ['cp-nome','cp-resp','cp-dataAdj','cp-custo','cp-adjud','cp-obs','cp-fornecedor'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
@@ -8174,7 +8249,7 @@ function _cpParseListaGenerica(rows){
       else if(mm.desc===undefined&&(c.indexOf('descri')>=0||c.indexOf('designa')>=0||c==='trabalho'))mm.desc=idx;
       else if(mm.un===undefined&&(c==='un.'||c==='un'||c==='und'||c==='unid'||c.indexOf('unidade')>=0))mm.un=idx;
       else if(mm.qt===undefined&&(c.indexOf('quant')>=0||c==='qtd'||c==='qt'||c.indexOf('medi')>=0))mm.qt=idx;
-      else if(mm.pu===undefined&&(c.indexOf('unit')>=0||c.indexOf('pr. un')>=0||c.indexOf('preço un')>=0||c.indexOf('preco un')>=0))mm.pu=idx;
+      else if(mm.pu===undefined&&(c.indexOf('unit')>=0||c.indexOf('pr. un')>=0||c.indexOf('preço un')>=0||c.indexOf('preco un')>=0||c.indexOf('p.un')>=0||c.indexOf('p un')>=0))mm.pu=idx;
     });
     if(mm.desc!==undefined&&(mm.qt!==undefined||mm.pu!==undefined)){header=i;map=mm;break;}
   }
@@ -8267,6 +8342,74 @@ function cpParseFichaAdjudicacao(rows){
   return {ref:ref,obra:obra,cliente:cliente,empresa:empresaGanhadora,artigos:out};
 }
 
+/* ===== Lista de Preços final (formato: "Obra:"/"Dono de Obra:"/"Subempreitada: X" + ref tipo "SUB - 0385-26-002" +
+   tabela simples ARTG./DESCRIÇÃO/UNID/QUANTID./P.UN/TOTAL, com secções de capítulo e linhas "OPCIONAL" a ignorar) ===== */
+function cpParseListaPrecos(rows){
+  if(!rows||!rows.length) return null;
+  function norm(v){return String(v==null?'':v).trim();}
+  function normLow(v){return norm(v).toLowerCase();}
+  var obra='',cliente='',ref='',empresa='',headerRow=-1;
+  for(var i=0;i<Math.min(rows.length,20);i++){
+    var row=rows[i]||[];
+    for(var c=0;c<row.length;c++){
+      var v=normLow(row[c]);
+      if(!obra&&v==='obra:'){ for(var k=c+1;k<row.length;k++){ if(norm(row[k])){obra=norm(row[k]);break;} } }
+      if(!cliente&&(v==='dono de obra:'||v==='cliente:')){ for(var k2=c+1;k2<row.length;k2++){ if(norm(row[k2])){cliente=norm(row[k2]);break;} } }
+      if(!empresa&&v.indexOf('subempreitada:')===0){ for(var k3=c+1;k3<row.length;k3++){ if(norm(row[k3])){empresa=norm(row[k3]);break;} } }
+      // referencia tipo "SUB -" seguida de "0385-26-002" em celulas adjacentes
+      if(!ref&&/^[a-z]{2,6}\s*-\s*$/.test(v)){ var nx=norm(row[c+1]); if(/^\d{2,4}-\d{2,4}-\d{2,4}$/.test(nx)) ref=norm(row[c]).replace(/\s+/g,'')+nx; }
+      if(headerRow<0&&(v==='artg.'||v==='artg')) headerRow=i;
+    }
+    if(headerRow>=0) break;
+  }
+  // header alternativo: procurar linha com DESCRIÇÃO + QUANTID + P.UN mesmo sem "ARTG."
+  if(headerRow<0){
+    for(var i2=0;i2<Math.min(rows.length,30);i2++){
+      var row2=(rows[i2]||[]).map(normLow);
+      var temDesc=row2.some(function(c){return c.indexOf('descri')>=0;});
+      var temQt=row2.some(function(c){return c.indexOf('quantid')>=0;});
+      if(temDesc&&temQt){ headerRow=i2; break; }
+    }
+  }
+  if(headerRow<0) return null; // nao e este formato
+  var hrow=(rows[headerRow]||[]).map(normLow);
+  var colDesc=-1,colUn=-1,colQt=-1,colPu=-1;
+  hrow.forEach(function(c,idx){
+    if(colDesc<0&&c.indexOf('descri')>=0) colDesc=idx;
+    else if(colUn<0&&(c==='unid'||c==='un'||c==='und'||c==='un.')) colUn=idx;
+    else if(colQt<0&&c.indexOf('quantid')>=0) colQt=idx;
+    else if(colPu<0&&(c.indexOf('p.un')>=0||c.indexOf('p un')>=0||c.indexOf('preço un')>=0||c.indexOf('preco un')>=0||c.indexOf('unit')>=0)) colPu=idx;
+  });
+  if(colDesc<0||colPu<0) return null;
+  // empresa a partir do rodapé (nome completo entre parenteses a seguir a SUBEMPREITEIRO/etc.), sobrepoe o nome curto se encontrado
+  for(var j0=headerRow;j0<rows.length;j0++){
+    var linha0=(rows[j0]||[]).join(' ');
+    if(/subempreiteiro|locador|transportador|prestador de servi|fornecedor|gestor de res/i.test(linha0)&&j0>headerRow+3){
+      for(var j1=j0+1;j1<Math.min(j0+4,rows.length);j1++){
+        (rows[j1]||[]).forEach(function(cel){
+          var t=norm(cel);
+          var m=t.match(/^\(([^)]+)\)$/);
+          if(m&&m[1].trim()) empresa=m[1].trim();
+        });
+      }
+    }
+  }
+  var out=[],seq=0,linhaTotal=-1;
+  function novoOrd(){return 'a'+Date.now().toString(36)+'_'+(seq++);}
+  for(var j=headerRow+1;j<rows.length;j++){
+    var r=rows[j]||[];
+    var desc=norm(r[colDesc]); if(!desc) continue;
+    if(normLow(desc)==='total'||(colQt>=0&&normLow(r[colQt])==='total')){ linhaTotal=j; break; }
+    var un=colUn>=0?norm(r[colUn]):'';
+    var qt=colQt>=0?_cpParseNumPt(r[colQt]):null;
+    var pu=_cpParseNumPt(r[colPu]);
+    if(qt==null||pu==null) continue; // secções de capítulo e linhas "OPCIONAL" (sem quantidade real) ficam de fora
+    out.push({ord:novoOrd(),tipo:'ART',nivel:3,item:'',desc:desc,un:un,qtContrato:qt,precoUnit:pu});
+  }
+  if(!out.length) return null;
+  return {ref:ref,obra:obra,cliente:cliente,empresa:empresa,artigos:out};
+}
+
 async function _cpDataURLAnexo(qual){
   var a=_cpAnexos[qual];if(!a)return null;
   var dataURL=a.dataURL;
@@ -8280,13 +8423,13 @@ function _cpPareceExcel(a){
   var nome=(a.nome||'').toLowerCase();
   return /\.xlsx?$/.test(nome) || (a.tipo||'').indexOf('sheet')>=0 || (a.tipo||'').indexOf('excel')>=0;
 }
-async function cpImportarArtigosDoAnexo(){
+async function cpImportarArtigosDoAnexo(automatico){
   var qual=null;
   if(_cpPareceExcel(_cpAnexos.lista)) qual='lista';
   else if(_cpPareceExcel(_cpAnexos.contrato)) qual='contrato';
-  if(!qual){ alert('Não encontrei nenhum anexo em Excel (.xls/.xlsx) nesta compra. Anexe primeiro a Ficha de Adjudicação ou a lista de quantidades.'); return; }
+  if(!qual){ if(!automatico) alert('Não encontrei nenhum anexo em Excel (.xls/.xlsx) nesta compra. Anexe primeiro a Ficha de Adjudicação ou a lista de quantidades.'); return; }
   var dataURL=await _cpDataURLAnexo(qual);
-  if(!dataURL){ alert('Não consegui aceder ao anexo (pode estar só guardado noutro computador).'); return; }
+  if(!dataURL){ if(!automatico) alert('Não consegui aceder ao anexo (pode estar só guardado noutro computador).'); return; }
   var b64=dataURL.split(',')[1]||'';
   var resultado=null;
   try{
@@ -8298,12 +8441,16 @@ async function cpImportarArtigosDoAnexo(){
     var ficha=cpParseFichaAdjudicacao(rows);
     if(ficha&&ficha.artigos.length){ resultado=ficha; }
     else{
-      var generico=_cpParseListaGenerica(rows);
-      if(generico.length) resultado={ref:'',obra:'',cliente:'',empresa:'',artigos:generico};
+      var lista=cpParseListaPrecos(rows);
+      if(lista&&lista.artigos.length){ resultado=lista; }
+      else{
+        var generico=_cpParseListaGenerica(rows);
+        if(generico.length) resultado={ref:'',obra:'',cliente:'',empresa:'',artigos:generico};
+      }
     }
-  }catch(e){ alert('Não consegui ler o Excel anexado: '+e.message); return; }
-  if(!resultado||!resultado.artigos.length){ alert('Não encontrei artigos neste ficheiro. Confirme que é a Ficha de Adjudicação ou uma lista de quantidades.'); return; }
-  if(_cpArtigos.length && !confirm('Já há '+_cpArtigos.length+' linha(s) na lista. Substituir pelas '+resultado.artigos.length+' linha(s) encontradas no anexo?')) return;
+  }catch(e){ if(!automatico) alert('Não consegui ler o Excel anexado: '+e.message); return; }
+  if(!resultado||!resultado.artigos.length){ if(!automatico) alert('Não encontrei artigos neste ficheiro. Confirme que é a Ficha de Adjudicação ou uma lista de quantidades.'); return; }
+  if(_cpArtigos.length){ if(automatico) return; if(!confirm('Já há '+_cpArtigos.length+' linha(s) na lista. Substituir pelas '+resultado.artigos.length+' linha(s) encontradas no anexo?')) return; }
   _cpArtigos=resultado.artigos.map(function(a){return {item:a.item||'',desc:a.desc||'',un:a.un||'',qt:+a.qtContrato||0,precoUnit:+a.precoUnit||0};});
   cpRenderArtigos();
   var fEl=document.getElementById('cp-fornecedor');
@@ -8319,7 +8466,8 @@ async function cpImportarArtigosDoAnexo(){
     var tolerancia=Math.max(1,valorAdjud*0.01);
     if(diferenca>tolerancia) avisoValidacao='\n\n⚠️ O total dos artigos importados ('+fmt(totalArtigos,2)+'€) não bate certo com o valor adjudicado já preenchido no formulário ('+fmt(valorAdjud,2)+'€). Confirme os valores.';
   }
-  alert('Importado(s) '+resultado.artigos.length+' artigo(s) do anexo.'+(resultado.empresa?('\nEmpresa adjudicada: '+resultado.empresa):'')+avisoValidacao);
+  if(avisoValidacao) alert((automatico?'Lista de quantidades importada automaticamente do anexo.':('Importado(s) '+resultado.artigos.length+' artigo(s) do anexo.'))+(resultado.empresa?('\nEmpresa adjudicada: '+resultado.empresa):'')+avisoValidacao);
+  else if(!automatico) alert('Importado(s) '+resultado.artigos.length+' artigo(s) do anexo.'+(resultado.empresa?('\nEmpresa adjudicada: '+resultado.empresa):''));
 }
 
 /* ===== Criar auto de medição (subempreitada) nos Autos a partir de uma Compra adjudicada ===== */
@@ -8392,12 +8540,63 @@ async function _cpArtigosDoAnexoPersistido(c){
       var rows=data.map(function(row){return row.map(function(cc){return xlsCell(cc);});});
       var ficha=cpParseFichaAdjudicacao(rows);
       if(ficha&&ficha.artigos.length) return ficha;
+      var lista=cpParseListaPrecos(rows);
+      if(lista&&lista.artigos.length) return lista;
       var generico=_cpParseListaGenerica(rows);
       if(generico.length) return {ref:'',obra:'',cliente:'',empresa:'',artigos:generico};
     }catch(e){}
   }
   return null;
 }
+// [pedido Sérgio] contratos do Autos sem lista tentam ligar-se automaticamente à Compra de origem (por id, ou por obra+empresa em contratos antigos sem essa ligação)
+/* [v216] correspondência robusta obra/entidade entre um contrato dos Autos e um processo de Compras.
+   A obra pode estar escrita de formas diferentes (código "0385", "OBRA0385", "0385 — Nome…", ou só o nome);
+   o fornecedor pode ter versão curta/longa. Comparamos de forma tolerante, mantendo a segurança de só
+   ligar quando há UM candidato claro. */
+function _ligNorm(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
+function _ligCodigoObra(s){ var m=String(s==null?'':s).match(/\d{2,}/); return m?m[0].replace(/^0+/,''):''; }
+function _ligObraIgual(a,b){
+  var na=_ligNorm(a), nb=_ligNorm(b);
+  if(!na||!nb) return false;
+  if(na===nb) return true;
+  if(na.indexOf(nb)>=0 || nb.indexOf(na)>=0) return true;
+  var ca=_ligCodigoObra(a), cb=_ligCodigoObra(b);
+  if(ca && cb && ca===cb) return true;
+  return false;
+}
+function _ligEntIgual(a,b){
+  var na=_ligNorm(a), nb=_ligNorm(b);
+  if(!na||!nb) return true; // se um dos lados não tem entidade, não usa este critério para excluir
+  if(na===nb) return true;
+  return (na.indexOf(nb)>=0 || nb.indexOf(na)>=0);
+}
+window.buscarListaDeCompraLigada = async function(origemCompraId, obra, entidade, obraNum){
+  try{
+    var c=null;
+    if(origemCompraId) c=compras.find(x=>String(x.id)===String(origemCompraId));
+    if(!c && (obra||obraNum)){
+      var candidatos=compras.filter(function(x){
+        var obraOk = _ligObraIgual(x.obra,obra) || (obraNum && (_ligObraIgual(x.obra,obraNum) || _ligCodigoObra(x.obra)===_ligCodigoObra(obraNum)));
+        return obraOk
+          && _ligEntIgual(x.fornecedor,entidade)
+          && ((x.artigos&&x.artigos.length) || _cpPareceExcel(x.anexoLista) || _cpPareceExcel(x.anexoContrato));
+      });
+      if(candidatos.length===1){ c=candidatos[0]; }
+      else if(candidatos.length>1){
+        // desempate: preferir o(s) que já têm a lista de artigos preenchida
+        var comArt=candidatos.filter(function(x){return x.artigos&&x.artigos.length;});
+        if(comArt.length===1) c=comArt[0];
+      }
+    }
+    if(!c) return null;
+    if(c.artigos && c.artigos.length){
+      return {artigos:c.artigos.map(a=>({item:a.item,desc:a.desc,un:a.un,qtContrato:+a.qt||0,precoUnit:+a.precoUnit||0})),empresa:c.fornecedor||''};
+    }
+    var doAnexo=await _cpArtigosDoAnexoPersistido(c);
+    if(doAnexo && doAnexo.artigos.length) return doAnexo;
+  }catch(e){}
+  return null;
+};
 async function criarAutoDaCompra(id){
   const c=compras.find(x=>String(x.id)===String(id));if(!c)return;
   if((c.situacao||'')!=='Adjudicado'){if(!confirm('Este processo não está marcado como "Adjudicado". Criar o auto na mesma?'))return;}
@@ -8424,7 +8623,7 @@ async function criarAutoDaCompra(id){
   if(!confirm('Criar nos Autos de Medição a obra, o contrato de subempreitada e um Auto a partir deste processo?\n\nObra: '+(c.obra||'(sem obra)')+'\nProcesso: '+(c.nome||'')+(artigosCompra.length?('\n'+artigosCompra.length+' artigo(s) lançado(s)'):'')+avisoValidacao+(avisoValidacao?'\n\nCriar mesmo assim?':'')))return;
   let empreiteiro=(c.fornecedor||empresaDoAnexo||'').trim();
   if(!empreiteiro){ empreiteiro=(prompt('Nome do subempreiteiro/fornecedor para o contrato:', c.resp||'')||'').trim(); }
-  const dados={obra:c.obra||'',empreiteiro,ref:(c.nome||'Subempreitada'),valor:c.adjud||0,
+  const dados={obra:c.obra||'',empreiteiro,ref:(c.nome||'Subempreitada'),valor:c.adjud||0,compraId:c.id,
     artigos:artigosCompra.map(a=>({item:a.item,desc:a.desc,un:a.un,qt:a.qt,precoUnit:a.precoUnit}))};
   enviarParaAutos({tipo:'criar_auto_subempreitada',dados});
   c.autoCriado=true;guardarCompras();renderCompras();
@@ -16430,6 +16629,7 @@ function confirmarLancamento(){
   function verificaPass(u,p){ if(!u)return false; if(u.passHash)return u.passHash===hashPass(p); return (u.pass!=null&&u.pass===p); }
   var PERFIS=[{v:'admin',t:'Administrador'},{v:'direcao',t:'Dir. Obra'},{v:'producao',t:'Dir. Produção'},{v:'financeiro',t:'Dir. Financeiro'},{v:'compras',t:'Dir. Compras'},{v:'dir_comercial',t:'Dir. Comercial'},{v:'dep_financeiro',t:'Dep. Financeiro'},{v:'dep_rh',t:'Dep. RHumanos'},{v:'dep_comercial',t:'Dep. Comercial'},{v:'dep_planeamento',t:'Dep. Planeamento'},{v:'dep_producao',t:'Dep. Produção'},{v:'dep_juridico',t:'Dep. Jurídico'},{v:'medidor',t:'Medidor'}];
   var DEFAULTS=[
+    {user:'sfmachado',pass:'sfmachado',nome:'Sérgio Machado',perfil:'admin',activo:true},
     {user:'admin',pass:'admin',nome:'Administrador',perfil:'admin',activo:true},
     {user:'obra',pass:'obra',nome:'Dir. Obra',perfil:'direcao',activo:true},
     {user:'producao',pass:'producao',nome:'Dir. Producao',perfil:'producao',activo:true},
@@ -16441,6 +16641,12 @@ function confirmarLancamento(){
   function gravarUsers(arr){try{localStorage.setItem(USERS_KEY,JSON.stringify(arr));}catch(e){} try{if(window._syncAgendar)window._syncAgendar();}catch(e){}}
   function lerUsers(){var arr=null;try{arr=JSON.parse(localStorage.getItem(USERS_KEY)||'null');}catch(e){}if(!arr||!arr.length){arr=DEFAULTS.slice();}
     var mudou=false;
+    // [v215] garantir que o utilizador de base (sfmachado) existe sempre — nunca ficar trancado fora.
+    // Só é recolocado se estiver COMPLETAMENTE ausente; se já existir, respeita a versão/password atual.
+    (function(){ var gu='sfmachado',i,existe=false;
+      for(i=0;i<arr.length;i++){ if((arr[i].user||'').toLowerCase()===gu){existe=true;break;} }
+      if(!existe){ for(i=0;i<DEFAULTS.length;i++){ if(DEFAULTS[i].user===gu){ arr.push(JSON.parse(JSON.stringify(DEFAULTS[i]))); mudou=true; break; } } }
+    })();
     arr.forEach(function(u){ if(u&&u.pass!=null){ try{u.passHash=hashPass(u.pass);delete u.pass;mudou=true;}catch(e){} } });
     if(mudou)gravarUsers(arr);
     else if(!localStorage.getItem(USERS_KEY))gravarUsers(arr);
@@ -16623,12 +16829,12 @@ function confirmarLancamento(){
   window.toggleUserMenu=function(ev){if(ev&&ev.stopPropagation)ev.stopPropagation();var d=document.getElementById("user-dropdown");if(d){d.classList.toggle("open"); if(d.classList.contains("open")){ try{if(typeof pedirFlushAutos==='function')pedirFlushAutos();}catch(e){} }}};
   window.closeUserMenu=function(){var d=document.getElementById("user-dropdown");if(d)d.classList.remove("open");};
   document.addEventListener("click",function(e){var d=document.getElementById("user-dropdown");if(!d||!d.classList.contains("open"))return;var um=document.getElementById("user-menu");if(d.contains(e.target))return;if(um&&um.contains(e.target))return;d.classList.remove("open");});
-  window.fazerLogin=function(){
-    var u=(val('login-u')).trim().toLowerCase();
-    var p=val('login-p');
-    var users=lerUsers(),m=null,i;
-    for(i=0;i<users.length;i++){if((users[i].user||'').toLowerCase()===u&&verificaPass(users[i],p)){m=users[i];break;}}
-    if(!m){loginErro('Utilizador ou palavra-passe incorretos.');return;}
+  function _loginTentar(u,p){
+    var users=lerUsers(),i;
+    for(i=0;i<users.length;i++){ if((users[i].user||'').toLowerCase()===u&&verificaPass(users[i],p))return users[i]; }
+    return null;
+  }
+  function _loginConcluir(m,p){
     if(m.activo===false){loginErro('Conta inativa. Contacte o administrador.');return;}
     try{sessionStorage.setItem(LOGIN_KEY,JSON.stringify({user:m.user,nome:m.nome,perfil:m.perfil}));}catch(e){}
     // memorizar credenciais neste computador (se a caixa estiver marcada)
@@ -16639,6 +16845,25 @@ function confirmarLancamento(){
     }catch(e){}
     try{ if(window.regAudit)window.regAudit('Sessão','Início de sessão: '+m.nome+' ('+m.perfil+')',m.nome,m.perfil); }catch(e){}
     aplicarSessao(m);
+  }
+  window.fazerLogin=function(){
+    var u=(val('login-u')).trim().toLowerCase();
+    var p=val('login-p');
+    var m=_loginTentar(u,p);
+    if(m){ _loginConcluir(m,p); return; }
+    // [v214] sem correspondência local: pode ser um ficheiro acabado de abrir cujos utilizadores
+    // ainda não vieram da cloud. Tenta puxá-los à hora do login e repete uma vez.
+    if(typeof window._ccPuxarUsersCloud==='function' && window.cloudOk && window.cloudOk()){
+      loginErro('A verificar…');
+      window._ccPuxarUsersCloud().then(function(arr){
+        if(arr&&arr.length){ try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(arr));}catch(e){} }
+        var m2=_loginTentar(u,p);
+        if(m2){ _loginConcluir(m2,p); }
+        else{ loginErro('Utilizador ou palavra-passe incorretos.'); }
+      }).catch(function(){ loginErro('Utilizador ou palavra-passe incorretos.'); });
+      return;
+    }
+    loginErro('Utilizador ou palavra-passe incorretos.');
   };
   function credenciaisGuardadas(){
     try{ var r=localStorage.getItem(LEMBRAR_KEY); if(!r)return null; var d=JSON.parse(decodeURIComponent(escape(atob(r)))); return (d&&d.u)?d:null; }catch(e){ return null; }
@@ -16725,8 +16950,30 @@ function confirmarLancamento(){
     }).join('');
   }
 
-  function _arrancarLogin(){ iniciarGateLogin(); try{setTimeout(reenquadrarAssinaturasLogin,600);}catch(e){} }
-  function _preLoginCloud(){ (async function(){ try{ if(typeof client==='function'&&client()){ var _cl=await cloudPuxarEstado(); if(_cl&&Array.isArray(_cl.utilizadores)&&_cl.utilizadores.length){ try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(_cl.utilizadores));}catch(e){} } } }catch(e){} _arrancarLogin(); })(); }
+  var _loginArrancado=false;
+  function _arrancarLogin(){ if(_loginArrancado)return; _loginArrancado=true; iniciarGateLogin(); try{setTimeout(reenquadrarAssinaturasLogin,600);}catch(e){} }
+  function _ccEsperar(cond,maxMs,cb){
+    var t0=Date.now();
+    (function tick(){
+      var ok=false; try{ok=!!cond();}catch(e){}
+      if(ok){cb(true);return;}
+      if(Date.now()-t0>=maxMs){cb(false);return;}
+      setTimeout(tick,150);
+    })();
+  }
+  // [v214] antes do login, garante que os utilizadores vêm da cloud (o helper vive noutro <script>,
+  // por isso esperamos que fique disponível e que o cliente cloud esteja pronto).
+  function _preLoginCloud(){
+    var temLocal=false; try{var a=JSON.parse(localStorage.getItem('gc_utilizadores_v1')||'null'); temLocal=!!(a&&a.length);}catch(e){}
+    if(temLocal){ _arrancarLogin(); } // já há utilizadores locais: mostra já o ecrã de login
+    _ccEsperar(function(){ return typeof window._ccPuxarUsersCloud==='function' && window.cloudOk && window.cloudOk(); }, 8000, function(pronto){
+      if(!pronto){ _arrancarLogin(); return; }
+      window._ccPuxarUsersCloud().then(function(arr){
+        if(arr&&arr.length){ try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(arr));}catch(e){} }
+        _arrancarLogin();
+      }).catch(function(){ _arrancarLogin(); });
+    });
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_preLoginCloud);
   else _preLoginCloud();
   setInterval(atualizarDataHeader,60000);
@@ -16816,6 +17063,17 @@ function confirmarLancamento(){
     return sb;
   }
   window.cloudOk=function(){return !!client();};
+  /* [v214] leitura leve dos utilizadores na cloud, para o ecrã de login (sem mexer no contador de falhas do sync) */
+  window._ccPuxarUsersCloud=async function(){
+    try{
+      var c=client(); if(!c)return null;
+      var r=await c.from('estado_partilhado').select('dados').eq('id',1).maybeSingle();
+      if(r&&!r.error&&r.data&&r.data.dados&&Array.isArray(r.data.dados.utilizadores)&&r.data.dados.utilizadores.length){
+        return r.data.dados.utilizadores;
+      }
+    }catch(e){}
+    return null;
+  };
 
   /* ===== MOTOR DE SINCRONIZACAO ONLINE (Fase 1: dados) ===== */
   var _syncTimer=null,_syncCanal=null,_syncAplicando=false,_syncEnviando=false,_syncSnap=null;
@@ -16854,10 +17112,22 @@ function confirmarLancamento(){
     add(pref); add(outro);
     return ordem.map(function(k){return mapa[k];});
   }
+  function _ccVazioObj(v){
+    if(v===undefined||v===null)return true;
+    if(Array.isArray(v))return v.length===0;
+    if(typeof v==='object'){ for(var k in v){ if(Object.prototype.hasOwnProperty.call(v,k))return false; } return true; }
+    return false;
+  }
   function _ccMerge(base,outro,rem){
     base=base||{}; outro=outro||{}; var out={};
     _CC_ARR.forEach(function(k){ out[k]=_ccUniao(base[k],outro[k],rem); });
-    _CC_OBJ.forEach(function(k){ out[k]=(base[k]!==undefined&&base[k]!==null)?base[k]:outro[k]; });
+    // [v214] campos-objeto: o local só ganha se tiver conteúdo; se estiver VAZIO, preserva o da cloud
+    // (impede que um ficheiro sem utilizadores/autos apague os dados de toda a gente ao sincronizar).
+    _CC_OBJ.forEach(function(k){
+      if(!_ccVazioObj(base[k])) out[k]=base[k];
+      else if(!_ccVazioObj(outro[k])) out[k]=outro[k];
+      else out[k]=(base[k]!==undefined&&base[k]!==null)?base[k]:outro[k];
+    });
     return out;
   }
   function _ccRemovidos(snap,local){
