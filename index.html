@@ -322,7 +322,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v234</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v239</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -438,7 +438,7 @@ table td{vertical-align:middle}
   <div id="obras-sub-analise" style="display:none">
     <div class="toolbar">
       <select id="ob-an-metrica" onchange="renderObrasAnalise()">
-        <option value="autos">Autos</option><option value="custos">Custos</option>
+        <option value="autos">Autos</option><option value="custos">Custos</option><option value="revPrecos">Revisão de preços</option><option value="trabMais">Trabalhos a mais</option>
         <option value="margem">Margem</option><option value="liquidez">Liquidez</option>
         <option value="adj">Adjudicação</option>
       </select>
@@ -448,6 +448,7 @@ table td{vertical-align:middle}
         <option value="tipo">Por tipo de obra</option>
         <option value="cliente">Por cliente</option>
         <option value="obra">Por obra</option>
+        <option value="resultado">Por resultado</option>
       </select>
     </div>
     <div class="metric-grid" id="ob-an-metrics"></div>
@@ -5419,6 +5420,33 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <button class="tab-inner-btn" id="pg-tab-btn-analise" onclick="switchPagTab('analise')"><i class="ti ti-chart-bar"></i> Análise</button>
   </div>
   <div id="pg-sub-analise" style="display:none">
+  <div class="card" style="margin-bottom:14px">
+    <div class="section-title">Gráfico configurável</div>
+    <div class="toolbar" style="margin-bottom:10px">
+      <select id="pg-an-metrica" onchange="renderPgAnalise()">
+        <option value="divida">Em dívida</option>
+        <option value="vencido">Vencido</option>
+        <option value="pago">Pago</option>
+        <option value="total">Total c/ IVA</option>
+        <option value="contas">N.º de contas</option>
+      </select>
+      <select id="pg-an-agrup" onchange="renderPgAnalise()">
+        <option value="obra">Por obra</option>
+        <option value="fornecedor">Por fornecedor</option>
+        <option value="mes">Por mês</option>
+        <option value="estado">Por estado</option>
+      </select>
+      <select id="pg-an-tipo" onchange="renderPgAnalise()" title="Tipo de gráfico">
+        <option value="bar" selected>Barras</option>
+        <option value="barh">Barras horizontais</option>
+        <option value="doughnut">Circular</option>
+        <option value="line">Linha</option>
+      </select>
+    </div>
+    <div class="metric-grid" id="pg-an-metrics"></div>
+    <div class="chart-wrap" style="height:240px"><canvas id="chartPgAn"></canvas></div>
+    <div class="table-wrap" id="pg-an-tabela" style="margin-top:10px"></div>
+  </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;align-items:stretch">
     <div style="flex:1 1 260px;min-width:220px;max-width:100%;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:170px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-aging"></canvas></div>
     <div style="flex:1 1 260px;min-width:220px;max-width:100%;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:170px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-forn"></canvas></div>
@@ -5434,7 +5462,7 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   </div>
   </div>
   <div id="pg-sub-lista">
-  <div class="table-wrap" id="pg-tabela" style="max-height:420px;overflow:auto"></div>
+  <div class="table-wrap" id="pg-tabela" style="max-height:calc(100vh - 300px);min-height:340px;overflow:auto"></div>
   </div>
 </div>
 
@@ -5499,6 +5527,31 @@ try{ window.AutosNat.validar = validar; }catch(e){}
 
   <!-- ANÁLISE -->
   <div id="cau-pane-analise" style="display:none">
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title">Gráfico configurável</div>
+      <div class="toolbar" style="margin-bottom:10px">
+        <select id="cauc-cfg-metrica" onchange="renderCaucConfig()">
+          <option value="por">Por libertar</option>
+          <option value="a12">A libertar (12 meses)</option>
+          <option value="lib">Já libertado</option>
+          <option value="tot">Total</option>
+        </select>
+        <select id="cauc-cfg-agrup" onchange="renderCaucConfig()">
+          <option value="origem">Por origem (cliente/fornecedor)</option>
+          <option value="tipo">Por tipo (retenção/garantia)</option>
+          <option value="ano">Por ano</option>
+        </select>
+        <select id="cauc-cfg-tipo" onchange="renderCaucConfig()" title="Tipo de gráfico">
+          <option value="bar" selected>Barras</option>
+          <option value="barh">Barras horizontais</option>
+          <option value="doughnut">Circular</option>
+          <option value="line">Linha</option>
+        </select>
+      </div>
+      <div class="metric-grid" id="cauc-cfg-metrics"></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cauc-cfg-chart"></canvas></div>
+      <div class="table-wrap" id="cauc-cfg-tabela" style="margin-top:10px"></div>
+    </div>
     <div class="metric-grid" id="cauc-an-kpis"></div>
     <div class="two-col">
       <div class="card"><div class="section-title">Resumo por origem</div><div class="table-wrap"><div id="cauc-an-resumo"></div></div></div>
@@ -9753,8 +9806,8 @@ function renderObrasTable(list){
   const NUM_COLS = 16; // total de colunas da tabela
 
   GRUPOS_ORDEM.forEach(estado=>{
-    const lista = grupos[estado];
-    if(!lista||lista.length===0) return;
+    const lista = grupos[estado]||[];
+    // [v238] mostrar sempre os 4 grupos (Adjudicada/Em Curso/Pós-Venda/Concluída), mesmo sem obras
 
     const st = GRUPO_STYLE[estado]||{cor:'#555',bg:'#f3f4f6',icone:'ti-circle'};
     const colapsado = !!gruposColapsados[estado];
@@ -12622,6 +12675,8 @@ function renderObrasAnalise(){
     if(metrica==='margem')return margem(o);
     if(metrica==='liquidez'){const f=finObra(o);return f.temDados?f.liquidez:margem(o);}
     if(metrica==='adj')return o.adj||0;
+    if(metrica==='revPrecos')return o.revPrecos||0;
+    if(metrica==='trabMais')return o.trabalhosMais||0;
     return 0;
   };
   const chaveDe=(o)=>{
@@ -12629,12 +12684,13 @@ function renderObrasAnalise(){
     if(agrup==='tipo')return o.tipoObra||'(s/tipo)';
     if(agrup==='cliente')return o.tipoCliente||o.dono||'(s/cliente)';
     if(agrup==='obra')return o.num+' — '+o.nome.substring(0,20);
+    if(agrup==='resultado')return margem(o)>=0?'Com lucro':'Com prejuízo';
     return '';
   };
   const acc={};let total=0;
   obras.forEach(o=>{const k=chaveDe(o);const v=valDe(o);acc[k]=(acc[k]||0)+v;total+=v;});
   const labels=Object.keys(acc).sort((a,b)=>acc[b]-acc[a]);
-  const nomeMetrica={autos:'Autos',custos:'Custos',margem:'Margem',liquidez:'Liquidez',adj:'Adjudicação'}[metrica];
+  const nomeMetrica={autos:'Autos',custos:'Custos',margem:'Margem',liquidez:'Liquidez',adj:'Adjudicação',revPrecos:'Revisão de preços',trabMais:'Trabalhos a mais'}[metrica];
   document.getElementById('ob-an-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">${nomeMetrica} (total)</div><div class="metric-value ${total<0?'danger':''}">${fmt(total,2)}€</div></div>
     <div class="metric"><div class="metric-label">Obras</div><div class="metric-value">${obras.length}</div></div>
@@ -13269,9 +13325,50 @@ function switchPagTab(tab){
   var a=document.getElementById('pg-sub-analise'); if(a)a.style.display=(tab==='analise')?'':'none';
   var bl=document.getElementById('pg-tab-btn-lista'); if(bl)bl.classList.toggle('active',mostraLista);
   var ba=document.getElementById('pg-tab-btn-analise'); if(ba)ba.classList.toggle('active',tab==='analise');
-  if(tab==='analise'){ try{renderPagamentos();}catch(e){} }
+  if(tab==='analise'){ try{renderPagamentos();}catch(e){} try{renderPgAnalise();}catch(e){} }
 }
 window.switchPagTab=switchPagTab;
+function renderPgAnalise(){
+  if(!document.getElementById('pg-an-metrica'))return;
+  var metrica=document.getElementById('pg-an-metrica').value;
+  var agrup=document.getElementById('pg-an-agrup').value;
+  var tipo=(document.getElementById('pg-an-tipo')||{}).value||'bar';
+  var contas=_contasPagaveis();
+  var MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function valDe(c){
+    if(metrica==='divida')return _estadoCusto(c)!=='pago'?_faltaCusto(c):0;
+    if(metrica==='vencido')return (_estadoCusto(c)!=='pago'&&_diasAtraso(c)>0)?_faltaCusto(c):0;
+    if(metrica==='pago')return _pagoCusto(c);
+    if(metrica==='total')return _totalComIva(c);
+    if(metrica==='contas')return 1;
+    return 0;
+  }
+  function chaveDe(c){
+    if(agrup==='obra')return String(c.obraNum)+'  '+((_nomeObraPg(c.obraNum)||'').substring(0,18));
+    if(agrup==='fornecedor')return (c.fornecedor||'(sem fornecedor)');
+    if(agrup==='mes'){var d=_dataBaseCusto(c);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+' '+MES[d.getMonth()];}
+    if(agrup==='estado'){var e=_estadoCusto(c);return ({porpagar:'Por pagar',parcial:'Parcial',pago:'Pago'})[e]||e;}
+    return '';
+  }
+  var acc={},total=0;
+  contas.forEach(function(c){var v=valDe(c);if(!v && metrica!=='contas')return;var k=chaveDe(c);acc[k]=(acc[k]||0)+v;total+=v;});
+  var labels=Object.keys(acc);
+  if(agrup==='mes')labels.sort(); else labels.sort(function(a,b){return acc[b]-acc[a];});
+  var isNum=(metrica==='contas');
+  var fmtV=function(v){return isNum?String(v):pgEUR(v);};
+  var nomeMetrica={divida:'Em dívida',vencido:'Vencido',pago:'Pago',total:'Total c/ IVA',contas:'N.º de contas'}[metrica];
+  var mBox=document.getElementById('pg-an-metrics');
+  if(mBox)mBox.innerHTML='<div class="metric"><div class="metric-label">'+nomeMetrica+' (total)</div><div class="metric-value">'+fmtV(total)+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Contas</div><div class="metric-value">'+contas.length+'</div></div>'+
+    '<div class="metric"><div class="metric-label">Grupos</div><div class="metric-value">'+labels.length+'</div></div>';
+  if(typeof mkAnChart==='function')mkAnChart('chartPgAn',tipo,labels,labels.map(function(l){return +(+acc[l]).toFixed(2);}),nomeMetrica);
+  var esc2=(typeof esc==='function')?esc:function(x){return x;};
+  var html='<table><thead><tr><th>Grupo</th><th style="text-align:right">'+nomeMetrica+'</th><th style="text-align:right">%</th></tr></thead><tbody>';
+  labels.forEach(function(l){var pc=total?(acc[l]/total*100):0;html+='<tr><td>'+esc2(l)+'</td><td style="text-align:right;font-weight:600">'+fmtV(acc[l])+'</td><td style="text-align:right">'+pc.toFixed(1)+'%</td></tr>';});
+  html+='<tr style="font-weight:700;background:#f8f9fb;border-top:2px solid var(--border)"><td>TOTAL</td><td style="text-align:right">'+fmtV(total)+'</td><td style="text-align:right">100%</td></tr></tbody></table>';
+  var tBox=document.getElementById('pg-an-tabela');if(tBox)tBox.innerHTML=html;
+}
+window.renderPgAnalise=renderPgAnalise;
 function renderPagamentos(){
   var contas=_contasPagaveis();
   // filtros
@@ -15066,7 +15163,7 @@ function confirmarLancamento(){
 #panel-gerir-users .um-badge.off{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
 #panel-gerir-users .um-mini{width:26px;height:24px;border:1px solid var(--border,#cbd5e1);background:var(--surface,#fff);border-radius:6px;cursor:pointer;font-size:12px;line-height:1}
 #panel-gerir-users .um-del{border-color:#fca5a5}
-.user-dropdown{position:absolute;top:calc(100% + 6px);right:0;min-width:240px;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:6px;display:none;z-index:300}
+.user-dropdown{position:absolute;top:calc(100% + 6px);right:0;min-width:240px;max-height:calc(100vh - 90px);overflow-y:auto;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:6px;display:none;z-index:2000;-webkit-transform:translateZ(0);transform:translateZ(0);-webkit-backface-visibility:hidden;backface-visibility:hidden}
 .user-dropdown.open{display:block}
 .user-dropdown .ud-head{font-size:11px;color:var(--muted,#64748b);padding:8px 10px;line-height:1.5}
 .user-dropdown .ud-head b{color:var(--text,#111);font-size:13px}
@@ -16401,6 +16498,90 @@ function confirmarLancamento(){
         _caucAnChart=new Chart(cv.getContext('2d'),{type:'bar',data:{labels:['Clientes','Fornecedores'],datasets:[{label:'Retenção',data:[C.ret.por,F.ret.por],backgroundColor:'#378ADD'},{label:'Garantia',data:[C.gar.por,F.gar.por],backgroundColor:'#f59e0b'}]},options:opts});
       }
     }catch(e){}
+    try{ if(window.renderCaucConfig)window.renderCaucConfig(); }catch(e){}
+  };
+  var _caucCfgChart=null;
+  function _caucEventos(){
+    var out=[];
+    [['Clientes',cli],['Fornecedores',forn]].forEach(function(pr){
+      var origem=pr[0], store=pr[1];
+      Object.keys(store||{}).forEach(function(k){ var r=store[k]; if(!r||r.arquivada)return;
+        ['ret','gar'].forEach(function(tipo){ var base=baseLib(r,tipo); if(base<=0)return;
+          var pa=prazoAnos(r), arr=arrLib(r,tipo);
+          for(var i=0;i<pa;i++){ var a=arr[i]||{}; var frac=fracLib(r,tipo,i); if(frac==null)frac=1/pa;
+            out.push({origem:origem,tipo:(tipo==='ret'?'Retenção':'Garantia'),val:base*frac,receb:!!a.receb,data:dataPlanLib(r,tipo,i)});
+          }
+        });
+      });
+    });
+    return out;
+  }
+  function _caucCfgBuild(tipo,labels,dados,cores,nome){
+    var temNeg=dados.some(function(v){return v<0;});
+    var t=tipo||'bar';
+    if((t==='doughnut'||t==='pie')&&temNeg)t='barh';
+    if(t==='doughnut'||t==='pie'){
+      var optsP={responsive:true,maintainAspectRatio:false};
+      optsP.plugins={legend:{display:true,position:'right',labels:{font:{size:9},boxWidth:10}}};
+      return {type:t,data:{labels:labels,datasets:[{data:dados,backgroundColor:cores,borderWidth:2,borderColor:'#fff'}]},options:optsP};
+    }
+    if(t==='line'){
+      var optsL={responsive:true,maintainAspectRatio:false};
+      optsL.plugins={legend:{display:false}};
+      optsL.scales={y:{beginAtZero:true,ticks:{font:{size:9}}},x:{ticks:{font:{size:9}}}};
+      return {type:'line',data:{labels:labels,datasets:[{label:nome,data:dados,borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,.15)',fill:true,tension:.3}]},options:optsL};
+    }
+    var horiz=(t==='barh');
+    var optsB={responsive:true,maintainAspectRatio:false};
+    optsB.indexAxis=horiz?'y':'x';
+    optsB.plugins={legend:{display:false}};
+    var sc={}, ev=horiz?'x':'y', ec=horiz?'y':'x';
+    sc[ev]={beginAtZero:true,ticks:{font:{size:9}}};
+    sc[ec]={ticks:{font:{size:9}}};
+    optsB.scales=sc;
+    return {type:'bar',data:{labels:labels,datasets:[{label:nome,data:dados,backgroundColor:cores}]},options:optsB};
+  }
+  window.renderCaucConfig=function(){
+    var gg=(typeof g==='function')?g:function(id){return document.getElementById(id);};
+    if(!gg('cauc-cfg-metrica'))return;
+    var metrica=gg('cauc-cfg-metrica').value, agrup=gg('cauc-cfg-agrup').value, tipoG=(gg('cauc-cfg-tipo')||{}).value||'bar';
+    var lim=addAnos(HOJE,1), evs=_caucEventos();
+    function valDe(e){
+      if(metrica==='por')return e.receb?0:e.val;
+      if(metrica==='lib')return e.receb?e.val:0;
+      if(metrica==='tot')return e.val;
+      if(metrica==='a12')return (!e.receb&&e.data&&e.data>=HOJE&&e.data<=lim)?e.val:0;
+      return 0;
+    }
+    function chaveDe(e){
+      if(agrup==='origem')return e.origem;
+      if(agrup==='tipo')return e.tipo;
+      if(agrup==='ano')return e.data?String(e.data.getFullYear()):'(sem data)';
+      return '';
+    }
+    var acc={},total=0;
+    evs.forEach(function(e){var v=valDe(e); if(v<=0)return; var k=chaveDe(e); acc[k]=(acc[k]||0)+v; total+=v;});
+    var labels=Object.keys(acc);
+    if(agrup==='ano')labels.sort(); else labels.sort(function(a,b){return acc[b]-acc[a];});
+    var nomeMetrica={por:'Por libertar',lib:'Já libertado',tot:'Total',a12:'A libertar 12 meses'}[metrica];
+    var CC=(typeof CHART_COLORS!=='undefined'&&CHART_COLORS)||['#378ADD','#27ae60','#e67e22','#7F77DD','#c0392b','#16a34a','#0ea5e9','#f59e0b','#8b5cf6','#ef4444'];
+    var mBox=gg('cauc-cfg-metrics');
+    if(mBox)mBox.innerHTML='<div class="metric"><div class="metric-label">'+nomeMetrica+' (total)</div><div class="metric-value">'+eur(total)+'</div></div>'+
+      '<div class="metric"><div class="metric-label">Grupos</div><div class="metric-value">'+labels.length+'</div></div>';
+    try{ var cv=gg('cauc-cfg-chart');
+      if(cv&&window.Chart){ if(_caucCfgChart){try{_caucCfgChart.destroy();}catch(e){}}
+        var dados=labels.map(function(l){return +(+acc[l]).toFixed(2);});
+        var cores=labels.map(function(l,i){return CC[i%CC.length];});
+        _caucCfgChart=new Chart(cv.getContext('2d'),_caucCfgBuild(tipoG,labels,dados,cores,nomeMetrica));
+      }
+    }catch(e){}
+    var esc2=(typeof esc==='function')?esc:function(x){return x;};
+    var tb=gg('cauc-cfg-tabela');
+    if(tb){ var html='<table><thead><tr><th>Grupo</th><th style="text-align:right">'+nomeMetrica+'</th><th style="text-align:right">%</th></tr></thead><tbody>';
+      labels.forEach(function(l){var pc=total?(acc[l]/total*100):0;html+='<tr><td>'+esc2(l)+'</td><td style="text-align:right;font-weight:600">'+eur(acc[l])+'</td><td style="text-align:right">'+pc.toFixed(1)+'%</td></tr>';});
+      html+='<tr style="font-weight:700;background:#f8f9fb;border-top:2px solid var(--border)"><td>TOTAL</td><td style="text-align:right">'+eur(total)+'</td><td style="text-align:right">100%</td></tr></tbody></table>';
+      tb.innerHTML=html;
+    }
   };
   function ativarArr(scopeEl){try{if(typeof ativarArrastoColunas==='function')ativarArrastoColunas(scopeEl);}catch(e){}}
   /* redimensionar largura das colunas (arrastar a borda), guardado por tabela */
