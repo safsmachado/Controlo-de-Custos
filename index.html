@@ -322,11 +322,13 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v220</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v234</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
         <div class="ud-head"><b id="ud-name-h"></b><br><span id="ud-role"></span></div>
+        <hr>
+        <button onclick="closeUserMenu();abrirMinhaConta()"><i class="ti ti-user-circle"></i> A minha conta</button>
         <hr>
         <button id="btn-admin-menu" onclick="closeUserMenu();abrirGerirUsers()" style="display:none"><i class="ti ti-users"></i> Gestão de Utilizadores</button>
         <hr id="admin-sep" style="display:none">
@@ -473,6 +475,7 @@ table td{vertical-align:middle}
     <button class="btn" onclick="abrirPainelColunas('facturacao')"><i class="ti ti-columns"></i>Colunas</button>
     <select id="fact-mes" onchange="renderFacturacao()"><option value="">Mês mais recente (auto)</option></select>
     <div class="msf-wrap" id="msf-fact-estado"><button type="button" class="btn sm msf-btn" onclick="msfToggle('fact-estado')"><span class="msf-label">Todos os estados de faturação</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-fact-estado"></div></div>
+    <div class="msf-wrap" id="msf-fact-estado-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('fact-estado-obra')"><span class="msf-label">Estado da obra</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-fact-estado-obra"></div></div>
     <button class="btn" onclick="modeloValoresCSV()"><i class="ti ti-template"></i>Modelo CSV</button>
     <button class="btn" onclick="abrirTesouraria()"><i class="ti ti-cash"></i>Tesouraria</button>
 
@@ -564,6 +567,7 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
   <button class="nav-btn" onclick="window.AutosNat.showTab('auditoria',this)"><i class="ti ti-history"></i>Auditoria</button>
   <button class="nav-btn" onclick="window.AutosNat.showTab('utilizadores',this)" style="display:none"><i class="ti ti-users"></i>Utilizadores</button>
   <button class="nav-btn" onclick="window.AutosNat.showTab('empresas',this)"><i class="ti ti-building"></i>Empresas</button>
+  <button class="nav-btn" onclick="window.AutosNat.showTab('arquivo',this)"><i class="ti ti-archive"></i>Arquivo</button>
 </div>
 
 <div class="content">
@@ -580,7 +584,6 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       <button class="btn" onclick="window.AutosNat.abrirModalContrato()"><i class="ti ti-file-plus"></i>Novo Contrato</button>
       <button class="btn success" onclick="document.getElementById('imp-modelo-file').click()" title="Importar Excel que cria a obra, o contrato, o subempreiteiro, a lista de quantidades e os autos já efetuados"><i class="ti ti-file-spreadsheet"></i>Importar Excel (contrato+autos)</button>
       <input type="file" id="imp-modelo-file" accept=".xlsx,.xls" style="display:none" onchange="window.AutosNat.importarContratoAutosExcel(this.files[0])">
-      <button class="btn" id="btn-arq-obras" onclick="window.AutosNat.toggleVerArquivoAutos()" title="Mostrar/ocultar obras e contratos arquivados"><i class="ti ti-archive"></i>Ver arquivo</button>
       <button class="btn" onclick="document.getElementById('imp-backup-parcial').click()" title="Importar um backup de auto, contrato ou obra (.json)"><i class="ti ti-upload"></i>Importar backup</button>
       <input type="file" id="imp-backup-parcial" accept=".json" style="display:none" onchange="if(this.files[0]&&window.AutosNat&&window.AutosNat.importarBackupParcial){window.AutosNat.importarBackupParcial(this.files[0]);this.value='';}">
     </div>
@@ -599,7 +602,6 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       </select>
       <button class="btn" onclick="window.AutosNat.importarRapido()" title="Criar contrato e importar a lista de quantidades num só passo"><i class="ti ti-file-import"></i>Importar Lista (LPU)</button>
       <button class="btn primary" onclick="window.AutosNat.abrirModalContrato()"><i class="ti ti-plus"></i>Novo Contrato</button>
-      <button class="btn" id="btn-arq-cont" onclick="window.AutosNat.toggleVerArquivoAutos()" title="Mostrar/ocultar contratos arquivados"><i class="ti ti-archive"></i>Ver arquivo</button>
     </div>
     <div class="card" style="padding:0">
       <div class="table-wrap">
@@ -626,6 +628,9 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       <button class="btn" onclick="window.AutosNat.novoAutoDoRosto()"><i class="ti ti-plus"></i>Novo auto</button>
       <button class="btn" onclick="window.AutosNat.imprimirRosto()"><i class="ti ti-printer"></i>Imprimir rosto</button>
       <button class="btn" onclick="window.AutosNat.imprimirRostoCompleto()"><i class="ti ti-printer"></i>Imprimir tudo (rosto + autos)</button>
+      <span style="width:1px;height:22px;background:#d9d9e3;margin:0 4px"></span>
+      <select id="rosto-obra" title="Escolher obra para o mapa consolidado"><option value="">— escolher obra —</option></select>
+      <button class="btn" onclick="window.AutosNat.imprimirMapaAutosObra()" title="Mapa consolidado: resumo da obra + folha de rosto de todos os contratos dessa obra"><i class="ti ti-printer"></i>Mapa da obra (todos os contratos)</button>
       <label style="font-size:12px;display:flex;align-items:center;gap:5px;margin-left:auto"><i class="ti ti-signature"></i>Assinar como:<select id="rosto-assinar" onchange="assinaturaImpressaoUid=this.value;window.AutosNat.renderRosto()" style="font-size:12px;padding:4px 7px;border-radius:6px"></select></label>
       <span id="rosto-assin-ctrl"></span>
     </div>
@@ -697,6 +702,11 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       <table><thead><tr><th>Tipo de fornecedor</th><th style="width:60px"></th></tr></thead>
       <tbody id="tiposforn-tbody"></tbody></table>
     </div></div>
+  </div>
+
+  <div class="tab" id="autos-tab-arquivo">
+    <div class="alert info"><i class="ti ti-info-circle"></i> Obras e contratos arquivados. Podes reativá-los, descarregar uma cópia ou eliminá-los definitivamente.</div>
+    <div id="autos-arq-container"></div>
   </div>
 
   <!-- ═══════════ ZONA DE IMPRESSÃO ═══════════ -->
@@ -1229,12 +1239,13 @@ function showTab(id,btn){
   btn.classList.add('active');
   if(id==='obras')renderObras();
   if(id==='contratos')renderContratos();
-  if(id==='rosto'){popularSelectContratos('rosto-contrato');renderRosto();}
+  if(id==='rosto'){popularSelectContratos('rosto-contrato');popularSelectObras('rosto-obra');renderRosto();}
   if(id==='autos'){popularSelectContratos('autos-contrato');renderAutos();}
   if(id==='painel')renderPainel();
   if(id==='auditoria')renderAuditoria();
   if(id==='utilizadores')renderUsers();
   if(id==='empresas')renderEmpresas();
+  if(id==='arquivo')renderArquivoAutos();
 }
 function popularSelectContratos(selId){
   const sel=document.getElementById(selId);if(!sel)return;
@@ -1271,6 +1282,42 @@ function arquivarObraToggle(nomeObra,val){
   if(reg)reg.arquivada=!!val;
   if(typeof logAudit==='function')logAudit(val?'Obra arquivada':'Obra reativada',nomeObra);
   guardar();renderObras();renderContratos();if(typeof renderTudo==='function')renderTudo();
+}
+function renderArquivoAutos(){
+  var box=document.getElementById('autos-arq-container'); if(!box)return;
+  var arq=contratos.filter(function(c){return !!c.arquivado;});
+  if(!arq.length){ box.innerHTML='<div class="card"><p class="muted" style="font-size:13px;margin:0">Não há obras nem contratos arquivados.</p></div>'; return; }
+  var grupos={};
+  arq.forEach(function(c){ var k=c.obra||'(sem obra)'; (grupos[k]=grupos[k]||[]).push(c); });
+  var nomes=Object.keys(grupos).sort(function(a,b){return a.localeCompare(b,'pt');});
+  box.innerHTML=nomes.map(function(nome){
+    var cs=grupos[nome];
+    var nEsc=(nome||'').replace(/'/g,"\\'");
+    var linhas=cs.map(function(c){
+      var vc=(typeof valorContrato==='function')?valorContrato(c):(c.valor||0);
+      return '<tr>'
+        +'<td><strong>'+esc(c.ref||'—')+'</strong></td>'
+        +'<td>'+esc(TIPO_LABEL[c.tipo]||c.tipo||'')+'</td>'
+        +'<td>'+esc(c.entidade||'—')+'</td>'
+        +'<td class="right">'+fmt(vc)+'€</td>'
+        +'<td class="center">'+((c.autos||[]).length)+'</td>'
+        +'<td style="white-space:nowrap;text-align:right">'
+          +'<button class="btn sm success" title="Reativar contrato" onclick="window.AutosNat.arquivarContrato(\''+c.id+'\',false);window.AutosNat.renderArquivoAutos()"><i class="ti ti-archive-off"></i>Reativar</button> '
+          +'<button class="btn sm" title="Descarregar cópia deste contrato (.json)" onclick="window.AutosNat.backupContrato(\''+c.id+'\')"><i class="ti ti-download"></i></button>'
+        +'</td></tr>';
+    }).join('');
+    return '<div class="card" style="margin-bottom:12px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+        +'<div style="font-weight:700;font-size:14px;color:var(--blue)"><i class="ti ti-building-factory-2"></i> '+esc(nome)+' <span style="font-weight:400;color:var(--muted);font-size:12px">('+cs.length+' contrato'+(cs.length>1?'s':'')+')</span></div>'
+        +'<div style="white-space:nowrap">'
+          +'<button class="btn sm success" title="Reativar toda a obra" onclick="window.AutosNat.arquivarObraToggle(\''+nEsc+'\',false);window.AutosNat.renderArquivoAutos()"><i class="ti ti-archive-off"></i>Reativar obra</button> '
+          +'<button class="btn sm" title="Backup de toda a obra (.json)" onclick="window.AutosNat.backupObra(\''+nEsc+'\')"><i class="ti ti-download"></i></button> '
+          +'<button class="btn sm danger" title="Eliminar obra definitivamente" onclick="window.AutosNat.apagarObraArquivada(\''+nEsc+'\');window.AutosNat.renderArquivoAutos()"><i class="ti ti-trash"></i>Eliminar</button>'
+        +'</div>'
+      +'</div>'
+      +'<div class="table-wrap"><table><thead><tr><th>Contrato</th><th>Tipo</th><th>Entidade</th><th class="right">Valor</th><th class="center">Autos</th><th></th></tr></thead><tbody>'+linhas+'</tbody></table></div>'
+      +'</div>';
+  }).join('');
 }
 function renderContratos(){
   const q=(document.getElementById('ct-search')?.value||'').toLowerCase();
@@ -3262,6 +3309,68 @@ function imprimirRostoCompleto(){
   const docs=[rostoPrintDoc(c)].concat(autosOrd.map(au=>autoPrintDoc(c,au,true)));
   imprimirDocs(docs);
 }
+function popularSelectObras(selId){
+  var sel=document.getElementById(selId); if(!sel)return;
+  var atual=sel.value, nomes=[];
+  contratos.forEach(function(c){ if(c.arquivado)return; var o=c.obra||''; if(o&&nomes.indexOf(o)<0)nomes.push(o); });
+  nomes.sort(function(a,b){return a.localeCompare(b,'pt');});
+  sel.innerHTML='<option value="">— escolher obra —</option>'+nomes.map(function(o){return '<option value="'+String(o).replace(/"/g,'&quot;')+'">'+escEmp(o)+'</option>';}).join('');
+  if(atual)sel.value=atual;
+}
+function resumoObraDoc(nomeObra, cs){
+  var _logoSrc=''; try{var _eL=(empresas||[]).find(function(e){return e&&e.logo;}); if(_eL)_logoSrc=_eL.logo;}catch(_e){}
+  var totVc=0,totFa=0,totAutos=0;
+  var linhas=cs.map(function(c){
+    var vc=valorContrato(c),fa=faturadoAcum(c),pe=pctExec(c),ff=faltaFaturar(c),na=(c.autos||[]).length;
+    totVc+=vc;totFa+=fa;totAutos+=na;
+    return '<tr>'
+      +'<td><strong>'+escEmp(c.ref||'—')+'</strong></td>'
+      +'<td>'+(TIPO_LABEL[c.tipo]||'')+'</td>'
+      +'<td>'+escEmp(c.entidade||'—')+'</td>'
+      +'<td class="num">'+fmt(vc)+' €</td>'
+      +'<td class="num">'+fmt(fa)+' €</td>'
+      +'<td class="num">'+fmt(ff)+' €</td>'
+      +'<td class="num">'+fmtPct(pe)+'</td>'
+      +'<td class="num">'+na+'</td>'
+    +'</tr>';
+  }).join('');
+  var totFf=totVc-totFa, totPe=totVc>0?totFa/totVc:0;
+  linhas+='<tr style="background:#0C447C;color:#fff;font-weight:700">'
+    +'<td colspan="3">TOTAL DA OBRA ('+cs.length+' contrato'+(cs.length>1?'s':'')+')</td>'
+    +'<td class="num">'+fmt(totVc)+' €</td>'
+    +'<td class="num">'+fmt(totFa)+' €</td>'
+    +'<td class="num">'+fmt(totFf)+' €</td>'
+    +'<td class="num">'+fmtPct(totPe)+'</td>'
+    +'<td class="num">'+totAutos+'</td>'
+  +'</tr>';
+  return '<div class="pz-doc">'
+    +'<div class="pz-head">'
+      +'<div style="display:flex;gap:12px;align-items:flex-start">'
+        +(_logoSrc?'<img src="'+_logoSrc+'" style="max-height:56px;max-width:150px;object-fit:contain">':'')
+        +'<div>'
+          +'<div class="pz-title">MAPA DE AUTOS DA OBRA</div>'
+          +'<div class="pz-sub">'+escEmp(nomeObra)+'</div>'
+          +'<div class="pz-meta">Resumo consolidado de todos os contratos da obra</div>'
+        +'</div>'
+      +'</div>'
+      +'<div class="pz-head-right"><span class="pz-chip">Execução: '+fmtPct(totPe)+'</span>'
+        +'<div class="pz-meta" style="margin-top:6px">'+cs.length+' contrato(s) · '+totAutos+' auto(s)</div></div>'
+    +'</div>'
+    +'<table class="pz-tbl"><thead><tr>'
+      +'<th>Contrato</th><th>Tipo</th><th>Entidade</th><th class="num">Valor contrato</th><th class="num">Faturado acum.</th><th class="num">Falta faturar</th><th class="num">% Exec.</th><th class="num">N.º autos</th>'
+    +'</tr></thead><tbody>'+linhas+'</tbody></table>'
+    +'<div class="pz-rodape"><span>Mapa da obra · '+new Date().toLocaleDateString('pt-PT')+'</span><span>Sá Machado &amp; Filhos — Autos</span></div>'
+  +'</div>';
+}
+function imprimirMapaAutosObra(){
+  var sel=document.getElementById('rosto-obra'); var nomeObra=sel?sel.value:'';
+  if(!nomeObra){alert('Escolha uma obra primeiro.');return;}
+  var cs=contratos.filter(function(c){return !c.arquivado && (c.obra||'')===nomeObra;});
+  if(!cs.length){alert('Essa obra não tem contratos ativos.');return;}
+  cs.sort(function(a,b){return (a.ref||'').localeCompare(b.ref||'','pt');});
+  var docs=[resumoObraDoc(nomeObra,cs)].concat(cs.map(function(c){return rostoPrintDoc(c);}));
+  imprimirDocs(docs);
+}
 
 // ══════════════════════════════════════════════════════════════
 // EXPORTAÇÃO DE AUTO (bloqueada sem aprovação)
@@ -4382,6 +4491,9 @@ try{ window.AutosNat.ajustarAssin = ajustarAssin; }catch(e){}
 try{ window.AutosNat.anularValidacao = anularValidacao; }catch(e){}
 try{ window.AutosNat.aprovarExcessoAuto = aprovarExcessoAuto; }catch(e){}
 try{ window.AutosNat.arquivarContrato = arquivarContrato; }catch(e){}
+try{ window.AutosNat.renderArquivoAutos = renderArquivoAutos; }catch(e){}
+try{ window.AutosNat.popularSelectObras = popularSelectObras; }catch(e){}
+try{ window.AutosNat.imprimirMapaAutosObra = imprimirMapaAutosObra; }catch(e){}
 try{ window.AutosNat.autoLimpar = autoLimpar; }catch(e){}
 try{ window.AutosNat.autoPreencher100 = autoPreencher100; }catch(e){}
 try{ window.AutosNat.autorizarExcesso = autorizarExcesso; }catch(e){}
@@ -4496,6 +4608,7 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <button class="btn" onclick="abrirOrcReal()"><i class="ti ti-scale"></i>Orç. vs Real</button>
     <button class="btn" onclick="abrirCustoPerm()"><i class="ti ti-target-arrow"></i>Custo permitido</button>
     <div class="msf-wrap" id="msf-custos-filtro-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('custos-filtro-obra')"><span class="msf-label">Todas as obras</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-custos-filtro-obra"></div></div>
+    <div class="msf-wrap" id="msf-custos-filtro-estado-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('custos-filtro-estado-obra')"><span class="msf-label">Estado da obra</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-custos-filtro-estado-obra"></div></div>
     <div class="msf-wrap" id="msf-custos-filtro-familia"><button type="button" class="btn sm msf-btn" onclick="msfToggle('custos-filtro-familia')"><span class="msf-label">Todas as famílias</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-custos-filtro-familia"></div></div>
     <select id="custos-filtro-ano" onchange="renderCustos()"><option value="">Todos os anos</option></select>
     <select id="custos-filtro-mes" onchange="renderCustos()">
@@ -4611,7 +4724,11 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <option value="">Acumulado (todas as obras)</option>
     </select>
     <span id="dash-periodo-info" style="font-size:11px;color:var(--muted)"></span>
+    <span style="flex:1"></span>
+    <button class="btn sm" id="btn-pl-dash-charts" onclick="paineisLivreToggle('dash-charts')" title="Ativar/desativar arrastar e redimensionar os gráficos à vontade"><i class="ti ti-arrows-move"></i>Disposição livre</button>
+    <button class="btn sm" onclick="paineisLivreRepor('dash-charts')" title="Repor a disposição dos gráficos"><i class="ti ti-refresh"></i>Repor</button>
   </div>
+  <div id="dash-exec"></div>
   <div id="dash-alertas"></div>
   <div class="metric-grid" id="dash-metrics"></div>
   <div id="dash-charts" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px">
@@ -4817,6 +4934,15 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <span id="backup-cloud-estado" style="font-size:12px;color:var(--muted)"></span>
     </div>
     <div id="backup-cloud-res" style="margin-top:8px;font-size:12px"></div>
+  </div>
+  <div class="card">
+    <div class="section-title">Backup automático no computador</div>
+    <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Uma vez por dia, ao abrir a aplicação, é guardada automaticamente uma cópia local dos dados neste computador. Podes restaurar qualquer cópia com um clique — não precisa de internet.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <button class="btn primary" onclick="backupLocalAgora()"><i class="ti ti-device-floppy"></i>Criar cópia local agora</button>
+      <span id="backup-local-res" style="font-size:12px"></span>
+    </div>
+    <div id="backup-local-lista"></div>
   </div>
   <div class="two-col">
     <!-- Tipos de Obra -->
@@ -5207,6 +5333,7 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <div class="toolbar">
       <input type="search" id="compras-search" placeholder="Pesquisar processo, fornecedor, observações..." oninput="_cpSearchDebounced()">
       <div class="msf-wrap" id="msf-cp-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('cp-obra')"><span class="msf-label">Todas as obras</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-cp-obra"></div></div>
+      <div class="msf-wrap" id="msf-cp-estado-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('cp-estado-obra')"><span class="msf-label">Estado da obra</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-cp-estado-obra"></div></div>
       <div class="msf-wrap" id="msf-cp-sit"><button type="button" class="btn sm msf-btn" onclick="msfToggle('cp-sit')"><span class="msf-label">Todas as situações</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-cp-sit"></div></div>
       <div class="msf-wrap" id="msf-cp-tipo"><button type="button" class="btn sm msf-btn" onclick="msfToggle('cp-tipo')"><span class="msf-label">Todos os tipos</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-cp-tipo"></div></div>
       <div class="msf-wrap" id="msf-cp-resp"><button type="button" class="btn sm msf-btn" onclick="msfToggle('cp-resp')"><span class="msf-label">Todos os responsáveis</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-cp-resp"></div></div>
@@ -5277,6 +5404,7 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <div class="msf-wrap" id="msf-pg-f-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('pg-f-obra')"><span class="msf-label">Todas as obras</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-pg-f-obra"></div></div>
     <input type="search" id="pg-f-forn" autocomplete="off" placeholder="Filtrar fornecedor..." oninput="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);min-width:180px">
     <div class="msf-wrap" id="msf-pg-f-estado"><button type="button" class="btn sm msf-btn" onclick="msfToggle('pg-f-estado')"><span class="msf-label">Todos os estados</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-pg-f-estado"></div></div>
+    <div class="msf-wrap" id="msf-pg-f-estado-obra"><button type="button" class="btn sm msf-btn" onclick="msfToggle('pg-f-estado-obra')"><span class="msf-label">Estado da obra</span><i class="ti ti-chevron-down" style="font-size:10px"></i></button><div class="msf-panel" id="msf-panel-pg-f-estado-obra"></div></div>
     <select id="pg-agrupar" autocomplete="off" onchange="renderPagamentos()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)">
       <option value="">Sem agrupamento</option>
       <option value="obra">Agrupar por obra</option>
@@ -5286,6 +5414,11 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     </select>
     <button class="btn" onclick="exportarPagamentos()"><i class="ti ti-file-spreadsheet"></i>Exportar Excel</button>
   </div>
+  <div class="tabs-inner" id="pg-subtabs" style="margin-bottom:10px">
+    <button class="tab-inner-btn active" id="pg-tab-btn-lista" onclick="switchPagTab('lista')"><i class="ti ti-list"></i> Lista</button>
+    <button class="tab-inner-btn" id="pg-tab-btn-analise" onclick="switchPagTab('analise')"><i class="ti ti-chart-bar"></i> Análise</button>
+  </div>
+  <div id="pg-sub-analise" style="display:none">
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;align-items:stretch">
     <div style="flex:1 1 260px;min-width:220px;max-width:100%;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:170px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-aging"></canvas></div>
     <div style="flex:1 1 260px;min-width:220px;max-width:100%;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:170px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-forn"></canvas></div>
@@ -5295,7 +5428,14 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <div id="pg-prazos" style="font-size:10.5px;overflow:auto;flex:1"></div>
     </div>
   </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;align-items:stretch">
+    <div style="flex:1 1 260px;min-width:220px;max-width:100%;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:190px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-estado"></canvas></div>
+    <div style="flex:1 1 260px;min-width:220px;max-width:100%;background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:190px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-obra"></canvas></div>
+  </div>
+  </div>
+  <div id="pg-sub-lista">
   <div class="table-wrap" id="pg-tabela" style="max-height:420px;overflow:auto"></div>
+  </div>
 </div>
 
 <!-- ══════════════ MODAL PAGAMENTO ══════════════ -->
@@ -5321,6 +5461,7 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   <div class="toolbar">
     <button class="sub-pill active" id="cau-tab-clientes" onclick="cauMostrar('clientes')"><i class="ti ti-building-bank"></i>Clientes</button>
     <button class="sub-pill" id="cau-tab-fornecedores" onclick="cauMostrar('fornecedores')"><i class="ti ti-truck-delivery"></i>Fornecedores</button>
+    <button class="sub-pill" id="cau-tab-analise" onclick="cauMostrar('analise')"><i class="ti ti-chart-bar"></i>Análise</button>
     <button class="sub-pill" id="cau-tab-arquivo" onclick="cauMostrar('arquivo')" title="Registos arquivados (clientes ou fornecedores, conforme a vista anterior)"><i class="ti ti-archive"></i>Arquivo</button>
     <span style="font-size:11px;color:var(--muted);margin-left:auto">Controlo de cauções, garantias e retenções: <b>Clientes</b> = o que o dono de obra retém à Sá Machado; <b>Fornecedores</b> = o que a Sá Machado retém aos subempreiteiros.</span>
   </div>
@@ -5354,6 +5495,16 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <div id="cauf-libpanel"></div>
     <div class="metric-grid" id="cauf-kpis"></div>
     <div id="cauf-lista"></div>
+  </div>
+
+  <!-- ANÁLISE -->
+  <div id="cau-pane-analise" style="display:none">
+    <div class="metric-grid" id="cauc-an-kpis"></div>
+    <div class="two-col">
+      <div class="card"><div class="section-title">Resumo por origem</div><div class="table-wrap"><div id="cauc-an-resumo"></div></div></div>
+      <div class="card"><div class="section-title">Por libertar (€)</div><div class="chart-wrap" style="height:220px"><canvas id="cauc-an-chart"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div class="section-title">Próximas libertações (12 meses)</div><div class="table-wrap"><div id="cauc-an-prox"></div></div></div>
   </div>
 </div>
 
@@ -6213,7 +6364,8 @@ function carregarTudo(){
     if(d.rhRegrasDistrib)rhRegrasDistrib=d.rhRegrasDistrib;
     if(Array.isArray(d.compras))compras=d.compras;
     if(Array.isArray(d.certificacoes))certificacoes=d.certificacoes;
-    if(Array.isArray(d.utilizadores)&&d.utilizadores.length){try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(d.utilizadores));}catch(e){}}
+    if(Array.isArray(d.usersRemovidos)){try{localStorage.setItem('gc_users_removidos_v1',JSON.stringify(d.usersRemovidos));}catch(e){}} if(Array.isArray(d.utilizadores)&&d.utilizadores.length){try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(d.utilizadores));}catch(e){}}
+    if(d.uiPrefsUser&&typeof d.uiPrefsUser==='object'){try{localStorage.setItem('crm_uiprefs_v1',JSON.stringify(d.uiPrefsUser));}catch(e){} try{if(typeof _uiHidratarUtilizador==='function')_uiHidratarUtilizador();}catch(e){}}
     if(d.caucoesCli&&typeof d.caucoesCli==='object'){try{localStorage.setItem('caucoes_clientes_v1',JSON.stringify(d.caucoesCli));}catch(e){}}
     if(d.caucoesForn&&typeof d.caucoesForn==='object'){try{localStorage.setItem('caucoes_forn_v1',JSON.stringify(d.caucoesForn));}catch(e){}}
     if(Array.isArray(d.custosArquivo)){try{localStorage.setItem('custos_arquivo_v1',JSON.stringify(d.custosArquivo));custosArquivo=d.custosArquivo;}catch(e){}}
@@ -6250,6 +6402,8 @@ function montarEstadoPartilhado(){
     rhColab:rhColab, centrosCusto:centrosCusto, rhConfig:rhConfig, rhRegrasDistrib:rhRegrasDistrib,
     compras:_ccSemAnexosPesados(compras), certificacoes:certificacoes,
     utilizadores:_ccLS('gc_utilizadores_v1',[]),
+    usersRemovidos:_ccLS('gc_users_removidos_v1',[]),
+    uiPrefsUser:_ccLS('crm_uiprefs_v1',{}),
     caucoesCli:_ccLS('caucoes_clientes_v1',{}), caucoesForn:_ccLS('caucoes_forn_v1',{}),
     custosArquivo:_ccLS('custos_arquivo_v1',[]),
     navOrdem:_ccLS('navOrdem_v1',null), rhDepOrdem:_ccLS('rh_dep_ordem_v1',null),
@@ -6276,7 +6430,8 @@ function aplicarEstadoPartilhado(d){
     if(Array.isArray(d.rhRegrasDistrib))rhRegrasDistrib=d.rhRegrasDistrib;
     if(Array.isArray(d.compras))compras=d.compras;
     if(Array.isArray(d.certificacoes))certificacoes=d.certificacoes;
-    if(Array.isArray(d.utilizadores)&&d.utilizadores.length){try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(d.utilizadores));}catch(e){}}
+    if(Array.isArray(d.usersRemovidos)){try{localStorage.setItem('gc_users_removidos_v1',JSON.stringify(d.usersRemovidos));}catch(e){}} if(Array.isArray(d.utilizadores)&&d.utilizadores.length){try{localStorage.setItem('gc_utilizadores_v1',JSON.stringify(d.utilizadores));}catch(e){}}
+    if(d.uiPrefsUser&&typeof d.uiPrefsUser==='object'){try{localStorage.setItem('crm_uiprefs_v1',JSON.stringify(d.uiPrefsUser));}catch(e){} try{if(typeof _uiHidratarUtilizador==='function')_uiHidratarUtilizador();}catch(e){}}
     if(d.caucoesCli&&typeof d.caucoesCli==='object'){try{localStorage.setItem('caucoes_clientes_v1',JSON.stringify(d.caucoesCli));}catch(e){}}
     if(d.caucoesForn&&typeof d.caucoesForn==='object'){try{localStorage.setItem('caucoes_forn_v1',JSON.stringify(d.caucoesForn));}catch(e){}}
     if(Array.isArray(d.custosArquivo)){try{localStorage.setItem('custos_arquivo_v1',JSON.stringify(d.custosArquivo));custosArquivo=d.custosArquivo;}catch(e){}}
@@ -6432,6 +6587,65 @@ function atualizarEstadoBackupCloud(){
   if(u){ var d=new Date(u); el.textContent='Último backup na cloud: '+d.toLocaleDateString('pt-PT')+' '+d.toLocaleTimeString('pt-PT').slice(0,5); }
   else { el.textContent='Ainda não há backups na cloud.'; }
 }
+
+// ===== Backup automático LOCAL (no computador) — cópias que podes restaurar sem internet =====
+var _CC_BK_KEY='crm_backups_local_v1';
+var _CC_BK_MAX=5;
+var _CC_BK_CHAVES=['controloObras_v4','modulo_autos_v1','autosmed_store_v1','compras_v1','caucoes_clientes_v1','caucoes_forn_v1','custos_arquivo_v1','fechosMensais_v1','gc_utilizadores_v1','gc_auditoria_v1','indiretos_validados_v1','prazos_fornecedor_v1','rh_v1','subautos_v1','ponte_autos_faturacao','gc_avisos_auto_v1','_migCodObraCompras_v1'];
+function _ccBkLerLista(){ try{ var a=JSON.parse(localStorage.getItem(_CC_BK_KEY)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function _ccBkGravarLista(a){ for(var t=0;t<6;t++){ try{ localStorage.setItem(_CC_BK_KEY, JSON.stringify(a)); return true; }catch(e){ if(a.length>1){ a.shift(); } else { return false; } } } return false; }
+function _ccBkSnapshot(auto){
+  try{ if(typeof guardarTudo==='function') guardarTudo(); }catch(e){}
+  var dados={};
+  _CC_BK_CHAVES.forEach(function(k){ try{ var v=localStorage.getItem(k); if(v!=null) dados[k]=v; }catch(e){} });
+  var lst=_ccBkLerLista();
+  lst.push({ ts:Date.now(), auto:!!auto, dados:dados });
+  while(lst.length>_CC_BK_MAX) lst.shift();
+  return _ccBkGravarLista(lst);
+}
+function _ccBkTalvezAuto(){ var lst=_ccBkLerLista(); var ultimo=lst.length?lst[lst.length-1].ts:0; if(Date.now()-ultimo >= 20*3600000){ _ccBkSnapshot(true); try{ renderBackupsLocais(); }catch(e){} } }
+window.backupLocalAgora=function(){
+  var ok=_ccBkSnapshot(false);
+  try{ renderBackupsLocais(); }catch(e){}
+  var r=document.getElementById('backup-local-res');
+  if(r) r.innerHTML = ok ? '<span style="color:#166534"><i class="ti ti-circle-check"></i> Cópia local criada.</span>' : '<span style="color:#c0392b"><i class="ti ti-alert-triangle"></i> Não foi possível criar (sem espaço no navegador).</span>';
+};
+window.backupLocalRestaurar=function(ts){
+  var snap=_ccBkLerLista().filter(function(s){return String(s.ts)===String(ts);})[0];
+  if(!snap){ alert('Cópia não encontrada.'); return; }
+  var d=new Date(snap.ts);
+  if(!confirm('Restaurar a cópia de '+d.toLocaleDateString('pt-PT')+' '+d.toLocaleTimeString('pt-PT').slice(0,5)+'?\n\nOs dados atuais serão substituídos por esta cópia. A aplicação vai recarregar.')) return;
+  try{ _ccBkSnapshot(true); }catch(e){} // guarda o estado atual antes de sobrepor
+  try{
+    Object.keys(snap.dados).forEach(function(k){ try{ localStorage.setItem(k, snap.dados[k]); }catch(e){} });
+    try{ window._ccUltimaEdicaoLocal=Date.now(); if(window._syncAgendar) window._syncAgendar(); }catch(e){}
+    alert('Cópia restaurada. A aplicação vai recarregar.');
+    location.reload();
+  }catch(e){ alert('Erro ao restaurar: '+(e&&e.message||e)); }
+};
+window.backupLocalDescarregar=function(ts){
+  var snap=_ccBkLerLista().filter(function(s){return String(s.ts)===String(ts);})[0]; if(!snap)return;
+  try{ var blob=new Blob([JSON.stringify(snap,null,2)],{type:'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='controlo_backup_'+new Date(snap.ts).toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json'; a.click(); }catch(e){}
+};
+window.backupLocalApagar=function(ts){ if(!confirm('Apagar esta cópia local?'))return; _ccBkGravarLista(_ccBkLerLista().filter(function(s){return String(s.ts)!==String(ts);})); try{ renderBackupsLocais(); }catch(e){} };
+function renderBackupsLocais(){
+  var box=document.getElementById('backup-local-lista'); if(!box) return;
+  var lst=_ccBkLerLista().slice().sort(function(a,b){return b.ts-a.ts;});
+  if(!lst.length){ box.innerHTML='<p class="muted" style="font-size:12px">Ainda não há cópias locais. Será criada uma automaticamente ao abrir a aplicação (uma vez por dia).</p>'; return; }
+  box.innerHTML='<table style="width:100%;font-size:12px"><thead><tr>'
+    +'<th style="text-align:left;padding:3px 6px">Data</th><th style="text-align:left;padding:3px 6px">Tipo</th><th style="text-align:right;padding:3px 6px">Tamanho</th><th></th></tr></thead><tbody>'
+    +lst.map(function(s){ var d=new Date(s.ts); var kb=Math.round((JSON.stringify(s.dados).length)/1024);
+      return '<tr><td style="padding:3px 6px">'+d.toLocaleDateString('pt-PT')+' '+d.toLocaleTimeString('pt-PT').slice(0,5)+'</td>'
+        +'<td style="padding:3px 6px">'+(s.auto?'Automática':'Manual')+'</td>'
+        +'<td style="padding:3px 6px;text-align:right">'+kb+' KB</td>'
+        +'<td style="padding:3px 6px;text-align:right;white-space:nowrap">'
+          +'<button class="btn sm" title="Restaurar esta cópia" onclick="backupLocalRestaurar('+s.ts+')"><i class="ti ti-history"></i>Restaurar</button> '
+          +'<button class="btn sm" title="Descarregar (.json)" onclick="backupLocalDescarregar('+s.ts+')"><i class="ti ti-download"></i></button> '
+          +'<button class="btn sm danger" title="Apagar" onclick="backupLocalApagar('+s.ts+')"><i class="ti ti-trash"></i></button>'
+        +'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+try{ setTimeout(function(){ try{ _ccBkTalvezAuto(); }catch(e){} }, 4000); }catch(e){}
 async function appBackup(){
   // 1) montar os dados PRINCIPAIS a partir da MEMÓRIA (o que está no ecrã), não só do armazenamento
   try{ if(typeof guardarTudo==='function') guardarTudo(); }catch(e){}
@@ -7754,6 +7968,7 @@ function cpPopularFiltros(){
   // que era o principal custo repetido a cada interacao (expandir/colapsar grupo, escrever na pesquisa, etc.)
   const set=(id,arr,label)=>{ msfSetOpcoes(id,arr,label,'renderCompras'); };
   set('cp-obra',obrasU,'Todas as obras');
+  set('cp-estado-obra',['Adjudicada','Em Curso','Pós-Venda','Concluída'],'Estado da obra');
   set('cp-sit',sits,'Todas as situações');
   set('cp-tipo',tipos,'Todos os tipos');
   set('cp-resp',resps,'Todos os responsáveis');
@@ -7966,6 +8181,7 @@ function renderCompras(){
   }catch(_){}
   const q=(document.getElementById('compras-search').value||'').toLowerCase();
   const fo=msfValores('cp-obra');
+  const feo=msfValores('cp-estado-obra');
   const fs=msfValores('cp-sit');
   const ft=msfValores('cp-tipo');
   const fr=msfValores('cp-resp');
@@ -7973,6 +8189,7 @@ function renderCompras(){
   let lista=compras.slice();
   if(q)lista=lista.filter(c=>(c.nome||'').toLowerCase().includes(q)||(c.obra||'').toLowerCase().includes(q)||(c.obs||'').toLowerCase().includes(q)||(c.fornecedor||'').toLowerCase().includes(q));
   if(fo.length)lista=lista.filter(c=>fo.includes(c.obra));
+  if(feo.length){const _ne=new Set();obras.filter(o=>feo.includes(o.estado)).forEach(o=>{_ne.add(o.num);if(o.nome)_ne.add(o.nome);});lista=lista.filter(c=>_ne.has(c.obra));}
   if(fs.length)lista=lista.filter(c=>fs.includes(c.situacao));
   if(ft.length)lista=lista.filter(c=>ft.includes(c.tipo));
   if(fr.length)lista=lista.filter(c=>fr.includes(c.resp));
@@ -8929,7 +9146,7 @@ function showTab(id,btn){
     if(id==='relatorios')renderRelatorio();
     if(id==='indiretos')setTimeout(function(){try{renderIndiretos();}catch(e){try{console.warn('indiretos:',e);}catch(_){}}},50);
     if(id==='gestao')renderGestao();
-    if(id==='definicoes'){renderDefinicoes();renderFamilias();try{renderEmpresasApp();}catch(_){}if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();}
+    if(id==='definicoes'){renderDefinicoes();renderFamilias();try{renderEmpresasApp();}catch(_){}if(typeof atualizarEstadoBackupCloud==='function')atualizarEstadoBackupCloud();try{renderBackupsLocais();}catch(_){}}
     if(id==='importacao')initImportTab();
     if(id==='rh'&&_tabTrocou){window._rhAbrirFresco=true;switchRHTab(window._rhFull===false?'centros':'colab');}
     if(id==='compras'&&_tabTrocou)switchComprasTab('lista');
@@ -9638,7 +9855,8 @@ function renderObrasTable(list){
           <td onclick="event.stopPropagation()" style="white-space:nowrap">
             <button class="btn sm" onclick="openObra('${o.num}')" title="Ver detalhe"><i class="ti ti-eye"></i></button>
             <button class="btn sm" style="margin-left:2px" onclick="abrirEditarObra('${o.num}')" title="Editar"><i class="ti ti-pencil"></i></button>
-            <button class="btn sm" style="margin-left:2px" onclick="imprimirFichaObra('${o.num}')" title="Imprimir ficha"><i class="ti ti-printer"></i></button>
+            <button class="btn sm" style="margin-left:2px" onclick="imprimirFichaObra('${o.num}')" title="Imprimir ficha (interna)"><i class="ti ti-printer"></i></button>
+            <button class="btn sm" style="margin-left:2px" onclick="imprimirMapaObra('${o.num}')" title="Mapa de obra para o dono de obra (sem valores internos)"><i class="ti ti-file-text"></i></button>
             ${modoObrasArquivo?`<button class="btn sm" style="margin-left:2px" title="Repor (desarquivar)" onclick="reporObra('${o.num}')"><i class="ti ti-arrow-back-up"></i></button><button class="btn sm danger" style="margin-left:2px" title="Apagar definitivamente" onclick="apagarObraArquivo('${o.num}')"><i class="ti ti-trash"></i></button>`:`<button class="btn sm" style="margin-left:2px" title="Enviar para arquivo" onclick="arquivarObra('${o.num}')"><i class="ti ti-archive"></i></button>`}
           </td>
         </tr>`;
@@ -10820,6 +11038,46 @@ function calcularAlertasGlobais(){
   av.sort((a,b)=>ord[a.n]-ord[b.n]);
   return av;
 }
+function renderResumoExecutivo(){
+  var el=document.getElementById('dash-exec'); if(!el)return;
+  var ativos=obras.filter(function(o){return o.estado!=='Concluída'&&o.estado!=='Cancelada';});
+  var tAdj=obras.reduce(function(s,o){return s+(o.adj||0);},0);
+  var tAut=obras.reduce(function(s,o){return s+(o.autos||0);},0);
+  var backlog=tAdj-tAut;
+  var tM=obras.reduce(function(s,o){return s+margem(o);},0);
+  var tCG=obras.reduce(function(s,o){return s+(o.custos||0)+(o.gastosGerais||0);},0);
+  var rGl=tCG>0?tM/tCG:0;
+  var tLiq=0; obras.forEach(function(o){ try{ var f=finObra(o); if(f&&f.temDados) tLiq+=f.liquidez; }catch(e){} });
+  var risco=[];
+  ativos.forEach(function(o){
+    var motivos=[]; var m=margem(o);
+    if(m<0)motivos.push('margem '+fmt(m,0)+'€');
+    var liq=liquidezObra(o); if(liq<0)motivos.push('liquidez '+fmt(liq,0)+'€');
+    if(pctExec(o)>1.001)motivos.push('sobre-faturada');
+    var pAtual=o.prazoAtualMeses||o.prazoMeses; if(pAtual&&o.mesesPassados>pAtual)motivos.push('prazo +'+(o.mesesPassados-pAtual)+'m');
+    if(motivos.length)risco.push({o:o,m:m,motivos:motivos});
+  });
+  risco.sort(function(a,b){return a.m-b.m;});
+  var tile=function(lbl,val,cls,sub){ return '<div class="metric" style="min-width:150px"><div class="metric-label">'+lbl+'</div><div class="metric-value '+(cls||'')+'" style="font-size:18px">'+val+'</div>'+(sub?'<div class="metric-sub">'+sub+'</div>':'')+'</div>'; };
+  var riscoHtml = risco.length
+    ? '<div style="display:flex;flex-direction:column;gap:4px">'+risco.slice(0,5).map(function(r){
+        return '<div class="alert warn" style="margin:0;cursor:pointer;padding:5px 10px;font-size:12px" onclick="openObra(\''+r.o.num+'\')"><i class="ti ti-alert-triangle"></i> <strong>'+esc(r.o.num)+'</strong> — '+esc((r.o.nome||'').substring(0,28))+': '+r.motivos.join(', ')+'</div>';
+      }).join('')+(risco.length>5?'<div style="font-size:11px;color:var(--muted)">+ '+(risco.length-5)+' outras</div>':'')+'</div>'
+    : '<div class="alert ok" style="margin:0;padding:5px 10px;font-size:12px"><i class="ti ti-circle-check"></i> Nenhuma obra ativa em risco.</div>';
+  el.innerHTML='<div class="card" style="margin-bottom:12px">'
+    +'<div class="section-title" style="margin-bottom:10px"><i class="ti ti-briefcase"></i> Resumo executivo</div>'
+    +'<div class="metric-grid" style="margin-bottom:12px">'
+      +tile('Carteira adjudicada', fmt(tAdj,1)+'€','','')
+      +tile('Faturado', fmt(tAut,1)+'€','', fmtPct(tAdj>0?tAut/tAdj:0)+' da carteira')
+      +tile('Por faturar (backlog)', fmt(backlog,1)+'€','')
+      +tile('Margem global', fmt(tM,1)+'€',(tM<0?'danger':'success'), fmtPct(rGl)+' rent.')
+      +tile('Tesouraria (liquidez)', fmt(tLiq,1)+'€',(tLiq<0?'danger':'success'))
+    +'</div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'
+      +'<div style="flex:1;min-width:260px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Obras em risco ('+risco.length+')</div>'+riscoHtml+'</div>'
+      +'<button class="btn" onclick="if(window.abrirTesouraria)abrirTesouraria()"><i class="ti ti-cash"></i>Ver mapa de tesouraria</button>'
+    +'</div></div>';
+}
 function renderAlertas(){
   const el=document.getElementById('dash-alertas'); if(!el)return;
   const av=calcularAlertasGlobais();
@@ -10853,8 +11111,9 @@ function renderDashboard(){
   if(infoEl)infoEl.textContent=dashMes?('A apresentar valores do mês: '+dashMes):'A apresentar valores acumulados de todas as obras.';
 
   // ---- se há mês escolhido, mostrar bloco de indicadores mensais e sair ----
-  if(dashMes){renderDashboardMensal(dashMes);return;}
+  if(dashMes){var _ex=document.getElementById('dash-exec');if(_ex)_ex.innerHTML='';renderDashboardMensal(dashMes);return;}
   renderAlertas();
+  try{renderResumoExecutivo();}catch(e){}
 
   const tAdj=obras.reduce((s,o)=>s+o.adj,0);
   const tAut=obras.reduce((s,o)=>s+o.autos,0);
@@ -11766,7 +12025,7 @@ function carregarConfigGraficos(){
   // garantir que todos os gráficos definidos existem na config
   CHART_DEFS.forEach((c,i)=>{if(!dashCharts.find(x=>x.id===c.id))dashCharts.push({id:c.id,visivel:true,tipo:c.tiposOk[0],cor:CHART_COLORS[i%CHART_COLORS.length],ordem:dashCharts.length,tamanho:'M'});});
   // garantir entrada para gráficos personalizados
-  try{const cs=JSON.parse(localStorage.getItem('customCharts_v1')||'[]');
+  try{const cs=JSON.parse(uiLer('customCharts_v1')||'[]');
     cs.forEach((cc,i)=>{if(!dashCharts.find(x=>x.id===cc.id))dashCharts.push({id:cc.id,visivel:true,tipo:'bar',cor:CHART_COLORS[(CHART_DEFS.length+i)%CHART_COLORS.length],ordem:dashCharts.length,tamanho:'M'});});
   }catch(e){}
 }
@@ -11776,8 +12035,8 @@ function cfgDe(id){return dashCharts.find(x=>x.id===id);}
 
 // ---- GRÁFICOS PERSONALIZADOS ----
 let customCharts = [];   // [{id,nome,metrica,agrup}]
-function carregarCustomCharts(){try{const s=localStorage.getItem('customCharts_v1');customCharts=s?JSON.parse(s):[];}catch(e){customCharts=[];}}
-function guardarCustomCharts(){try{localStorage.setItem('customCharts_v1',JSON.stringify(customCharts));}catch(e){}}
+function carregarCustomCharts(){try{const s=uiLer('customCharts_v1');customCharts=s?JSON.parse(s):[];}catch(e){customCharts=[];}}
+function guardarCustomCharts(){try{uiGravar('customCharts_v1',JSON.stringify(customCharts));}catch(e){}}
 
 const METRICAS = {
   autos:{label:'Autos', fn:o=>o.autos||0},
@@ -11913,6 +12172,69 @@ function trocarOrdemDash(idA,idB){
   guardarConfigGraficos();aplicarConfigGraficos();
   if(typeof renderConfigGraficos==='function')renderConfigGraficos();
 }
+// ═════════════════════════════════════════════════
+// [v223] DISPOSIÇÃO LIVRE DE QUADROS — arrastar + redimensionar à vontade, por utilizador (sincroniza via uiGravar)
+// ═════════════════════════════════════════════════
+function _plKey(contId){ return 'paineisLivre_'+contId; }
+function _plLer(contId){ try{ var o=JSON.parse(uiLer(_plKey(contId))||'{}'); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } }
+function _plGravar(contId,st){ try{ uiGravar(_plKey(contId), JSON.stringify(st||{})); }catch(e){} }
+function _plCSS(){
+  if(document.getElementById('pl-css'))return;
+  var s=document.createElement('style'); s.id='pl-css';
+  s.textContent=".pl-on{position:relative}"
+   +".pl-on > .chart-card,.pl-on > .card{position:absolute!important;margin:0!important;display:flex;flex-direction:column;overflow:hidden;z-index:1;box-shadow:0 1px 6px rgba(0,0,0,.08)}"
+   +".pl-on > .chart-card .chart-wrap,.pl-on > .card .chart-wrap{flex:1 1 auto!important;height:auto!important;min-height:0}"
+   +".pl-move{cursor:move;user-select:none}"
+   +".pl-rz{position:absolute;right:1px;bottom:1px;width:16px;height:16px;cursor:nwse-resize;z-index:3;background:linear-gradient(135deg,transparent 45%,var(--border) 45%,var(--border) 55%,transparent 55%)}"
+   +".pl-on .dash-grip,.pl-on .dash-sizes{display:none!important}";
+  document.head.appendChild(s);
+}
+function paineisLivreAtivo(contId){ return _plLer(contId)._on===true; }
+function paineisLivreToggle(contId){ var st=_plLer(contId); st._on=!st._on; _plGravar(contId,st); paineisLivreAplicar(contId); }
+function paineisLivreRepor(contId){ var on=_plLer(contId)._on; _plGravar(contId,{_on:on}); paineisLivreAplicar(contId); }
+function _plSalvar(contId,id,el){ var st=_plLer(contId); st[id]={x:parseInt(el.style.left)||0,y:parseInt(el.style.top)||0,w:el.offsetWidth,h:el.offsetHeight}; _plGravar(contId,st); }
+function _plAjustar(cont){ var mb=0,ch=cont.children,i,el; for(i=0;i<ch.length;i++){ el=ch[i]; if(el.nodeType!==1||el.style.position!=='absolute'||el.style.display==='none')continue; mb=Math.max(mb,(parseInt(el.style.top)||0)+el.offsetHeight); } cont.style.minHeight=(mb+16)+'px'; }
+function _plReflow(el){ try{ var cv=el.querySelector('canvas'); if(cv&&chartRegistry&&chartRegistry[cv.id]&&chartRegistry[cv.id].resize)chartRegistry[cv.id].resize(); }catch(e){} }
+function _plDrag(ev,el,cont,contId,id){ if(ev.target&&ev.target.closest&&ev.target.closest('.pl-rz'))return; ev.preventDefault();
+  var sx=ev.clientX,sy=ev.clientY,ox=parseInt(el.style.left)||0,oy=parseInt(el.style.top)||0; el.style.zIndex=5;
+  function mv(e){ el.style.left=Math.max(0,ox+e.clientX-sx)+'px'; el.style.top=Math.max(0,oy+e.clientY-sy)+'px'; }
+  function up(){ document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up); el.style.zIndex=1; _plSalvar(contId,id,el); _plAjustar(cont); }
+  document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+}
+function _plResize(ev,el,cont,contId,id){ ev.preventDefault(); ev.stopPropagation();
+  var sx=ev.clientX,sy=ev.clientY,ow=el.offsetWidth,oh=el.offsetHeight;
+  function mv(e){ el.style.width=Math.max(240,ow+e.clientX-sx)+'px'; el.style.height=Math.max(160,oh+e.clientY-sy)+'px'; _plReflow(el); }
+  function up(){ document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up); _plSalvar(contId,id,el); _plAjustar(cont); _plReflow(el); }
+  document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+}
+function paineisLivreAplicar(contId){
+  var cont=document.getElementById(contId); if(!cont)return; _plCSS();
+  var st=_plLer(contId); var ch=cont.children,i,el;
+  // atualizar rótulo do botão se existir
+  var btn=document.getElementById('btn-pl-'+contId); if(btn)btn.classList.toggle('primary',!!st._on);
+  if(!st._on){
+    cont.classList.remove('pl-on');
+    for(i=0;i<ch.length;i++){ el=ch[i]; if(el.nodeType!==1)continue; el.style.position='';el.style.left='';el.style.top='';el.style.width='';el.style.height='';el.style.zIndex=''; var rz=el.querySelector(':scope > .pl-rz'); if(rz)rz.remove(); var hd=el.querySelector('.section-title'); if(hd)hd.classList.remove('pl-move'); }
+    cont.style.minHeight=''; return;
+  }
+  cont.classList.add('pl-on');
+  var cw=cont.clientWidth||900, pw=Math.max(280,Math.floor(cw/2)-8), ph=280;
+  var kids=[]; for(i=0;i<ch.length;i++){ el=ch[i]; if(el.nodeType===1&&(el.classList.contains('chart-card')||el.classList.contains('card')))kids.push(el); }
+  kids.forEach(function(el,idx){
+    if(el.style.display==='none'){ el.style.position='absolute'; return; }
+    var id=el.getAttribute('data-chart')||el.getAttribute('data-pl')||('pl'+idx);
+    if(!el.getAttribute('data-pl'))el.setAttribute('data-pl',id);
+    var s=st[id],x,y,w,h;
+    if(s){x=s.x;y=s.y;w=s.w;h=s.h;} else {x=(idx%2)*(pw+12);y=Math.floor(idx/2)*(ph+12);w=pw;h=ph;}
+    el.style.position='absolute';
+    el.style.left=x+'px';el.style.top=y+'px';el.style.width=w+'px';el.style.height=h+'px';
+    var hd=el.querySelector('.section-title'); if(hd){ hd.classList.add('pl-move'); if(!hd._plBound){hd._plBound=true; hd.addEventListener('mousedown',function(ev){_plDrag(ev,el,cont,contId,id);}); } }
+    if(!el.querySelector(':scope > .pl-rz')){ var rz=document.createElement('div'); rz.className='pl-rz'; el.appendChild(rz); rz.addEventListener('mousedown',function(ev){_plResize(ev,el,cont,contId,id);}); }
+    _plReflow(el);
+  });
+  _plAjustar(cont);
+}
+
 function aplicarConfigGraficos(){
   if(!dashCharts)carregarConfigGraficos();
   const cont=document.getElementById('dash-charts');
@@ -11936,6 +12258,7 @@ function aplicarConfigGraficos(){
     setTimeout(desenharGraficosCustom,30);
   }
   if(typeof montarControlosDash==='function')montarControlosDash();
+  try{ setTimeout(function(){ if(typeof paineisLivreAplicar==='function') paineisLivreAplicar('dash-charts'); },45); }catch(e){}
 }
 
 function abrirCriarGrafico(){
@@ -12357,6 +12680,8 @@ function renderFacturacao(){
   msfSetOpcoes('fact-estado',[{value:'nao',label:'Não faturado'},{value:'parcial',label:'Parcialmente faturado'},{value:'total',label:'Totalmente faturado'}],'Todos os estados de faturação','renderFacturacao');
   const q=(document.getElementById('fact-search').value||'').toLowerCase();
   const fe=msfValores('fact-estado');
+  msfSetOpcoes('fact-estado-obra',['Adjudicada','Em Curso','Pós-Venda','Concluída'],'Estado da obra','renderFacturacao');
+  const feo=msfValores('fact-estado-obra');
   const mesSel=document.getElementById('fact-mes')?document.getElementById('fact-mes').value:'';
 
   // preencher o seletor de meses (uma vez por render, mantendo a escolha)
@@ -12374,6 +12699,7 @@ function renderFacturacao(){
   lista=lista.filter(x=>(!!x.o.arquivada)===modoFatArquivo); // ativas vs arquivo
   lista=lista.filter(x=>(x.o.nome.toLowerCase().includes(q)||x.o.num.toLowerCase().includes(q)));
   if(fe.length)lista=lista.filter(x=>fe.includes(x.est));
+  if(feo.length)lista=lista.filter(x=>feo.includes(x.o.estado));
   // ordenar pelo código de obra (numérico/alfanumérico: 0001, 0002, ... OBR62)
   const dirF=factOrd.dir==='asc'?1:-1;
   lista.sort((a,b)=>cmpOrd(valorOrdenacaoFat(a,factOrd.campo),valorOrdenacaoFat(b,factOrd.campo),dirF));
@@ -12827,7 +13153,7 @@ let prazosFornecedor = {};
 try{prazosFornecedor=JSON.parse(localStorage.getItem('prazos_fornecedor_v1')||'{}')||{};}catch(e){prazosFornecedor={};}
 function savePrazos(){try{if(window._syncAgendar)window._syncAgendar();}catch(_s){}try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(prazosFornecedor));}catch(e){}}
 const PRAZOS_OPCOES=[0,15,30,60,90];
-let _pgChartAging=null,_pgChartForn=null;
+let _pgChartAging=null,_pgChartForn=null,_pgChartEstado=null,_pgChartObra=null;
 
 function pgEUR(v){v=(+v||0);return v.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
 function pgFmtD(d){if(!d)return '—';var x=(d instanceof Date)?d:new Date(d);if(isNaN(x))return '—';return ('0'+x.getDate()).slice(-2)+'/'+('0'+(x.getMonth()+1)).slice(-2)+'/'+x.getFullYear();}
@@ -12937,12 +13263,23 @@ function valorOrdenacaoPagamento(c,campo){
     default: return 0;
   }
 }
+function switchPagTab(tab){
+  var mostraLista=(tab!=='analise');
+  var l=document.getElementById('pg-sub-lista'); if(l)l.style.display=mostraLista?'':'none';
+  var a=document.getElementById('pg-sub-analise'); if(a)a.style.display=(tab==='analise')?'':'none';
+  var bl=document.getElementById('pg-tab-btn-lista'); if(bl)bl.classList.toggle('active',mostraLista);
+  var ba=document.getElementById('pg-tab-btn-analise'); if(ba)ba.classList.toggle('active',tab==='analise');
+  if(tab==='analise'){ try{renderPagamentos();}catch(e){} }
+}
+window.switchPagTab=switchPagTab;
 function renderPagamentos(){
   var contas=_contasPagaveis();
   // filtros
   var fObra=msfValores('pg-f-obra');
   var fForn=((document.getElementById('pg-f-forn')||{}).value||'').trim().toLowerCase();
   var fEst=msfValores('pg-f-estado');
+  var fEstObra=msfValores('pg-f-estado-obra');
+  msfSetOpcoes('pg-f-estado-obra',['Adjudicada','Em Curso','Pós-Venda','Concluída'],'Estado da obra','renderPagamentos');
   msfSetOpcoes('pg-f-estado',[{value:'porpagar',label:'Por pagar'},{value:'parcial',label:'Parcial'},{value:'vencido',label:'Vencido'},{value:'pago',label:'Pago'}],'Todos os estados','renderPagamentos');
   // popular filtro obras (nums distintos)
   var numsO=[...new Set(contas.map(c=>String(c.obraNum)))];
@@ -12983,7 +13320,9 @@ function renderPagamentos(){
   }
 
   // ---- aplicar filtros para a tabela ----
+  var _neObrasPg=null; if(fEstObra.length){_neObrasPg=new Set(obras.filter(o=>fEstObra.includes(o.estado)).map(o=>String(o.num)));}
   var lista=contas.filter(function(c){
+    if(_neObrasPg && !_neObrasPg.has(String(c.obraNum)))return false;
     if(fObra.length && !fObra.includes(String(c.obraNum)))return false;
     if(fForn && (c.fornecedor||'').toLowerCase().indexOf(fForn)<0)return false;
     var e=_estadoCusto(c),dias=_diasAtraso(c);
@@ -13082,6 +13421,22 @@ function _pgGraficos(contas){
   if(cf){if(_pgChartForn)_pgChartForn.destroy();
     if(arr.length){_pgChartForn=new Chart(cf,{type:'bar',data:{labels:arr.map(x=>x.f.length>16?x.f.slice(0,15)+'…':x.f),datasets:[{label:'Dias médios até pagamento',data:arr.map(x=>Math.round(x.media)),backgroundColor:'#6366f1'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Prazo médio real de pagamento (dias)'}},scales:{x:{beginAtZero:true}}}});}
     else{cf.getContext('2d').clearRect(0,0,cf.width,cf.height);}
+  }
+  // por estado: por pagar (não vencido) / vencido / pago
+  var est={porPagar:0,vencido:0,pago:0};
+  contas.forEach(function(c){ if(_estadoCusto(c)==='pago'){ est.pago+=_totalComIva(c); } else { if(_diasAtraso(c)>0)est.vencido+=_faltaCusto(c); else est.porPagar+=_faltaCusto(c); } });
+  var ce=document.getElementById('pg-graf-estado');
+  if(ce){ if(_pgChartEstado)_pgChartEstado.destroy();
+    _pgChartEstado=new Chart(ce,{type:'doughnut',data:{labels:['Por pagar','Vencido','Pago'],datasets:[{data:[+est.porPagar.toFixed(2),+est.vencido.toFixed(2),+est.pago.toFixed(2)],backgroundColor:['#0ea5e9','#dc2626','#16a34a'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}},title:{display:true,text:'Por estado (€)'}}}});
+  }
+  // por obra: o que falta pagar por obra (top 8)
+  var po={};
+  contas.forEach(function(c){ if(_estadoCusto(c)==='pago')return; var f=_faltaCusto(c); if(f<=0)return; var o=obras.find(function(x){return x.num===c.obraNum;}); var rot=(c.obraNum||'(sem obra)')+(o?(' — '+(o.nome||'')).slice(0,18):''); po[rot]=(po[rot]||0)+f; });
+  var poArr=Object.keys(po).map(function(k){return {k:k,v:po[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,8);
+  var co=document.getElementById('pg-graf-obra');
+  if(co){ if(_pgChartObra)_pgChartObra.destroy();
+    if(poArr.length){ _pgChartObra=new Chart(co,{type:'bar',data:{labels:poArr.map(function(x){return x.k.length>18?x.k.slice(0,17)+'…':x.k;}),datasets:[{label:'Falta pagar (€)',data:poArr.map(function(x){return +x.v.toFixed(2);}),backgroundColor:'#f59e0b'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Falta pagar por obra (€)'}},scales:{x:{beginAtZero:true}}}});
+    } else { co.getContext('2d').clearRect(0,0,co.width,co.height); }
   }
 }
 
@@ -13568,12 +13923,14 @@ function mudarCategoriaCusto(id,cat){
 function renderCustos(resetPag){
   if(resetPag!==false)_custPag=0;
   popularSelectsCustos();
+  msfSetOpcoes('custos-filtro-estado-obra',['Adjudicada','Em Curso','Pós-Venda','Concluída'],'Estado da obra','renderCustos');
   const q=(document.getElementById('custos-search')?.value||'').toLowerCase();
   const fo=msfValores('custos-filtro-obra');
   const ff=msfValores('custos-filtro-familia');
   const fa=document.getElementById('custos-filtro-ano')?.value||'';
   const fm=document.getElementById('custos-filtro-mes')?.value||'';
   const ffor=msfValores('custos-filtro-fornecedor');
+  const feo=msfValores('custos-filtro-estado-obra');
   const agr=document.getElementById('custos-agrupar')?.value||'';
   let lista=custos.slice();
   if(q)lista=lista.filter(c=>(c.fornecedor||'').toLowerCase().includes(q)||(c.documento||'').toLowerCase().includes(q)||(c.desc||'').toLowerCase().includes(q));
@@ -13582,6 +13939,7 @@ function renderCustos(resetPag){
   if(fa)lista=lista.filter(c=>String(c.ano)===fa);
   if(fm)lista=lista.filter(c=>String(c.mesNum)===fm);
   if(ffor.length)lista=lista.filter(c=>ffor.includes(c.fornecedor||''));
+  if(feo.length){const _ne=new Set(obras.filter(o=>feo.includes(o.estado)).map(o=>o.num));lista=lista.filter(c=>_ne.has(c.obraNum));}
   // ordenação
   const dir=custosOrd.dir==='asc'?1:-1;
   lista.sort((a,b)=>{const va=valorOrdenacao(a,custosOrd.campo),vb=valorOrdenacao(b,custosOrd.campo);
@@ -13707,6 +14065,7 @@ function listaCustosVisivel(){
   const fa=document.getElementById('custos-filtro-ano')?.value||'';
   const fm=document.getElementById('custos-filtro-mes')?.value||'';
   const ffor=msfValores('custos-filtro-fornecedor');
+  const feo=msfValores('custos-filtro-estado-obra');
   let lista=custos.slice();
   if(q)lista=lista.filter(c=>(c.fornecedor||'').toLowerCase().includes(q)||(c.documento||'').toLowerCase().includes(q)||(c.desc||'').toLowerCase().includes(q));
   if(fo.length)lista=lista.filter(c=>fo.includes(c.obraNum));
@@ -13714,6 +14073,7 @@ function listaCustosVisivel(){
   if(fa)lista=lista.filter(c=>String(c.ano)===fa);
   if(fm)lista=lista.filter(c=>String(c.mesNum)===fm);
   if(ffor.length)lista=lista.filter(c=>ffor.includes(c.fornecedor||''));
+  if(feo.length){const _ne=new Set(obras.filter(o=>feo.includes(o.estado)).map(o=>o.num));lista=lista.filter(c=>_ne.has(c.obraNum));}
   return lista;
 }
 function toggleSelGrupo(agr,k,on){
@@ -14143,8 +14503,25 @@ const COL_TABELAS = {
 /* [v176] preferencias de interface gravadas POR UTILIZADOR (larguras, ordem e visibilidade de colunas, zoom, ordenacoes).
    A chave no localStorage ganha o sufixo ::utilizador; se nao existir, le o valor global antigo (ninguem perde o que ja tinha). */
 function _uSuf(){try{var ss=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'{}');return ss&&ss.user?('::'+ss.user):'';}catch(e){return '';}}
-function uiLer(chave){try{var v=localStorage.getItem(chave+_uSuf());if(v==null)v=localStorage.getItem(chave);return v;}catch(e){return null;}}
-function uiGravar(chave,val){try{localStorage.setItem(chave+_uSuf(),val);}catch(e){}}
+function _uiUser(){try{var ss=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'{}');return ss&&ss.user?ss.user:'';}catch(e){return '';}}
+/* [v221] mapa de preferências de visualização POR UTILIZADOR, sincronizado pela cloud (crm_uiprefs_v1 = { user: {chave:valor} }) */
+function _uiPrefsMap(){try{var m=JSON.parse(localStorage.getItem('crm_uiprefs_v1')||'{}');return (m&&typeof m==='object')?m:{};}catch(e){return {};}}
+function _uiPrefsGravarMap(m){try{localStorage.setItem('crm_uiprefs_v1',JSON.stringify(m||{}));}catch(e){}}
+function _uiHidratarUtilizador(){ // escreve as prefs do utilizador atual nas chaves ::user, para o uiLer as encontrar
+  try{ var u=_uiUser(); if(!u)return; var p=_uiPrefsMap()[u]; if(!p||typeof p!=='object')return;
+    for(var k in p){ if(Object.prototype.hasOwnProperty.call(p,k)){ try{localStorage.setItem(k+'::'+u, p[k]);}catch(e){} } }
+    try{if(typeof aplicarZoom==='function')aplicarZoom();}catch(e){}
+  }catch(e){}
+}
+function uiLer(chave){try{var v=localStorage.getItem(chave+_uSuf());if(v==null)v=localStorage.getItem(chave);
+  if(v==null){ var u=_uiUser(); if(u){ var m=_uiPrefsMap(); if(m[u]&&m[u][chave]!=null)v=m[u][chave]; } }
+  return v;}catch(e){return null;}}
+function uiGravar(chave,val){try{localStorage.setItem(chave+_uSuf(),val);
+  // guarda também no mapa por-utilizador (segue o utilizador em qualquer computador, via cloud)
+  var u=_uiUser(); if(u){ var m=_uiPrefsMap(); if(!m[u]||typeof m[u]!=='object')m[u]={}; m[u][chave]=val; _uiPrefsGravarMap(m);
+    try{window._ccUltimaEdicaoLocal=Date.now();}catch(e){} try{if(window._syncAgendar)window._syncAgendar();}catch(e){}
+  }
+}catch(e){}}
 let colPrefs = {};   // { chaveTabela: [{idx,nome,visivel,largura}] }
 function carregarColPrefs(){try{const s=uiLer('colPrefs_v2');colPrefs=s?JSON.parse(s):{};}catch(e){colPrefs={};}}
 function guardarColPrefs(){try{uiGravar('colPrefs_v2',JSON.stringify(colPrefs));}catch(e){}}
@@ -14765,6 +15142,26 @@ function confirmarLancamento(){
   <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Agrega todas as obras: faturação emitida, valores já recebidos, por receber e custos do mês. "Saldo" = recebido − custos.</div>
   <div class="metric-grid" id="tes-kpis"></div>
   <div class="table-wrap" style="max-height:55vh;overflow-y:auto"><div id="tes-tabela"></div></div>
+</div></div>
+
+<div class="modal-backdrop" id="modal-minha-conta"><div class="modal">
+  <div class="modal-header"><h3><i class="ti ti-user-circle"></i> A minha conta</h3><button class="modal-close" onclick="closeModal('modal-minha-conta')">&times;</button></div>
+  <div style="padding:16px 18px">
+    <div id="mc-info" style="font-size:12px;color:var(--muted,#64748b);margin-bottom:14px"></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted,#64748b)">Nome<input id="mc-nome" type="text" style="padding:8px 10px;border:1px solid var(--border,#cbd5e1);border-radius:8px;font-size:14px;font-family:inherit"></label>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted,#64748b)">Email<input id="mc-email" type="email" style="padding:8px 10px;border:1px solid var(--border,#cbd5e1);border-radius:8px;font-size:14px;font-family:inherit"></label>
+      <hr style="border:none;border-top:1px solid var(--border,#e2e8f0);margin:4px 0">
+      <div style="font-size:12px;color:var(--muted,#64748b)">Para mudar a palavra-passe, escreve a nova nos dois campos. Deixa em branco para a manteres.</div>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted,#64748b)">Nova palavra-passe<input id="mc-pass" type="password" autocomplete="new-password" style="padding:8px 10px;border:1px solid var(--border,#cbd5e1);border-radius:8px;font-size:14px;font-family:inherit"></label>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted,#64748b)">Confirmar palavra-passe<input id="mc-pass2" type="password" autocomplete="new-password" style="padding:8px 10px;border:1px solid var(--border,#cbd5e1);border-radius:8px;font-size:14px;font-family:inherit"></label>
+      <div id="mc-erro" style="color:#c0392b;font-size:12px;min-height:14px"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-minha-conta')">Cancelar</button>
+      <button class="btn primary" onclick="guardarMinhaConta()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
 </div></div>
 
 <div id="panel-gerir-users" style="position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);display:none;overflow-y:auto;padding:40px 20px;font-family:Arial,Helvetica,sans-serif">
@@ -15945,15 +16342,65 @@ function confirmarLancamento(){
   }
 
   /* =================================================================== */
-  window.cauMostrar=function(qual){ // [v176] 'arquivo' mostra os arquivados da vista anterior (clientes ou fornecedores)
-    var arq=(qual==='arquivo');
-    if(!arq)window._cauUlt=qual;
+  window.cauMostrar=function(qual){ // [v176] 'arquivo' mostra os arquivados da vista anterior; [v224] 'analise'
+    var arq=(qual==='arquivo'); var an=(qual==='analise');
+    if(!arq&&!an)window._cauUlt=qual;
     var pane=arq?(window._cauUlt||'clientes'):qual;
-    ['clientes','fornecedores'].forEach(function(q){var p=g('cau-pane-'+q),t=g('cau-tab-'+q);if(p)p.style.display=q===pane?'':'none';if(t)t.classList.toggle('active',!arq&&q===qual);});
+    ['clientes','fornecedores'].forEach(function(q){var p=g('cau-pane-'+q),t=g('cau-tab-'+q);if(p)p.style.display=(!an&&q===pane)?'':'none';if(t)t.classList.toggle('active',!arq&&!an&&q===qual);});
+    var pan=g('cau-pane-analise');if(pan)pan.style.display=an?'':'none';
+    var tan=g('cau-tab-analise');if(tan)tan.classList.toggle('active',an);
     var ta=g('cau-tab-arquivo');if(ta)ta.classList.toggle('active',arq);
     var c1=g('cauc-arq');if(c1)c1.checked=arq;
     var c2=g('cauf-arq');if(c2)c2.checked=arq;
+    if(an){ if(window.renderCaucAnalise)renderCaucAnalise(); return; }
     if(pane==='clientes')renderCaucClientes();else renderCaucFornecedores();
+  };
+  // [v224] ANÁLISE das Cauções — totais de retenções e garantias (clientes e fornecedores), por libertar e próximas libertações
+  function _caucAgg(store){
+    var R={ret:{tot:0,lib:0,por:0,a12:0},gar:{tot:0,lib:0,por:0,a12:0}}, lim=addAnos(HOJE,1);
+    Object.keys(store||{}).forEach(function(k){ var r=store[k]; if(!r||r.arquivada)return;
+      ['ret','gar'].forEach(function(tipo){ var base=baseLib(r,tipo); if(base<=0)return; R[tipo].tot+=base;
+        var pa=prazoAnos(r), arr=arrLib(r,tipo);
+        for(var i=0;i<pa;i++){ var a=arr[i]||{}; var frac=fracLib(r,tipo,i); if(frac==null)frac=1/pa; var val=base*frac;
+          if(a.receb){ R[tipo].lib+=val; } else { R[tipo].por+=val; var d=dataPlanLib(r,tipo,i); if(d&&d>=HOJE&&d<=lim)R[tipo].a12+=val; }
+        }
+      });
+    });
+    return R;
+  }
+  function _caucProx(){ var out=[], lim=addAnos(HOJE,1);
+    [['cli',cli],['forn',forn]].forEach(function(pr){ var tag=pr[0], store=pr[1];
+      Object.keys(store||{}).forEach(function(k){ var r=store[k]; if(!r||r.arquivada)return;
+        ['ret','gar'].forEach(function(tipo){ var base=baseLib(r,tipo); if(base<=0)return; var pa=prazoAnos(r), arr=arrLib(r,tipo);
+          for(var i=0;i<pa;i++){ var a=arr[i]||{}; if(a.receb)continue; var frac=fracLib(r,tipo,i); if(frac==null)frac=1/pa; var d=dataPlanLib(r,tipo,i);
+            if(d&&d>=HOJE&&d<=lim){ out.push({ent:(tag==='cli'?(((r.cod||'')+' '+(r.nome||'')).trim()||'(cliente)'):('Forn. '+(r._nome||k))), tipo:(tipo==='ret'?'Retenção':'Garantia'), val:base*frac, data:d, dias:diasAte(d)}); }
+          }
+        });
+      });
+    });
+    out.sort(function(a,b){return a.data-b.data;}); return out;
+  }
+  var _caucAnChart=null;
+  window.renderCaucAnalise=function(){
+    var C=_caucAgg(cli), F=_caucAgg(forn);
+    var kpi=g('cauc-an-kpis');
+    if(kpi){ var mc=function(l,v){return '<div class="metric"><div class="metric-label">'+l+'</div><div class="metric-value">'+v+'</div></div>';};
+      kpi.innerHTML=mc('Clientes — por libertar',eur(C.ret.por+C.gar.por))+mc('Fornecedores — por libertar',eur(F.ret.por+F.gar.por))+mc('A libertar aos clientes (12 meses)',eur(C.ret.a12+C.gar.a12))+mc('A libertar aos fornecedores (12 meses)',eur(F.ret.a12+F.gar.a12)); }
+    var res=g('cauc-an-resumo');
+    if(res){ var row=function(l,x){return '<tr><td>'+l+'</td><td style="text-align:right">'+eur(x.ret.tot)+'</td><td style="text-align:right">'+eur(x.ret.por)+'</td><td style="text-align:right">'+eur(x.gar.tot)+'</td><td style="text-align:right">'+eur(x.gar.por)+'</td><td style="text-align:right"><b>'+eur(x.ret.por+x.gar.por)+'</b></td></tr>';};
+      res.innerHTML='<table><thead><tr><th>Origem</th><th style="text-align:right">Retenção total</th><th style="text-align:right">Ret. por libertar</th><th style="text-align:right">Garantia total</th><th style="text-align:right">Gar. por libertar</th><th style="text-align:right">Total por libertar</th></tr></thead><tbody>'+row('Clientes (o dono retém-nos)',C)+row('Fornecedores (retemos aos subs)',F)+'</tbody></table>'; }
+    var prox=_caucProx(), pv=g('cauc-an-prox');
+    if(pv){ if(!prox.length){ pv.innerHTML='<div style="color:var(--muted);padding:14px;text-align:center">Sem libertações previstas nos próximos 12 meses.</div>'; }
+      else { pv.innerHTML='<table><thead><tr><th>Origem</th><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:center">Data prevista</th><th style="text-align:center">Faltam</th></tr></thead><tbody>'+prox.slice(0,25).map(function(x){return '<tr><td>'+esc(x.ent)+'</td><td style="text-align:center">'+x.tipo+'</td><td style="text-align:right">'+eur(x.val)+'</td><td style="text-align:center">'+fmtData(x.data)+'</td><td style="text-align:center'+(x.dias<0?';color:var(--red);font-weight:700':'')+'">'+(x.dias<0?'vencida':x.dias+' d')+'</td></tr>';}).join('')+'</tbody></table>'; }
+    }
+    try{ var cv=g('cauc-an-chart');
+      if(cv&&window.Chart){ if(_caucAnChart){try{_caucAnChart.destroy();}catch(e){}}
+        var opts={responsive:true,maintainAspectRatio:false};
+        opts.plugins={legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}}};
+        opts.scales={x:{stacked:true},y:{stacked:true,beginAtZero:true}};
+        _caucAnChart=new Chart(cv.getContext('2d'),{type:'bar',data:{labels:['Clientes','Fornecedores'],datasets:[{label:'Retenção',data:[C.ret.por,F.ret.por],backgroundColor:'#378ADD'},{label:'Garantia',data:[C.gar.por,F.gar.por],backgroundColor:'#f59e0b'}]},options:opts});
+      }
+    }catch(e){}
   };
   function ativarArr(scopeEl){try{if(typeof ativarArrastoColunas==='function')ativarArrastoColunas(scopeEl);}catch(e){}}
   /* redimensionar largura das colunas (arrastar a borda), guardado por tabela */
@@ -16642,7 +17089,10 @@ function confirmarLancamento(){
     {user:'medidor',pass:'medidor',nome:'Medidor',perfil:'medidor',activo:true}
   ];
   function perfilNome(v){for(var i=0;i<PERFIS.length;i++){if(PERFIS[i].v===v)return PERFIS[i].t;}return v;}
-  function gravarUsers(arr){try{localStorage.setItem(USERS_KEY,JSON.stringify(arr));}catch(e){} try{if(window._syncAgendar)window._syncAgendar();}catch(e){}}
+  var REMOV_KEY='gc_users_removidos_v1';
+  function lerRemovidos(){try{var a=JSON.parse(localStorage.getItem(REMOV_KEY)||'[]');return Array.isArray(a)?a.map(function(x){return String(x).toLowerCase();}).filter(function(s){return s&&s!=='sfmachado';}):[];}catch(e){return [];}}
+  function gravarRemovidos(arr){try{localStorage.setItem(REMOV_KEY,JSON.stringify(arr));}catch(e){} try{window._ccUltimaEdicaoLocal=Date.now();}catch(e){} try{if(window._syncAgendar)window._syncAgendar();}catch(e){}}
+  function gravarUsers(arr){try{localStorage.setItem(USERS_KEY,JSON.stringify(arr));}catch(e){} try{window._ccUltimaEdicaoLocal=Date.now();}catch(e){} try{if(window._syncAgendar)window._syncAgendar();}catch(e){}}
   function lerUsers(){var arr=null;try{arr=JSON.parse(localStorage.getItem(USERS_KEY)||'null');}catch(e){}if(!arr||!arr.length){arr=DEFAULTS.slice();}
     var mudou=false;
     // [v215] garantir que o utilizador de base (sfmachado) existe sempre — nunca ficar trancado fora.
@@ -16651,6 +17101,8 @@ function confirmarLancamento(){
       for(i=0;i<arr.length;i++){ if((arr[i].user||'').toLowerCase()===gu){existe=true;break;} }
       if(!existe){ for(i=0;i<DEFAULTS.length;i++){ if(DEFAULTS[i].user===gu){ arr.push(JSON.parse(JSON.stringify(DEFAULTS[i]))); mudou=true; break; } } }
     })();
+    // [v231] respeitar a lista de removidos de propósito (não deixar reaparecer os genéricos apagados)
+    (function(){ var rem=lerRemovidos(); if(!rem.length)return; var antes=arr.length; arr=arr.filter(function(u){ return u&&rem.indexOf(String(u.user||'').toLowerCase())<0; }); if(arr.length!==antes)mudou=true; })();
     arr.forEach(function(u){ if(u&&u.pass!=null){ try{u.passHash=hashPass(u.pass);delete u.pass;mudou=true;}catch(e){} } });
     if(mudou)gravarUsers(arr);
     else if(!localStorage.getItem(USERS_KEY))gravarUsers(arr);
@@ -16741,6 +17193,7 @@ function confirmarLancamento(){
     var bl=document.getElementById('btn-limpar-dados');if(bl)bl.style.display=adm?'block':'none';
     var ls2=document.getElementById('limpar-sep');if(ls2)ls2.style.display=adm?'block':'none';
     try{window.utilizadorAtual=m;}catch(e){}
+    try{if(typeof _uiHidratarUtilizador==='function')_uiHidratarUtilizador();}catch(e){}
     try{aplicarPermissoesUI(m.perfil);}catch(e){}
   }
   // RH visível só para Administrador, Dir. Financeiro e Dep. Financeiro
@@ -16913,15 +17366,48 @@ function confirmarLancamento(){
     var users=lerUsers();
     if(findIdx(users,user)!==-1){alert('Ja existe um utilizador com esse nome de acesso.');return;}
     users.push({user:user,passHash:hashPass(pass),nome:nome||user,perfil:perfil,email:(val('um-email')||'').trim(),activo:true});
+    (function(){ var rem=lerRemovidos(); var ri=rem.indexOf(user); if(ri>=0){rem.splice(ri,1);gravarRemovidos(rem);} })();
     try{ if(window.regAudit)window.regAudit('Utilizadores','Criou o utilizador "'+user+'" ('+perfil+')'); }catch(e){}
     gravarUsers(users);umLimparForm();renderListaUsers();
     alert('Utilizador criado: '+user);
+  };
+  window.abrirMinhaConta=function(){
+    var s=sessao(); if(!s||!s.user){alert('Sessao nao iniciada.');return;}
+    var users=lerUsers(), i=findIdx(users,s.user); if(i<0){alert('Utilizador nao encontrado.');return;}
+    var u=users[i];
+    var info=document.getElementById('mc-info'); if(info)info.innerHTML='Utilizador: <b>'+esc(u.user)+'</b> &nbsp;&middot;&nbsp; Perfil: '+esc(perfilNome(u.perfil));
+    var eN=document.getElementById('mc-nome'); if(eN)eN.value=u.nome||'';
+    var eE=document.getElementById('mc-email'); if(eE)eE.value=u.email||'';
+    var eP=document.getElementById('mc-pass'); if(eP)eP.value='';
+    var eP2=document.getElementById('mc-pass2'); if(eP2)eP2.value='';
+    var er=document.getElementById('mc-erro'); if(er)er.textContent='';
+    openModal('modal-minha-conta');
+  };
+  window.guardarMinhaConta=function(){
+    var s=sessao(); if(!s||!s.user)return;
+    var users=lerUsers(), i=findIdx(users,s.user); if(i<0)return;
+    var er=document.getElementById('mc-erro'); if(er)er.textContent='';
+    var nome=(val('mc-nome')||'').trim();
+    var email=(val('mc-email')||'').trim();
+    var p1=val('mc-pass'), p2=val('mc-pass2');
+    if(p1||p2){
+      if(p1!==p2){ if(er)er.textContent='As palavras-passe nao coincidem.'; return; }
+      if(String(p1).length<3){ if(er)er.textContent='A palavra-passe e demasiado curta.'; return; }
+      users[i].passHash=hashPass(p1); try{delete users[i].pass;}catch(e){}
+    }
+    if(nome)users[i].nome=nome;
+    users[i].email=email;
+    gravarUsers(users);
+    try{ if(window.regAudit)window.regAudit('Conta','Atualizou os proprios dados'+((p1||p2)?' (incl. palavra-passe)':'')); }catch(e){}
+    try{ var lbl=document.getElementById('ud-name-h'); if(lbl)lbl.textContent=users[i].nome||users[i].user; }catch(e){}
+    closeModal('modal-minha-conta');
+    alert('Dados atualizados.');
   };
   window.umEditarNome=function(user){var users=lerUsers(),i=findIdx(users,user);if(i<0)return;var novo=prompt('Nome do utilizador:',users[i].nome||'');if(novo===null)return;novo=novo.trim();if(!novo){alert('O nome nao pode ficar vazio.');return;}users[i].nome=novo;gravarUsers(users);renderListaUsers();};
   window.umMudarPerfil=function(user,novo){var users=lerUsers(),i=findIdx(users,user);if(i<0)return;if(users[i].perfil==='admin'&&novo!=='admin'&&contaAdminsAtivos(users)<=1){alert('Tem de existir pelo menos um Administrador ativo.');renderListaUsers();return;}users[i].perfil=novo;gravarUsers(users);renderListaUsers();};
   window.umToggleEstado=function(user){var users=lerUsers(),i=findIdx(users,user);if(i<0)return;var vai=!(users[i].activo!==false);if(!vai&&users[i].perfil==='admin'&&contaAdminsAtivos(users)<=1){alert('Tem de existir pelo menos um Administrador ativo.');return;}users[i].activo=vai;gravarUsers(users);renderListaUsers();};
   window.umAlterarPass=function(user){var users=lerUsers(),i=findIdx(users,user);if(i<0)return;var nova=prompt('Nova palavra-passe para "'+users[i].user+'":','');if(nova===null)return;if(!nova){alert('A palavra-passe nao pode ficar vazia.');return;}users[i].passHash=hashPass(nova);delete users[i].pass;gravarUsers(users);try{if(window.regAudit)window.regAudit('Utilizadores','Alterou a palavra-passe de "'+users[i].user+'"');}catch(e){}alert('Palavra-passe alterada.');};
-  window.umRemover=function(user){var users=lerUsers(),i=findIdx(users,user);if(i<0)return;if(users[i].perfil==='admin'&&contaAdminsAtivos(users)<=1){alert('Nao pode remover o unico Administrador ativo.');return;}if(!confirm('Remover o utilizador "'+users[i].user+'"? Esta acao e irreversivel.'))return;users.splice(i,1);gravarUsers(users);renderListaUsers();};
+  window.umRemover=function(user){var users=lerUsers(),i=findIdx(users,user);if(i<0)return;if(users[i].perfil==='admin'&&contaAdminsAtivos(users)<=1){alert('Nao pode remover o unico Administrador ativo.');return;}var alvo=String(users[i].user||'').toLowerCase();if(alvo==='sfmachado'){alert('O utilizador base (sfmachado) nao pode ser removido.');return;}if(!confirm('Remover o utilizador "'+users[i].user+'"? Esta acao e irreversivel.'))return;users.splice(i,1);gravarUsers(users);var rem=lerRemovidos();if(rem.indexOf(alvo)<0){rem.push(alvo);gravarRemovidos(rem);}try{if(window.regAudit)window.regAudit('Utilizadores','Removeu o utilizador "'+alvo+'"');}catch(e){}renderListaUsers();};
 
   function renderListaUsers(){
     var lista=document.getElementById('lista-utilizadores');if(!lista)return;
@@ -17098,7 +17584,7 @@ function confirmarLancamento(){
   }
   window.cloudRetomar=function(){ _syncPausado=false; _syncFalhas=0; _syncAvisado={}; try{cloudIniciarSync();}catch(e){} };
   var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes','custosArquivo','auditoria'];
-  var _CC_OBJ=['rhConfig','utilizadores','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','autosModulo','subautos','fechos','prazos','avisosAuto','indiretosVal'];
+  var _CC_OBJ=['rhConfig','utilizadores','usersRemovidos','uiPrefsUser','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','autosModulo','subautos','fechos','prazos','avisosAuto','indiretosVal'];
   function _ccChave(o){
     if(o&&typeof o==='object'){
       if(o.id!=null)return '#'+o.id;
@@ -17125,12 +17611,27 @@ function confirmarLancamento(){
   // [v219] utilizadores fazem SEMPRE união por nome de acesso (nunca uma lista mais curta apaga a maior).
   // O lado local tem precedência para o MESMO utilizador (mudanças recentes de password/perfil ganham),
   // mas os utilizadores que só existem num dos lados são todos preservados.
-  function _ccUniaoUsers(a,b){
+  function _ccUniaoStrs(a,b){
+    var out=[],seen={};
+    function add(x){ if(!Array.isArray(x))return; for(var i=0;i<x.length;i++){ var s=String(x[i]==null?'':x[i]).toLowerCase(); if(s&&!seen[s]){seen[s]=1;out.push(s);} } }
+    add(a); add(b); return out;
+  }
+  function _ccUniaoUsers(a,b,rem){
     a=Array.isArray(a)?a:[]; b=Array.isArray(b)?b:[];
+    var remSet={}; if(Array.isArray(rem)){ for(var r=0;r<rem.length;r++){ remSet[String(rem[r]).toLowerCase()]=1; } }
+    delete remSet['sfmachado']; // o utilizador base nunca é removido pela sincronização
     var map={},ordem=[];
-    function add(arr){ for(var i=0;i<arr.length;i++){ var u=arr[i]; if(!u||u.user==null)continue; var k=String(u.user).toLowerCase(); if(!(k in map)){map[k]=u;ordem.push(k);} } }
+    function add(arr){ for(var i=0;i<arr.length;i++){ var u=arr[i]; if(!u||u.user==null)continue; var k=String(u.user).toLowerCase(); if(remSet[k])continue; if(!(k in map)){map[k]=u;ordem.push(k);} } }
     add(a); add(b);
     return ordem.map(function(k){return map[k];});
+  }
+  // [v221] preferências de visualização por utilizador: união por utilizador e por chave (o 1º arg precede), nunca se perdem as de outro
+  function _ccUniaoUiPrefs(base,outro){
+    base=(base&&typeof base==='object')?base:{}; outro=(outro&&typeof outro==='object')?outro:{};
+    var out={},u;
+    for(u in outro){ if(outro[u]&&typeof outro[u]==='object') out[u]=Object.assign({},outro[u]); }
+    for(u in base){ if(base[u]&&typeof base[u]==='object') out[u]=Object.assign({},out[u]||{},base[u]); }
+    return out;
   }
   function _ccMerge(base,outro,rem){
     base=base||{}; outro=outro||{}; var out={};
@@ -17138,7 +17639,9 @@ function confirmarLancamento(){
     // [v214] campos-objeto: o local só ganha se tiver conteúdo; se estiver VAZIO, preserva o da cloud
     // (impede que um ficheiro sem utilizadores/autos apague os dados de toda a gente ao sincronizar).
     _CC_OBJ.forEach(function(k){
-      if(k==='utilizadores'){ out[k]=_ccUniaoUsers(base[k],outro[k]); return; }
+      if(k==='usersRemovidos'){ out[k]=_ccUniaoStrs(base[k],outro[k]); return; }
+      if(k==='utilizadores'){ out[k]=_ccUniaoUsers(base[k],outro[k],_ccUniaoStrs(base['usersRemovidos'],outro['usersRemovidos'])); return; }
+      if(k==='uiPrefsUser'){ out[k]=_ccUniaoUiPrefs(base[k],outro[k]); return; }
       if(!_ccVazioObj(base[k])) out[k]=base[k];
       else if(!_ccVazioObj(outro[k])) out[k]=outro[k];
       else out[k]=(base[k]!==undefined&&base[k]!==null)?base[k]:outro[k];
@@ -17709,6 +18212,34 @@ function imprimirFichaObra(numObra){
     +(compRows?'<h3 style="font-size:12px;margin:14px 0 4px;color:#1e3a5f">Processos de compra ('+compO.length+')</h3>'
       +'<table><thead><tr><th>Processo</th><th>Tipo</th><th>Resp.</th><th class="R">Orç. (€)</th><th class="R">Adj. (€)</th><th>Situação</th></tr></thead><tbody>'+compRows+'</tbody></table>':'');
   _abrirImpressao('Ficha de Obra — '+o.num,o.nome||'',html);
+}
+
+function imprimirMapaObra(numObra){
+  var o=obras.find(function(x){return x.num===numObra;});
+  if(!o){gcAlert('Obra não encontrada.','err');return;}
+  var adj=o.adj||0, fat=o.autos||0, porFat=adj-fat;
+  var pctFat=adj>0?fat/adj:0;
+  var html='<p style="font-size:10.5px;color:#555;margin:0 0 10px">Documento informativo da situação da empreitada.</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'
+    +'<table><tbody>'
+    +'<tr><th style="background:#eef2f7;width:38%">Obra</th><td class="B">'+esc(o.num)+'</td></tr>'
+    +'<tr><th style="background:#eef2f7">Designação</th><td>'+esc(o.nome||'—')+'</td></tr>'
+    +'<tr><th style="background:#eef2f7">Dono de obra</th><td>'+esc(o.dono||'—')+'</td></tr>'
+    +'<tr><th style="background:#eef2f7">Estado</th><td>'+esc(o.estado||'—')+'</td></tr>'
+    +'<tr><th style="background:#eef2f7">Prazo</th><td>'+esc(String(o.prazoMeses||'—'))+' meses'+((o.prazoAtualMeses&&o.prazoAtualMeses!=o.prazoMeses)?' (atual: '+esc(String(o.prazoAtualMeses))+')':'')+'</td></tr>'
+    +'</tbody></table>'
+    +'<table><tbody>'
+    +'<tr><th style="background:#dce6f0;width:55%">Valor de adjudicação</th><td class="R B">'+fmt(adj,2)+' €</td></tr>'
+    +'<tr><th style="background:#dce6f0">Faturado até à data</th><td class="R">'+fmt(fat,2)+' €</td></tr>'
+    +'<tr><th style="background:#dce6f0">Por faturar</th><td class="R">'+fmt(porFat,2)+' €</td></tr>'
+    +'<tr><th style="background:#dce6f0">Execução (faturado / adjudicado)</th><td class="R B">'+fmtPct(pctFat)+'</td></tr>'
+    +'</tbody></table></div>'
+    +'<div style="margin-top:6px"><div style="font-size:11px;color:#1e3a5f;margin-bottom:3px">Progresso da empreitada</div>'
+    +'<div style="height:16px;border:1px solid #9db3cc;border-radius:8px;overflow:hidden;background:#f0f4f8">'
+    +'<div style="height:100%;width:'+Math.max(0,Math.min(100,pctFat*100)).toFixed(1)+'%;background:#2f5f9e"></div></div>'
+    +'<div style="font-size:10px;color:#555;margin-top:3px">'+fmtPct(pctFat)+' faturado</div></div>'
+    +'<p style="font-size:9.5px;color:#888;margin-top:16px">O detalhe dos autos de medição (mapa de autos) consta das respetivas folhas de rosto de cada contrato.</p>';
+  _abrirImpressao('Mapa de Obra — '+o.num,o.nome||'',html);
 }
 </script>
 
