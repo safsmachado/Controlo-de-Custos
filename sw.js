@@ -1,14 +1,26 @@
-const CACHE='controlo-custos-v98';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()).catch(()=>self.skipWaiting()));});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  // NETWORK-FIRST: tenta sempre a versão nova; cache só serve se estiver offline
+/* Service worker — Controlo de Custos de Obras (PWA)
+   Estratégia: rede primeiro (para receber versões novas), cache como recurso offline. */
+const CACHE = 'cc-obras-v1';
+self.addEventListener('install', function(e){ self.skipWaiting(); });
+self.addEventListener('activate', function(e){
+  e.waitUntil(
+    caches.keys()
+      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+self.addEventListener('fetch', function(e){
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  let url;
+  try { url = new URL(req.url); } catch(_) { return; }
+  if (url.origin !== location.origin) return; // dados da cloud (Supabase) nunca passam pela cache
   e.respondWith(
-    fetch(e.request).then(resp=>{
-      try{const u=new URL(e.request.url);if(u.origin===location.origin){const cp=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,cp));}}catch(_){}
-      return resp;
-    }).catch(()=>caches.match(e.request).then(r=>r||caches.match('./index.html')))
+    fetch(req).then(function(r){
+      if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
+      return r;
+    }).catch(function(){
+      return caches.match(req).then(r => r || caches.match('./'));
+    })
   );
 });
