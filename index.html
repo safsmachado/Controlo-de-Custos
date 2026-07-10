@@ -383,7 +383,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v259</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v261</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1204,6 +1204,8 @@ function publicarPonteFaturacao(){
       const o=c.obra||'(sem obra)';porObra[o]=(porObra[o]||0)+faturadoAcum(c);
     });
     const dados={atualizado:new Date().toISOString(),porContrato,porEmpreiteiro,porObra};
+    /* [v260] evitar publicações repetidas sem alterações (o timestamp mudava sempre) */
+    try{ var _pc=JSON.stringify({porContrato,porEmpreiteiro,porObra}); if(_pc===window.__ponteUltima) return; window.__ponteUltima=_pc; }catch(e){}
     LS.setItem('ponte_autos_faturacao',JSON.stringify(dados));
     // avisa a janela-mãe (Controlo de Obras), caso esteja embebido, e envia os dados
     try{
@@ -1257,7 +1259,8 @@ function restaurarJSON(file){
 // CÁLCULOS  (v2: usam a quantidade VALIDADA, não a medida)
 // ══════════════════════════════════════════════════════════════
 function valorContrato(ct){
-  return (ct.artigos||[]).filter(a=>a.tipo==='ART').reduce((s,a)=>s+(a.qtContrato||0)*(a.precoUnit||0),0);
+  var v=(ct.artigos||[]).filter(a=>a.tipo==='ART').reduce((s,a)=>s+(a.qtContrato||0)*(a.precoUnit||0),0);
+  return v>0?v:(+ct.valorManual||0); /* [v260] contratos sem lista de artigos usam o valor manual (antes mostravam 0€) */
 }
 // quantidade MEDIDA pelo subempreiteiro num auto, para um artigo
 function qtMedida(au,artOrd){return (au.linhas&&au.linhas[artOrd]!=null)?+au.linhas[artOrd]:0;}
@@ -1759,6 +1762,7 @@ function parseNumPt(v){
     if(s.lastIndexOf(',')>s.lastIndexOf('.'))s=s.replace(/\./g,'').replace(',','.');
     else s=s.replace(/,/g,'');
   } else if(s.includes(',')){s=s.replace(',','.');}
+  else if(s.includes('.')&&/^-?\d{1,3}(\.\d{3})+$/.test(s)){s=s.replace(/\./g,'');} /* [v261] "1.234" é milhar pt, não 1,234 */
   const n=parseFloat(s);return isNaN(n)?null:n;
 }
 function impDetectar(filename){
@@ -1835,6 +1839,27 @@ function impConfirmar(){
   const preview=window._impPreview||[];
   if(!preview.length){alert('Nada para importar.');return;}
   if(c.artigos&&c.artigos.length&&!confirm('Esta lista substitui a lista atual do contrato. Continuar?'))return;
+  /* [v261] antes, reimportar dava ord novos a todos os artigos e as medições dos autos existentes
+     ficavam órfãs (autos passavam a 0€ sem aviso). Agora mapeamos os artigos novos aos antigos
+     por item+descrição e migramos as chaves de linhas/linhasVal/justif. */
+  try{
+    const temAutos=(c.autos||[]).some(au=>au&&((au.linhas&&Object.keys(au.linhas).length)||(au.linhasVal&&Object.keys(au.linhasVal).length)));
+    if(temAutos&&Array.isArray(c.artigos)&&c.artigos.length){
+      const chave=x=>String(x.item||'').trim().toLowerCase()+'|'+String(x.desc||'').trim().toLowerCase().replace(/\s+/g,' ');
+      const antigos={}; c.artigos.forEach(a2=>{ if(a2.tipo==='ART')antigos[chave(a2)]=a2.ord; });
+      const mapa={}; let semPar=0;
+      preview.forEach(a2=>{ if(a2.tipo!=='ART')return; const k=chave(a2); if(antigos[k]!=null){mapa[antigos[k]]=a2.ord;} });
+      c.artigos.forEach(a2=>{ if(a2.tipo==='ART'&&mapa[a2.ord]==null)semPar++; });
+      (c.autos||[]).forEach(au=>{
+        ['linhas','linhasVal','justif'].forEach(cmp=>{
+          const o=au[cmp]; if(!o)return; const novo={};
+          Object.keys(o).forEach(k=>{ if(mapa[k]!=null)novo[mapa[k]]=o[k]; });
+          au[cmp]=novo;
+        });
+      });
+      if(semPar>0)alert('Aviso: '+semPar+' artigo(s) da lista antiga não têm correspondência na nova (item+descrição diferentes). As medições desses artigos não puderam ser migradas.');
+    }
+  }catch(e){}
   c.artigos=preview;
   guardar();closeModal('modal-import');
   renderListaBody(c);renderTudo();
@@ -1862,7 +1887,7 @@ function renderAutos(){
     </div>
     <div class="metric-grid">
       <div class="metric"><div class="metric-label">Valor do contrato</div><div class="metric-value">${fmt(vc/1e3,1)}k€</div></div>
-      <div class="metric"><div class="metric-label">Faturado acum.</div><div class="metric-value success">${fmt(fa/1e3,1)}k€</div></div>
+      <div class="metric"><div class="metric-label">Faturado acum.</div><div class="metric-value success">${fmt(fa/1e3,1)}k€</div>${(function(){try{var pv=(c.autos||[]).filter(a=>!valProducao(a)).reduce((s2,a)=>s2+valorAuto(c,a),0);return pv>0.005?'<div class="metric-sub" style="color:var(--orange)">inclui '+fmt(pv/1e3,1)+'k€ por validar</div>':'';}catch(e){return '';}})()}</div>
       <div class="metric"><div class="metric-label">% Execução</div><div class="metric-value">${fmtPct(pe)}</div></div>
       <div class="metric"><div class="metric-label">N.º de autos</div><div class="metric-value">${(c.autos||[]).length}</div></div>
     </div></div>`;
@@ -2068,7 +2093,7 @@ function renderAutoBody(c,au){
       <td class="right" data-dif="${a.ord}" style="${Math.abs(dif)>1e-6?'color:var(--orange);font-weight:700':'color:var(--muted)'}">${dif?fmt(dif,2):'—'}</td>
       <td class="right" data-acum="${a.ord}" style="${excede?'color:var(--red);font-weight:700':''}">${fmt(acumTot,2)}</td>
       <td class="right" data-pct="${a.ord}" style="${podeMedir?'background:#fff7ed;':''}${excede?'color:var(--red);font-weight:700':''}">${podeMedir
-        ?`<input type="number" class="q-input" step="0.1" data-pctinput="${a.ord}" value="${(pAcum*100)>0?fmt(pAcum*100,1):''}" onchange="window.AutosNat.setQtAutoPct('${a.ord}',this.value)" style="width:54px;text-align:right" title="% de execução acumulada — escreva aqui para medir por percentagem">`
+        ?`<input type="number" class="q-input" step="0.1" data-pctinput="${a.ord}" value="${(pAcum*100)>0?(pAcum*100).toFixed(1):''}" onchange="window.AutosNat.setQtAutoPct('${a.ord}',this.value)" style="width:54px;text-align:right" title="% de execução acumulada — escreva aqui para medir por percentagem">`
         :fmtPct(pAcum)}</td>
       <td class="right" data-val="${a.ord}" style="font-weight:600">${fmt(valNeste,2)}</td>
       <td class="center no-print" style="white-space:nowrap">
@@ -2215,7 +2240,17 @@ function setQtValidada(artOrd,val){
   const{cid,aid}=autoEdit;const c=contratos.find(x=>String(x.id)===String(cid));
   const au=c.autos.find(a=>String(a.id)===String(aid));
   if(!au.linhasVal)au.linhasVal={};
-  const v=parseFloat(String(val).replace(',','.'));
+  let v=parseFloat(String(val).replace(',','.'));
+  /* [v261] o mesmo tecto da adjudicação que já limitava a quantidade MEDIDA */
+  {const a=c.artigos.find(x=>String(x.ord)===String(artOrd));
+   if(c.bloqueioAdjud && a && !(c.autExcesso&&c.autExcesso.compras&&c.autExcesso.producao)){
+     const ant=qtAcumAnterior(c,artOrd,aid);
+     const limite=Math.max(0,(+a.qtContrato||0)-ant);
+     if(!isNaN(v)&&v>limite+1e-6){
+       alert('Quantidade validada bloqueada pela adjudicação.\n\nArtigo: '+(a.item||'')+(a.desc?(' — '+a.desc):'')+'\nMáximo neste auto: '+fmt(limite,2)+' '+(a.un||'')+'\n\nPara exceder: autorização de Compras + Produção, ou criar um Adicional ao contrato.');
+       v=limite;
+     }
+   }}
   if(isNaN(v)||val==='')delete au.linhasVal[artOrd];else au.linhasVal[artOrd]=v;
   const a=c.artigos.find(x=>String(x.ord)===String(artOrd));
   logAudit('Validação parcial',`Auto ${au.numero} · ${a?a.item:artOrd}: validado ${isNaN(v)?'(=medido)':v}`);
@@ -2236,7 +2271,7 @@ function recalcLinhaAuto(input,artOrd){
   const set=(sel,txt,cor)=>{const el=document.querySelector(sel);if(el){el.textContent=txt;if(cor!==undefined){el.style.color=cor;el.style.fontWeight=cor?'700':'';}}};
   set(`[data-acum="${artOrd}"]`,fmt(acum,2),excede?'var(--red)':'');
   const pin=document.querySelector(`[data-pctinput="${artOrd}"]`);
-  if(pin){ if(document.activeElement!==pin) pin.value=(p*100)>0?fmt(p*100,1):''; }
+  if(pin){ if(document.activeElement!==pin) pin.value=(p*100)>0?(p*100).toFixed(1):''; } /* [v260] type=number não aceita vírgula */
   else set(`[data-pct="${artOrd}"]`,fmtPct(p),excede?'var(--red)':'');
   set(`[data-val="${artOrd}"]`,fmt(val,2));
   const cd=document.querySelector(`[data-dif="${artOrd}"]`);if(cd){cd.textContent=dif?fmt(dif,2):'—';cd.style.color=Math.abs(dif)>1e-6?'var(--orange)':'var(--muted)';cd.style.fontWeight=Math.abs(dif)>1e-6?'700':'';}
@@ -2245,7 +2280,12 @@ function recalcLinhaAuto(input,artOrd){
 function setAutoCampo(campo,val){
   const{cid,aid}=autoEdit;const c=contratos.find(x=>String(x.id)===String(cid));
   const au=c.autos.find(a=>String(a.id)===String(aid));
-  if(campo==='numero')au.numero=+val||au.numero;
+  if(campo==='numero'){
+    const novoN=+val||au.numero;
+    /* [v261] números duplicados falseavam os acumulados e o tecto da adjudicação */
+    if(c.autos.some(x=>x!==au&&(+x.numero||0)===novoN)){ alert('Já existe um auto n.º '+novoN+' neste contrato. Os números têm de ser únicos (os acumulados dependem disso).'); }
+    else au.numero=novoN;
+  }
   else if(campo==='fechado')au.fechado=val;
   else au[campo]=val;
   guardar();
@@ -2822,7 +2862,7 @@ function calcSubQt(r){
   const dims=[r.c,r.l,r.h].filter(v=>v!==''&&v!==null&&v!==undefined&&+v!==0).length;
   if(dims===0) return n;
   if(dims===1) return n*(+r.c||+r.l||+r.h||1);
-  if(dims===2) return n*(+r.c||1)*(+r.l||1);
+  /* [v260] BUG: com 2 dimensões o H era ignorado (ex.: L×H dava só L). Multiplicam-se sempre as preenchidas. */
   return n*(+r.c||1)*(+r.l||1)*(+r.h||1);
 }
 function addSubMed(cid,aid,artOrd){
@@ -3043,7 +3083,7 @@ function autoPrintDoc(c,au,apenasComMedicao){
       <td class="col-un">${a.un||''}</td>
       <td class="num">${fmt(a.qtContrato,2)}</td>
       <td class="num">${fmt(ant,2)}</td>
-      <td class="num">${fmt(qMed,2)}</td>
+      <td class="num">${fmt(qVal,2)}${Math.abs(qVal-qMed)>1e-6?`<span style="font-size:7.5px;color:#888"> (med. ${fmt(qMed,2)})</span>`:''}</td>
       <td class="num">${fmtPct(p)}</td>
       <td class="num">${fmt(qVal*(a.precoUnit||0),2)} €</td></tr>`;
   });
@@ -3138,7 +3178,7 @@ function renderAutoResumo(c,au){
   const ret=va*((c.retencao||0)/100);
   const adiantDeducao=va*((c.adiant||0)/100);
   const liquido=va-ret-adiantDeducao;
-  const iva=liquido*(c.iva||0);
+  const iva=(va-adiantDeducao)*(c.iva||0); /* [v261] o IVA aplica-se à base faturada (a retenção de garantia não reduz a base tributável) */
   const el=document.getElementById('auto-resumo');if(!el)return;
   el.innerHTML=`<div class="metric-grid">
     <div class="metric"><div class="metric-label">Valor deste auto</div><div class="metric-value">${fmt(va)}€</div></div>
@@ -3570,8 +3610,8 @@ function renderPainel(){
   ordenados.forEach(({c,au})=>{
     const v=au.validacoes||{}; let prox='';
     if(estadoAuto(au)==='fechado')prox='Fechado';
+    else if(!v.direcao||!v.direcao.validado)prox='Validação Dir. Obra'; /* [v260] a Dir. Obra valida primeiro */
     else if(!v.producao||!v.producao.validado)prox='Validação Produção';
-    else if(!v.direcao||!v.direcao.validado)prox='Validação Dir. Obra';
     else if(!v.financeiro||!v.financeiro.validado)prox='Aprovação Financeiro (opcional)';
     else prox='Pronto a fechar';
     html+=`<tr style="cursor:pointer" onclick="window.AutosNat.irAutoDireto('${c.id}','${au.id}')">
@@ -5607,6 +5647,12 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <div class="chart-wrap" style="height:240px"><canvas id="chartPgAn"></canvas></div>
     <div class="table-wrap" id="pg-an-tabela" style="margin-top:10px"></div>
   </div>
+    <div class="card pl-full">
+      <div class="section-title">Fluxo de caixa previsional — próximos 90 dias</div>
+      <div style="font-size:10.5px;color:var(--muted);margin-bottom:6px">Entradas = facturação emitida por receber (fim do mês + prazo de recebimento da obra). Saídas = custos por pagar (data de vencimento; os já vencidos contam na 1.ª semana).</div>
+      <div id="pg-fluxo-kpis" class="metric-grid"></div>
+      <div class="chart-wrap" style="height:250px;position:relative"><canvas id="pg-graf-fluxo"></canvas></div>
+    </div>
     <div class="pl-item" style="background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:190px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-aging"></canvas></div>
     <div class="pl-item" style="background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px;height:190px;position:relative;overflow:hidden;box-sizing:border-box"><canvas id="pg-graf-forn"></canvas></div>
     <div class="pl-item" style="background:var(--card,#fff);border:1px solid var(--border);border-radius:10px;padding:8px 10px;height:190px;box-sizing:border-box;display:flex;flex-direction:column">
@@ -6524,13 +6570,20 @@ async function _migrarAnexosParaIDB(){
 }
 
 function guardarTudo(passivo){
-  if(passivo!==true) window._ccUltimaEdicaoLocal=Date.now(); // [v168+v245] gravações passivas não bloqueiam as atualizações da cloud
   const dump={
     v:4,ts:Date.now(),
     obras,indiretos,categorias,familias,tiposObra,tiposCliente,custos,
     rhColab,centrosCusto,rhConfig,rhRegrasDistrib,
     compras,certificacoes
   };
+  /* [v260] o auto-save de 30s reescrevia SEMPRE (só o ts mudava) → indicador "Guardado" a piscar,
+     sync com a cloud e o módulo Autos a re-sincronizar sem ninguém mexer. Agora só grava se os DADOS mudaram. */
+  try{
+    var _cmp=JSON.stringify(Object.assign({},dump,{ts:0}));
+    if(passivo===true && _cmp===window.__gtUltimoDump) return;
+    window.__gtUltimoDump=_cmp;
+  }catch(e){}
+  if(passivo!==true) window._ccUltimaEdicaoLocal=Date.now(); // [v168+v245] gravações passivas não bloqueiam as atualizações da cloud
   try{
     localStorage.setItem(STORE_KEY, JSON.stringify(dump));
     marcarGuardado(true);
@@ -10987,7 +11040,7 @@ function _estadoNormImp(e){
 function _obrasAlvoIndireto(ind){
   const modo=ind.aplicacao||'global';
   if(modo==='obra') return obras.filter(o=>String(o.num)===String(ind.obraNum));
-  if(modo==='curso') return obras.filter(o=>_estadoNormImp(o.estado)==='emcurso'||_estadoNormImp(o.estado)==='adjudicado');
+  if(modo==='curso') return obras.filter(o=>{var e=_estadoNormImp(o.estado);return e==='emcurso'||e==='adjudicado'||e==='adjudicada';}); /* [v260] o estado real é 'Adjudicada' */
   if(modo==='posvenda') return obras.filter(o=>_estadoNormImp(o.estado)==='posvenda');
   return obras.slice(); // global -> todas (o filtro por custos do mês é feito a seguir)
 }
@@ -11991,9 +12044,11 @@ function renderRelatorio(){
     // Mapa de subempreiteiros: a partir das compras (tipo subempreitada) e custos família C.
     const subs={};
     compras.forEach(c=>{
+      if(c&&c.arquivada)return; /* [v260] arquivadas fora dos totais */
       const t=(c.tipo||'').toUpperCase();
       if(!t.includes('SUBEMPREIT')&&!t.includes('SUBCONTRAT')) return;
-      const nome=c.nome||c.resp||'(sem nome)';
+      /* [v260] agrupar pelo FORNECEDOR (o cruzamento com os custos era pelo nome do processo e nunca coincidia) */
+      const nome=c.fornecedor||c.resp||c.nome||'(sem nome)';
       if(!subs[nome])subs[nome]={nome,obras:new Set(),adjud:0,nproc:0};
       subs[nome].adjud+=c.adjud||0;subs[nome].nproc++;
       if(c.obra)subs[nome].obras.add(codigoDe(c.obra));
@@ -12050,6 +12105,8 @@ function renderRelatorio(){
       }
     }
   } else if(tipo==='liquidez'){
+    /* [v260] este era o único relatório sem cabeçalhos de colunas */
+    html+=`<thead><tr><th>N.º</th><th>Obra</th><th style="text-align:right">Base</th><th style="text-align:right">IVA</th><th style="text-align:right">Total c/IVA</th><th style="text-align:right">Adiant.</th><th style="text-align:right">Retido</th><th style="text-align:right">Fat. líquida</th><th style="text-align:right">Custos</th><th style="text-align:right">Liquidez</th><th>Estado</th></tr></thead>`;
     let any=false;
     data.forEach(o=>{
       const f=finObra(o);if(!f.temDados)return;any=true;
@@ -12247,7 +12304,7 @@ function removeIndireto(id){
 
 function toggleAtivoIndir(id){
   const i=indiretos.find(x=>x.id===id);
-  if(i){i.ativo=!i.ativo;renderIndiretos();}
+  if(i){i.ativo=!i.ativo;try{if(typeof agregarCustosNasObras==='function')agregarCustosNasObras();}catch(e){}try{if(typeof guardarTudo==='function')guardarTudo();}catch(e){}renderIndiretos();} /* [v260] recalcula a imputação */
 }
 
 function renderIndiretos(){
@@ -12256,9 +12313,10 @@ function renderIndiretos(){
   const ativos=indiretos.filter(i=>i.ativo);
   const tMensal=ativos.filter(i=>i.period==='Mensal').reduce((s,i)=>s+i.valor,0);
   const tUnico=ativos.filter(i=>i.period==='Único').reduce((s,i)=>s+i.valor,0);
+  const tAnual=ativos.filter(i=>i.period==='Anual').reduce((s,i)=>s+i.valor,0); /* [v260] os "Anual" não entravam em nenhum KPI */
   document.getElementById('indir-totais').innerHTML=`
-    <div class="metric"><div class="metric-label">Mensal (ativos)</div><div class="metric-value">${fmt(tMensal)}€</div><div class="metric-sub">€/mês</div></div>
-    <div class="metric"><div class="metric-label">Anual equiv.</div><div class="metric-value">${fmt(tMensal*12,0)}€</div></div>
+    <div class="metric"><div class="metric-label">Mensal (ativos)</div><div class="metric-value">${fmt(tMensal+tAnual/12)}€</div><div class="metric-sub">€/mês (inclui anuais ÷12)</div></div>
+    <div class="metric"><div class="metric-label">Anual equiv.</div><div class="metric-value">${fmt(tMensal*12+tAnual,0)}€</div></div>
     <div class="metric"><div class="metric-label">Pontual/Único</div><div class="metric-value warning">${fmt(tUnico)}€</div></div>
     <div class="metric"><div class="metric-label">Total registos</div><div class="metric-value">${indiretos.length} <span style="font-size:11px;color:var(--green)">(${ativos.length} ativos)</span></div></div>
   `;
@@ -12749,7 +12807,7 @@ function _gLigarDrag(card,gid,dashCfg){
 }
 function _gPrepararCartao(card,ehDash){
   if(card.querySelector(':scope .card canvas, :scope .chart-card canvas'))return; // é um invólucro
-  card.classList.add('chart-card-gx');
+  if(!card.classList.contains('chart-card-gx'))card.classList.add('chart-card-gx'); /* [v260] evitar mutações DOM constantes no varrimento */
   if(getComputedStyle(card).position==='static')card.style.position='relative';
   var dataChart=card.getAttribute('data-chart');
   var dashCfg=(ehDash&&dataChart&&typeof cfgDe==='function')?cfgDe(dataChart):null;
@@ -12767,8 +12825,11 @@ function _gPrepararCartao(card,ehDash){
     bar.innerHTML=grip+sizes;
     _gLigarDrag(card,gid,dashCfg);
   }
-  bar.querySelectorAll('.dash-size').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===tam);});
-  if(!dashCfg)_gAplicarTam(card,tam);
+  if(card.__gxTamAplicado!==tam){ /* [v260] só reaplica quando o tamanho muda de facto */
+    card.__gxTamAplicado=tam;
+    bar.querySelectorAll('.dash-size').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===tam);});
+    if(!dashCfg)_gAplicarTam(card,tam);
+  }
 }
 function montarControlosGraficos(){
   if(typeof _dashCSS==='function')_dashCSS();
@@ -13845,6 +13906,7 @@ function _estadoCusto(c){
   // [v248] a marca manual "por pagar" só vale enquanto não há pagamentos registados
   // (antes bloqueava o estado para sempre — ex.: fornecedor Montaluga preso em "Por pagar")
   if(c.pagoFlag===false && pg<=0.005) return 'porpagar';
+  if(tot<=0.005&&Math.abs(f)<=0.05)return 'pago'; /* [v260] notas de crédito/valor 0: nada em falta = pago */
   if(tot>0.005&&f<=0.05)return 'pago'; // [v249] tolerância de 5 cêntimos (arredondamentos de IVA)
   if(pg>0.005)return 'parcial';
   return 'porpagar';
@@ -14152,7 +14214,7 @@ function _pgGraficos(contas){
   }
   // por estado: por pagar (não vencido) / vencido / pago
   var est={porPagar:0,vencido:0,pago:0};
-  contas.forEach(function(c){ if(_estadoCusto(c)==='pago'){ est.pago+=_totalComIva(c); } else { if(_diasAtraso(c)>0)est.vencido+=_faltaCusto(c); else est.porPagar+=_faltaCusto(c); } });
+  contas.forEach(function(c){ if(_estadoCusto(c)==='pago'){ est.pago+=_totalComIva(c); } else { est.pago+=Math.max(0,_pagoCusto(c)); /* [v261] a parcela já paga das contas parciais contava 0 */ if(_diasAtraso(c)>0)est.vencido+=_faltaCusto(c); else est.porPagar+=_faltaCusto(c); } });
   var ce=document.getElementById('pg-graf-estado');
   if(ce){ if(_pgChartEstado)_pgChartEstado.destroy();
     _pgChartEstado=new Chart(ce,{type:'doughnut',data:{labels:['Por pagar','Vencido','Pago'],datasets:[{data:[+est.porPagar.toFixed(2),+est.vencido.toFixed(2),+est.pago.toFixed(2)],backgroundColor:['#0ea5e9','#dc2626','#16a34a'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}},title:{display:true,text:'Por estado (€)'}}}});
@@ -14166,6 +14228,59 @@ function _pgGraficos(contas){
     if(poArr.length){ _pgChartObra=new Chart(co,{type:'bar',data:{labels:poArr.map(function(x){return x.k.length>18?x.k.slice(0,17)+'…':x.k;}),datasets:[{label:'Falta pagar (€)',data:poArr.map(function(x){return +x.v.toFixed(2);}),backgroundColor:'#f59e0b'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Falta pagar por obra (€)'}},scales:{x:{beginAtZero:true}}}});
     } else { co.getContext('2d').clearRect(0,0,co.width,co.height); }
   }
+  try{ _pgFluxoPrevisional(contas); }catch(e){} /* [v261] */
+}
+
+/* ═══ [v261] FLUXO DE CAIXA PREVISIONAL (90 dias) ═══ */
+var _pgChartFluxo=null;
+function _pgFluxoPrevisional(contas){
+  var cv=document.getElementById('pg-graf-fluxo'); if(!cv)return;
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var NSEM=13, DIA=86400000;
+  var entr=new Array(NSEM).fill(0), sai=new Array(NSEM).fill(0);
+  var totE=0,totS=0;
+  function bucket(d){ if(!d||isNaN(d))return 0; var i=Math.floor((d-hoje)/(7*DIA)); if(i<0)i=0; return (i>=NSEM)?-1:i; }
+  /* saídas: custos por pagar */
+  (contas||[]).forEach(function(c){
+    var f=_faltaCusto(c); if(!(f>0.005))return;
+    var v=_vencCusto(c); var d=v?new Date(v):hoje; if(isNaN(d))d=hoje;
+    var i=bucket(d); if(i<0)return;
+    sai[i]+=f; totS+=f;
+  });
+  /* entradas: facturação emitida ainda não recebida */
+  (obras||[]).forEach(function(o){
+    if(o.arquivada)return;
+    try{
+      ensureFin(o);
+      mesesCalc(o).forEach(function(r){
+        if(!(r.base>0)||r.recebido)return;
+        var d=(typeof _dataPrevReceb==='function')?_dataPrevReceb(o,r.mes):null;
+        if(!d||isNaN(d))d=hoje;
+        if(d<hoje)d=hoje;
+        var i=bucket(d); if(i<0)return;
+        var v=+r.fatLiquida||0; if(v<=0)return;
+        entr[i]+=v; totE+=v;
+      });
+    }catch(e){}
+  });
+  var labels=[]; for(var i=0;i<NSEM;i++){ var d0=new Date(hoje.getTime()+i*7*DIA); labels.push(('0'+d0.getDate()).slice(-2)+'/'+('0'+(d0.getMonth()+1)).slice(-2)); }
+  var saldo=[],acc=0; for(var j=0;j<NSEM;j++){ acc+=entr[j]-sai[j]; saldo.push(+acc.toFixed(2)); }
+  var k=document.getElementById('pg-fluxo-kpis');
+  if(k)k.innerHTML='<div class="metric"><div class="metric-label">A receber (90 dias)</div><div class="metric-value success">'+fmt(totE,0)+'€</div></div>'
+    +'<div class="metric"><div class="metric-label">A pagar (90 dias)</div><div class="metric-value warning">'+fmt(totS,0)+'€</div></div>'
+    +'<div class="metric"><div class="metric-label">Saldo previsto</div><div class="metric-value '+((totE-totS)<0?'danger':'success')+'">'+fmt(totE-totS,0)+'€</div></div>';
+  try{ if(_pgChartFluxo)_pgChartFluxo.destroy(); }catch(e){}
+  try{
+    _pgChartFluxo=new Chart(cv,{data:{labels:labels,datasets:[
+      {type:'bar',label:'Entradas',data:entr.map(function(v){return +v.toFixed(2);}),backgroundColor:'rgba(22,163,74,.75)',borderRadius:4},
+      {type:'bar',label:'Saídas',data:sai.map(function(v){return +v.toFixed(2);}),backgroundColor:'rgba(220,38,38,.7)',borderRadius:4},
+      {type:'line',label:'Saldo acumulado',data:saldo,borderColor:'#1B4D8F',backgroundColor:'#1B4D8F',tension:.25,pointRadius:2.5,borderWidth:2,yAxisID:'y'}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8,font:{size:10.5}}},
+        tooltip:{callbacks:{label:function(ctx){return ' '+ctx.dataset.label+': '+fmt(ctx.parsed.y,2)+'€';}}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9.5}},title:{display:true,text:'Semana (início)',font:{size:9.5}}},
+        y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},callback:function(v){var a2=Math.abs(v);return a2>=1000?Math.round(v/1000)+' k€':v+' €';}}}}}});
+  }catch(e){}
 }
 
 // ---- modal de pagamento ----
@@ -14527,7 +14642,7 @@ function agregarPrecos(){
     if(!mapa[k])mapa[k]={artigo:c.artigo||'',desc:c.desc||k,familiaId:c.familiaId,precos:[],descset:{}};
     const m=mapa[k];
     if(c.desc)m.descset[c.desc.trim()]=(m.descset[c.desc.trim()]||0)+1;
-    m.precos.push({pu,data:c.data||(c.ano+'-'+String(c.mesNum).padStart(2,'0')),forn:c.fornecedor,descLinha:c.desc||''});
+    m.precos.push({pu,data:c.data||((c.ano||'0000')+'-'+String(c.mesNum||0).padStart(2,'0')),forn:c.fornecedor,descLinha:c.desc||''});
     if(!m.familiaId&&c.familiaId)m.familiaId=c.familiaId;
   });
   const porCodigo=modoAgruparPrecos()==='codigo';
