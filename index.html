@@ -375,7 +375,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v253</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v255</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -700,6 +700,7 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
     <div class="toolbar">
       <select id="autos-contrato" onchange="window.AutosNat.renderAutos()"><option value="">— escolher contrato —</option></select>
       <button class="btn primary" id="btn-novo-auto" onclick="window.AutosNat.abrirNovoAuto()" disabled><i class="ti ti-plus"></i>Novo Auto</button>
+      <button class="btn success" onclick="document.getElementById('imp-modelo-file').click()" title="Importar Excel que cria a obra, o contrato, o subempreiteiro, a lista de quantidades e os autos já efetuados"><i class="ti ti-file-spreadsheet"></i>Importar Excel (contrato+autos)</button>
     </div>
     <div id="autos-container"></div>
   </div>
@@ -744,6 +745,7 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       <button class="tab-inner-btn" data-f="exec" onclick="window.AutosNat.empFiltroTab('exec')">Executantes</button>
       <button class="tab-inner-btn" data-f="forn" onclick="window.AutosNat.empFiltroTab('forn')">Fornecedores</button>
       <button class="tab-inner-btn" data-f="sub" onclick="window.AutosNat.empFiltroTab('sub')">Subempreiteiros</button>
+      <button class="tab-inner-btn" data-f="alug" onclick="window.AutosNat.empFiltroTab('alug')">Aluguer</button>
     </div>
     <div class="card" style="padding:0"><div class="table-wrap">
       <table><thead><tr><th>Logótipo</th><th>Nome</th><th>NIF</th><th>Localidade</th><th>Fornecedor</th><th>Tipo</th><th>Ativa</th><th></th></tr></thead>
@@ -825,12 +827,13 @@ input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=numbe
       <div class="form-group"><label>Localidade</label><input type="text" id="emp-localidade" placeholder="ex: Braga"></div>
       <div class="form-group"><label>Telefone</label><input type="text" id="emp-tel" placeholder="opcional"></div>
       <div class="form-group"><label>Email</label><input type="text" id="emp-email" placeholder="opcional"></div>
-      <div class="form-group"><label><input type="checkbox" id="emp-ativa" checked> Empresa ativa</label></div>
-      <div class="form-group"><label><input type="checkbox" id="emp-fornecedor" onchange="window.AutosNat.toggleEmpFornecedor()"> É fornecedor / subempreiteiro</label></div>
+      <div class="form-section">Classificação</div>
+      <div class="form-group" style="justify-content:center"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:12px"><input type="checkbox" id="emp-ativa" checked style="width:auto"> Empresa ativa</label></div>
+      <div class="form-group" style="justify-content:center"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:12px"><input type="checkbox" id="emp-fornecedor" onchange="window.AutosNat.toggleEmpFornecedor()" style="width:auto"> É fornecedor / subempreiteiro / aluguer</label></div>
       <div class="form-group" id="emp-classe-wrap" style="display:none"><label>Classificação</label>
-        <select id="emp-classe"><option value="fornecedor">Fornecedor</option><option value="subempreiteiro">Subempreiteiro</option></select>
+        <select id="emp-classe"><option value="fornecedor">Fornecedor</option><option value="subempreiteiro">Subempreiteiro</option><option value="aluguer">Aluguer</option></select>
       </div>
-      <div class="form-group" id="emp-tipoforn-wrap" style="display:none;grid-column:1/-1"><label>Tipos de fornecedor (pode escolher vários)</label><div id="emp-tipoforn-box" style="display:flex;flex-wrap:wrap;gap:6px 16px;max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:8px"></div></div>
+      <div class="form-group" id="emp-tipoforn-wrap" style="display:none;grid-column:1/-1"><label>Tipos de fornecedor (pode escolher vários)</label><div id="emp-tipoforn-box" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;max-height:190px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:10px"></div></div>
       <div class="form-section">Logótipo</div>
       <div class="form-group" style="grid-column:1/-1">
         <label>Imagem do logótipo (PNG ou JPG)</label>
@@ -1831,7 +1834,12 @@ function renderAutos(){
   btn.disabled=(c.artigos||[]).filter(a=>a.tipo==='ART').length===0;
   const vc=valorContrato(c),fa=faturadoAcum(c),pe=pctExec(c);
   let html=`<div class="card">
-    <div class="section-title">${c.ref} — ${TIPO_LABEL[c.tipo]} · ${c.entidade||''}</div>
+    <div class="section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${c.ref} — ${TIPO_LABEL[c.tipo]} · ${c.entidade||''}
+      <span style="flex:1"></span>
+      <button class="btn sm" title="Editar os dados do contrato (referência, obra, valores, retenção, IVA...)" onclick="window.AutosNat.abrirModalContrato('${c.id}')"><i class="ti ti-pencil"></i> Editar contrato</button>
+      <button class="btn sm" title="Ver/editar a lista de quantidades" onclick="window.AutosNat.abrirLista('${c.id}')"><i class="ti ti-list-numbers"></i> Lista de quantidades</button>
+      ${c.empresaId?`<button class="btn sm" title="Editar os dados da empresa emissora" onclick="window.AutosNat.abrirModalEmpresa('${c.empresaId}')"><i class="ti ti-building"></i> Editar empresa</button>`:''}
+    </div>
     <div class="metric-grid">
       <div class="metric"><div class="metric-label">Valor do contrato</div><div class="metric-value">${fmt(vc/1e3,1)}k€</div></div>
       <div class="metric"><div class="metric-label">Faturado acum.</div><div class="metric-value success">${fmt(fa/1e3,1)}k€</div></div>
@@ -2413,8 +2421,9 @@ function removerObra(num){
   const o=obrasReg.find(x=>x.num===num);if(!o)return;
   const cts=contratos.filter(c=>(c.obra||'')===(o._nomeOriginal||o.nome));
   if(cts.length){alert('Não pode eliminar: a obra tem '+cts.length+' contrato(s) associado(s).');return;}
-  if(!confirm('Eliminar a obra "'+o.nome+'"?'))return;
+  if(!confirm('Eliminar a obra "'+o.nome+'"?\n\nDeixa de aparecer nos Autos e NÃO volta a ser recriada pelo sincronismo, mesmo que exista noutros separadores. (Volta se a criar de novo no separador OBRAS.)'))return;
   obrasReg=obrasReg.filter(x=>x.num!==num);
+  if(obrasOcultasAutos.indexOf(String(num))<0)obrasOcultasAutos.push(String(num)); /* [v254] tombstone: o sincronismo já não a recria */
   guardar();renderObras();
 }
 
@@ -2432,6 +2441,8 @@ function apagarObraArquivada(nomeObra){
   var nAutos=cts.reduce(function(s,c){return s+((c.autos||[]).length);},0);
   if(!confirm('ELIMINAR definitivamente a obra "'+nomeObra+'"?\n\nIsto apaga '+cts.length+' contrato(s) e '+nAutos+' auto(s). Esta acao nao pode ser anulada.'))return;
   contratos=contratos.filter(function(c){return (c.obra||'(sem obra)')!==nomeObra;});
+  /* [v254] tombstone das obras removidas, para o sincronismo não as recriar */
+  obrasReg.forEach(function(o){ if(((o._nomeOriginal||o.nome)===nomeObra || (o.num+' \u2014 '+o.nome)===nomeObra || o.nome===nomeObra) && obrasOcultasAutos.indexOf(String(o.num))<0) obrasOcultasAutos.push(String(o.num)); });
   obrasReg=obrasReg.filter(function(o){return (o._nomeOriginal||o.nome)!==nomeObra && (o.num+' \u2014 '+o.nome)!==nomeObra && o.nome!==nomeObra;});
   if(typeof logAudit==='function')logAudit('Obra eliminada',nomeObra+' ('+cts.length+' contratos)');
   guardar();renderObras();if(typeof renderContratos==='function')renderContratos();if(typeof renderTudo==='function')renderTudo();
@@ -2949,8 +2960,11 @@ function imprimirAuto(cid,aid,apenasComMedicao){
   const pz=document.getElementById('print-zone');pz.innerHTML=autoPrintDoc(c,au,apenasComMedicao);
   if(!valProducao(au)){ alert('Impressão / PDF bloqueada.\n\nO auto só pode ser impresso ou exportado para PDF depois de validado pela Direção de Produção (passo 2).\n\nPode visualizá-lo no ecrã e exportá-lo para Excel sem restrição.'); return; }
   if(autoExcedeContrato(c,au)&&!autoAdicionalAprovado(au)){ alert('Impressao bloqueada.\n\nEste auto inclui trabalho acima do contratado (adicional). Precisa de aprovacao de pelo menos 2 das 3 direcoes (Compras, Obra, Administracao) antes de imprimir.'); return; }
-  pz.style.display='block';document.body.classList.add('printing');avisoImpressaoUmaVez();window.print();
-  setTimeout(()=>{pz.innerHTML='';pz.style.display='none';document.body.classList.remove('printing');},300);
+  pz.style.display='block';document.body.classList.add('printing');avisoImpressaoUmaVez();
+  var _limpou=false; function _limpar(){ if(_limpou)return; _limpou=true; pz.innerHTML=''; pz.style.display='none'; document.body.classList.remove('printing'); }
+  try{ window.addEventListener('afterprint',function h(){ window.removeEventListener('afterprint',h); _limpar(); }); }catch(e){}
+  window.print();
+  setTimeout(_limpar,400); /* [v255] rede de segurança para voltar sempre à app */
 }
 // devolve o HTML (.pz-doc) de UM auto — para impressão isolada ou combinada
 function autoPrintDoc(c,au,apenasComMedicao){
@@ -3666,12 +3680,13 @@ function renderEmpresas(){
   if(tb){
     let lista=empresas.slice();
     if(filtro==='exec')lista=lista.filter(e=>!e.fornecedor);
-    else if(filtro==='forn')lista=lista.filter(e=>e.fornecedor&&e.tipoEntidade!=='subempreiteiro');
+    else if(filtro==='forn')lista=lista.filter(e=>e.fornecedor&&e.tipoEntidade!=='subempreiteiro'&&e.tipoEntidade!=='aluguer');
     else if(filtro==='sub')lista=lista.filter(e=>e.fornecedor&&e.tipoEntidade==='subempreiteiro');
+    else if(filtro==='alug')lista=lista.filter(e=>e.fornecedor&&e.tipoEntidade==='aluguer');
     if(!lista.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:18px">Sem empresas.</td></tr>';}
     else tb.innerHTML=lista.map(e=>{
       const logo=e.logo?`<img src="${e.logo}" style="max-height:34px;max-width:90px;object-fit:contain">`:'<span style="color:var(--muted)">—</span>';
-      const classe=e.fornecedor?(e.tipoEntidade==='subempreiteiro'?'<span style="color:var(--orange);font-weight:600">Subempreiteiro</span>':'<span style="color:var(--blue);font-weight:600">Fornecedor</span>'):'Não';
+      const classe=e.fornecedor?(e.tipoEntidade==='subempreiteiro'?'<span style="color:var(--orange);font-weight:600">Subempreiteiro</span>':(e.tipoEntidade==='aluguer'?'<span style="color:#92400e;font-weight:600">Aluguer</span>':'<span style="color:var(--blue);font-weight:600">Fornecedor</span>')):'Não';
       return `<tr>
         <td>${logo}</td>
         <td>${escEmp(e.nome)}</td>
@@ -3725,9 +3740,9 @@ function popularTiposFornBox(valores){
   var ordenados=tiposFornecedor.slice().sort(function(a,b){return a.localeCompare(b,'pt');});
   box.innerHTML=ordenados.map(function(t){
     var ck=valores.indexOf(t)>=0?' checked':'';
-    return '<label style="display:inline-flex;align-items:center;gap:5px;font-weight:400;white-space:nowrap"><input type="checkbox" class="emp-tf-ck" value="'+escEmp(t)+'"'+ck+'> '+escEmp(t)+'</label>';
+    return '<label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px;text-transform:none;letter-spacing:0;overflow:hidden;text-overflow:ellipsis"><input type="checkbox" class="emp-tf-ck" value="'+escEmp(t)+'"'+ck+' style="width:auto;flex:none"> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escEmp(t)+'</span></label>';
   }).join('');
-  valores.forEach(function(v){ if(tiposFornecedor.indexOf(v)<0){ box.insertAdjacentHTML('beforeend','<label style="display:inline-flex;align-items:center;gap:5px;font-weight:400;white-space:nowrap;color:#b45309"><input type="checkbox" class="emp-tf-ck" value="'+escEmp(v)+'" checked> '+escEmp(v)+'</label>'); } });
+  valores.forEach(function(v){ if(tiposFornecedor.indexOf(v)<0){ box.insertAdjacentHTML('beforeend','<label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px;text-transform:none;letter-spacing:0;color:#b45309"><input type="checkbox" class="emp-tf-ck" value="'+escEmp(v)+'" checked style="width:auto;flex:none"> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escEmp(v)+'</span></label>'); } });
 }
 function lerTiposFornBox(){
   return Array.prototype.slice.call(document.querySelectorAll('#emp-tipoforn-box .emp-tf-ck')).filter(function(c){return c.checked;}).map(function(c){return c.value;});
@@ -3775,7 +3790,7 @@ function abrirModalEmpresa(id){
     g('emp-localidade').value=e.localidade||'';g('emp-tel').value=e.telefone||'';
     g('emp-email').value=e.email||'';g('emp-ativa').checked=e.ativa!==false;
     g('emp-fornecedor').checked=!!e.fornecedor;
-    g('emp-classe').value=(e.tipoEntidade==='subempreiteiro')?'subempreiteiro':'fornecedor';
+    g('emp-classe').value=(e.tipoEntidade==='subempreiteiro')?'subempreiteiro':(e.tipoEntidade==='aluguer'?'aluguer':'fornecedor');
     popularTiposFornBox(tiposFornDeEmpresa(e));
     _logoTmp=e.logo||null;
   } else {
@@ -4430,6 +4445,16 @@ function previsualizarAuto(cid,aid,apenasComMedicao){
   pz.innerHTML=autoPrintDoc(c,au,apenasComMedicao);
   let bar=document.getElementById('previsao-bar');
   if(!bar){ bar=document.createElement('div'); bar.id='previsao-bar'; document.body.appendChild(bar); }
+  /* [v255] a barra era criada no body mas o estilo estava preso a "#autosmed-native #previsao-bar" —
+     ficava invisível atrás da pré-visualização e não havia forma de sair. Estilo global + tecla ESC. */
+  if(!document.getElementById('pv-bar-css')){
+    var _pvc=document.createElement('style'); _pvc.id='pv-bar-css';
+    _pvc.textContent='#previsao-bar{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a1a2e;color:#fff;padding:10px 16px;align-items:center;justify-content:space-between;gap:10px;font-size:13px;flex-wrap:wrap}'
+      +'body.previewing #previsao-bar{display:flex}'
+      +'@media print{#previsao-bar{display:none!important}}';
+    document.head.appendChild(_pvc);
+  }
+  if(!window.__pvEsc){ window.__pvEsc=true; document.addEventListener('keydown',function(e){ if((e.key==='Escape'||e.key==='Esc')&&document.body.classList.contains('previewing')){ try{fecharPrevisao();}catch(_){} } }); }
   const comAssin=(typeof utilizadores!=='undefined'?utilizadores:[]).filter(function(u){return u&&u.assinaturaImg;});
   bar.innerHTML='<span><i class="ti ti-eye"></i> Pré-visualização do auto n.º '+(au.numero||'')+(validado?'':' — <span style="color:#fbbf24"><i class=\'ti ti-lock\'></i> impressão/PDF disponível após validação da Direção de Produção</span>')+(_exc?(_apx?' — <span style="color:#34d399"><i class=\'ti ti-circle-check\'></i> adicional aprovado ('+_apN+'/2: '+_apQuem+')</span>':' — <span style="color:#fbbf24"><i class=\'ti ti-alert-triangle\'></i> adicional acima do contrato: '+_apN+'/2 aprovações'+(_apN?' ('+_apQuem+')':'')+' — faltam para imprimir</span>'):'')+'</span>'
     +'<span style="display:flex;gap:8px;align-items:center">'
@@ -4446,7 +4471,7 @@ let _pvZoom=1; let _pvModo=true;
 function _pvAplicar(){ try{document.body.style.setProperty('--pv-zoom',_pvZoom);}catch(e){} var l=document.getElementById('pv-zoom-lbl'); if(l)l.textContent=Math.round(_pvZoom*100)+'%'; }
 function pvZoom(d){ _pvZoom=Math.min(3.5,Math.max(0.4,Math.round((_pvZoom+d)*100)/100)); _pvAplicar(); }
 function pvZoomFit(){ var pz=document.getElementById('print-zone'); var f=pz&&pz.firstElementChild; if(!f)return; var w=f.getBoundingClientRect().width; var base=w/(_pvZoom||1); var disp=window.innerWidth-32; if(base>0){ _pvZoom=Math.min(3.5,Math.max(0.4,Math.round((disp/base)*100)/100)); _pvAplicar(); } }
-function fecharPrevisao(){ document.body.classList.remove('previewing'); var pz=document.getElementById('print-zone'); if(pz)pz.innerHTML=''; }
+function fecharPrevisao(){ document.body.classList.remove('previewing'); document.body.classList.remove('printing'); var pz=document.getElementById('print-zone'); if(pz){pz.innerHTML='';pz.style.display='';} }
 
 // ===== Assinaturas dos utilizadores =====
 function _assDetFundo(px,W,H){
@@ -4591,6 +4616,11 @@ try{ window.AutosNat.mudarUtilizador = mudarUtilizador; }catch(e){}
 try{ window.AutosNat.novoAutoDoRosto = novoAutoDoRosto; }catch(e){}
 try{ window.AutosNat.novoContratoParaObra = novoContratoParaObra; }catch(e){}
 try{ window.AutosNat.ocultarObraAutos = ocultarObraAutos; }catch(e){}
+try{ window.AutosNat.reporObraOculta = function(num){ /* [v254] criar a obra de novo no separador OBRAS limpa o tombstone */
+  try{ var i=obrasOcultasAutos.indexOf(String(num)); if(i>=0){ obrasOcultasAutos.splice(i,1); guardar(); } }catch(e){}
+  try{ _ultimoRawObras=null; puxarObrasDaApp(); }catch(e){}
+  try{ renderObras(); }catch(e){}
+}; }catch(e){}
 try{ window.AutosNat.onLogoSelected = onLogoSelected; }catch(e){}
 try{ window.AutosNat.onObrasFiltro = onObrasFiltro; }catch(e){}
 try{ window.AutosNat.posicionarDesc = posicionarDesc; }catch(e){}
@@ -4979,8 +5009,16 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <div class="section-title">Empresas</div>
     <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Empresas do grupo (as mesmas do módulo Autos de Medição — alterar aqui altera lá e vice-versa, sincronizado sempre). São usadas em toda a aplicação, incluindo nos contratos das Compras.</div>
     <div class="toolbar" style="margin-bottom:8px"><button class="btn primary" onclick="window.AutosNat.abrirModalEmpresa()"><i class="ti ti-plus"></i>Adicionar empresa</button></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th style="width:40px"></th><th>Nome</th><th>NIF</th><th>Morada</th><th>Telefone</th><th>Email</th><th style="text-align:center">Ativa</th><th></th></tr></thead>
+    <!-- [v254] separadores iguais aos dos Autos + tabela limitada a ~6 linhas com scroll -->
+    <div class="tabs-inner" id="emp-app-filtro-tabs" style="margin-bottom:8px">
+      <button class="tab-inner-btn active" data-f="" onclick="empAppFiltroTab('')">Todas</button>
+      <button class="tab-inner-btn" data-f="exec" onclick="empAppFiltroTab('exec')">Executantes</button>
+      <button class="tab-inner-btn" data-f="forn" onclick="empAppFiltroTab('forn')">Fornecedores</button>
+      <button class="tab-inner-btn" data-f="sub" onclick="empAppFiltroTab('sub')">Subempreiteiros</button>
+      <button class="tab-inner-btn" data-f="alug" onclick="empAppFiltroTab('alug')">Aluguer</button>
+    </div>
+    <div class="table-wrap" style="max-height:266px;overflow-y:auto"><table>
+      <thead style="position:sticky;top:0;z-index:2;background:#fff"><tr><th style="width:40px"></th><th>Nome</th><th>NIF</th><th>Morada</th><th>Telefone</th><th>Email</th><th style="text-align:center">Ativa</th><th></th></tr></thead>
       <tbody id="empresas-app-tbody"></tbody>
     </table></div>
   </div>
@@ -6552,7 +6590,10 @@ function carregarTudo(){
     if(Array.isArray(d.custosArquivo)){try{localStorage.setItem('custos_arquivo_v1',JSON.stringify(d.custosArquivo));custosArquivo=d.custosArquivo;}catch(e){}}
     if(d.navOrdem!=null){try{localStorage.setItem('navOrdem_v1',JSON.stringify(d.navOrdem));}catch(e){}}
     if(d.rhDepOrdem!=null){try{localStorage.setItem('rh_dep_ordem_v1',JSON.stringify(d.rhDepOrdem));}catch(e){}}
-    if(d.autos&&typeof d.autos==='object'){try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
+    if(d.autos&&typeof d.autos==='object'){
+      /* [v254] obras apagadas dos Autos ficam apagadas: unir os tombstones locais com os da cloud (uma versão antiga da cloud não pode ressuscitar a obra) */
+      try{var _locA=JSON.parse(localStorage.getItem('autosmed_store_v1')||'{}');var _uT={};(_locA.obrasOcultasAutos||[]).concat(d.autos.obrasOcultasAutos||[]).forEach(function(n){if(n!=null)_uT[String(n)]=1;});d.autos.obrasOcultasAutos=Object.keys(_uT);}catch(e){}
+      try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
     if(d.autosModulo&&typeof d.autosModulo==='object'){try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
     if(d.subautos&&typeof d.subautos==='object'){try{localStorage.setItem('subautos_v1',JSON.stringify(d.subautos));}catch(e){}}
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
@@ -6629,7 +6670,10 @@ function aplicarEstadoPartilhado(d){
     if(Array.isArray(d.custosArquivo)){try{localStorage.setItem('custos_arquivo_v1',JSON.stringify(d.custosArquivo));custosArquivo=d.custosArquivo;}catch(e){}}
     if(d.navOrdem!=null){try{localStorage.setItem('navOrdem_v1',JSON.stringify(d.navOrdem));}catch(e){}}
     if(d.rhDepOrdem!=null){try{localStorage.setItem('rh_dep_ordem_v1',JSON.stringify(d.rhDepOrdem));}catch(e){}}
-    if(d.autos&&typeof d.autos==='object'){try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
+    if(d.autos&&typeof d.autos==='object'){
+      /* [v254] obras apagadas dos Autos ficam apagadas: unir os tombstones locais com os da cloud (uma versão antiga da cloud não pode ressuscitar a obra) */
+      try{var _locA=JSON.parse(localStorage.getItem('autosmed_store_v1')||'{}');var _uT={};(_locA.obrasOcultasAutos||[]).concat(d.autos.obrasOcultasAutos||[]).forEach(function(n){if(n!=null)_uT[String(n)]=1;});d.autos.obrasOcultasAutos=Object.keys(_uT);}catch(e){}
+      try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
     if(d.autosModulo&&typeof d.autosModulo==='object'){try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
     if(d.subautos&&typeof d.subautos==='object'){try{localStorage.setItem('subautos_v1',JSON.stringify(d.subautos));}catch(e){}}
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
@@ -8329,12 +8373,28 @@ function _empGuardar(st){
 }
 function appEmpresas(){var st=_empStore();return Array.isArray(st.empresas)?st.empresas:[];}
 function appEmpresasAtivas(){return appEmpresas().filter(function(e){return e&&e.ativa!==false;});}
+var _empAppFiltro='';
+function empAppFiltroTab(f){
+  _empAppFiltro=f||'';
+  try{document.querySelectorAll('#emp-app-filtro-tabs .tab-inner-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-f')===_empAppFiltro);});}catch(e){}
+  renderEmpresasApp();
+}
 function renderEmpresasApp(){
   var tb=document.getElementById('empresas-app-tbody');if(!tb)return;
   var emps=appEmpresas();
   if(!emps.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">Sem empresas definidas. Use "Adicionar empresa".</td></tr>';return;}
+  /* [v254] filtro por tipo (como nos Autos), preservando o índice real para as edições */
+  var pares=emps.map(function(e,i){return {e:e,i:i};}).filter(function(p){
+    var e=p.e;
+    if(_empAppFiltro==='exec')return !e.fornecedor;
+    if(_empAppFiltro==='forn')return e.fornecedor&&e.tipoEntidade!=='subempreiteiro'&&e.tipoEntidade!=='aluguer';
+    if(_empAppFiltro==='sub')return e.fornecedor&&e.tipoEntidade==='subempreiteiro';
+    if(_empAppFiltro==='alug')return e.fornecedor&&e.tipoEntidade==='aluguer';
+    return true;
+  });
+  if(!pares.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">Sem empresas neste separador.</td></tr>';return;}
   var esc=function(t){return String(t||'').replace(/"/g,'&quot;');};
-  tb.innerHTML=emps.map(function(e,i){
+  tb.innerHTML=pares.map(function(par){var e=par.e,i=par.i;
     return '<tr>'+
       '<td style="text-align:center">'+(e.logo?'<img src="'+e.logo+'" style="width:28px;height:28px;object-fit:contain;border-radius:5px;border:1px solid var(--border)">':'<i class="ti ti-building" style="color:var(--muted)"></i>')+'</td>'+
       '<td><input type="text" value="'+esc(e.nome)+'" onchange="empCampo('+i+',\'nome\',this.value)" style="width:100%"></td>'+
@@ -11153,6 +11213,7 @@ function saveNovaObra(){
     else{
       const novo=Object.assign({num:num,gastosGerais:0,mesesPassados:0,mesesMensais:[],trabMaisHist:[],errosHist:[]},dados);
       ensureFin(novo);novo.gastosGerais=(novo.custos||0)*gg;obras.push(novo);
+      try{ if(window.AutosNat&&typeof window.AutosNat.reporObraOculta==='function')window.AutosNat.reporObraOculta(num); }catch(e){} /* [v254] criação volta a sincronizar com os Autos */
     }
   }
   _editObraNumOrig=null;
@@ -15099,6 +15160,13 @@ function _uiHidratarUtilizador(){ // escreve as prefs do utilizador atual nas ch
     for(var k in p){ if(Object.prototype.hasOwnProperty.call(p,k)){ try{localStorage.setItem(k+'::'+u, p[k]);}catch(e){} } }
     try{if(typeof aplicarZoom==='function')aplicarZoom();}catch(e){}
   }catch(e){}
+  /* [v254] BUG: larguras/ordem/visibilidade de colunas eram lidas ANTES do login (chave global),
+     por isso as gravações por utilizador nunca eram carregadas. Recarregar agora, já com sessão. */
+  try{ colLarguras=JSON.parse(uiLer('colLarguras_v1')||'{}')||{}; }catch(e){}
+  try{ colOrdemGen=JSON.parse(uiLer('colOrdemGen_v1')||'{}')||{}; }catch(e){}
+  try{ if(typeof carregarColPrefs==='function')carregarColPrefs(); }catch(e){}
+  try{ if(typeof carregarConfigGraficos==='function'){ dashCharts=null; carregarConfigGraficos(); if(typeof aplicarConfigGraficos==='function')aplicarConfigGraficos(); } }catch(e){}
+  try{ setTimeout(function(){ try{ativarArrastoColunas(document);}catch(e){} },250); }catch(e){}
 }
 function uiLer(chave){try{var v=localStorage.getItem(chave+_uSuf());if(v==null)v=localStorage.getItem(chave);
   if(v==null){ var u=_uiUser(); if(u){ var m=_uiPrefsMap(); if(m[u]&&m[u][chave]!=null)v=m[u][chave]; } }
@@ -15211,7 +15279,11 @@ function infoTabelaArrasto(table){
   for(const ch in COL_TABELAS){ if(tabelaDe(ch)===table) return {tipo:'pref',chave:ch}; }
   const tb=table.querySelector('tbody');
   let key=table.getAttribute('data-colkey')||table.id||(tb&&tb.id);
-  if(!key){ key='tbl_'+Math.random().toString(36).slice(2,8); }
+  if(!key){ /* [v254] chave DETERMINÍSTICA (antes era aleatória → larguras das tabelas dos Autos perdiam-se a cada arranque) */
+    let cont=table.closest('[id]');
+    let ths=Array.from(table.querySelectorAll('thead th')).slice(0,4).map(t=>String(t.textContent||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'')).join('-');
+    key='tbl_'+((cont&&cont.id)||'x')+'_'+(ths||'semcab');
+  }
   table.setAttribute('data-colkey',key);
   return {tipo:'gen',chave:key};
 }
@@ -18789,9 +18861,9 @@ function _abrirImpressao(titulo,sub,tabela){
   var quem=''; try{var ss=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'{}');quem=ss.nome||'';}catch(e){}
   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+titulo+'</title><style>'+_PCSS+'</style></head><body>'
     +'<div class="pcab">'
-    +'<div class="pmarca">S&Aacute; MACHADO<small>&amp; FILHOS, S.A.</small></div>'
+    +'<div>'+(function(){try{var emps=(typeof appEmpresas==='function')?appEmpresas():[];var e=(emps||[]).find(function(x){return x&&x.logo;});if(e&&e.logo)return '<img src="'+e.logo+'" style="max-height:40px;max-width:160px;object-fit:contain" alt="Sá Machado">';}catch(e){}return '<span class="pmarca">S&Aacute; MACHADO</span>';})()+'</div>'
     +'<div class="ptit">'+titulo+'</div>'
-    +'<div class="pdt"><b>'+dt+'</b>Controlo de Custos</div>'
+    +'<div class="pdt"><b>'+dt+'</b></div>'
     +'</div>'
     +(sub?'<p class="sub">'+sub+'</p>':'')
     +tabela
@@ -20081,11 +20153,19 @@ try{
    +'.num,td[style*="text-align:right"],th[style*="text-align:right"],td[style*="text-align: right"]{text-align:right}'
    +'.rodape{margin-top:12px;border-top:1px solid #d5dbe3;padding-top:5px;font-size:8.5px;color:#8a919b;display:flex;justify-content:space-between}'
    +'@media print{@page{size:A4 portrait;margin:10mm}body{padding:0}.quadro{border-color:#c9d0d9}}';
+  function logoEmpresa(){
+    try{
+      var emps=(typeof appEmpresas==='function')?appEmpresas():[];
+      var e=(emps||[]).find(function(x){return x&&x.logo;});
+      if(e&&e.logo)return '<img src="'+e.logo+'" style="max-height:42px;max-width:170px;object-fit:contain" alt="Sá Machado">';
+    }catch(e){}
+    return '<span class="marca">S&Aacute; MACHADO</span>';
+  }
   function cabecalho(titulo,filtros){
     return '<div class="cab">'
-      +'<div class="marca">S&Aacute; MACHADO<small>&amp; FILHOS, S.A.</small></div>'
+      +'<div>'+logoEmpresa()+'</div>'
       +'<div class="tit">'+esc(titulo)+'</div>'
-      +'<div class="dt"><b>'+dataPt()+'</b>Controlo de Custos</div>'
+      +'<div class="dt"><b>'+dataPt()+'</b></div>'
       +'</div>'
       +(filtros?'<div class="filtros">Filtros: '+esc(filtros)+'</div>':'');
   }
