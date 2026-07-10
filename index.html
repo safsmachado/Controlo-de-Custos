@@ -172,6 +172,13 @@ td{padding:7px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;vertical-
 tr:last-child td{border-bottom:none}
 tr.loss td{background:#fef5f5}
 tr.loss td.val{color:var(--red)}
+/* [v257] cor da linha pela situação do prazo (sobrepõe-se ao fundo do "loss"; a margem continua a cores nos valores) */
+tr.prazo-ok>td{background:#e9f7ee!important}
+tr.prazo-exc>td{background:#fdeaea!important}
+tr.prazo-pror>td{background:#fdf6dd!important}
+tr.prazo-ok:hover>td{background:#ddf0e5!important}
+tr.prazo-exc:hover>td{background:#f8dddd!important}
+tr.prazo-pror:hover>td{background:#f7eecb!important}
 tr:hover td{background:#F6F8FA}
 /* BADGES */
 .badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700}
@@ -246,9 +253,10 @@ table td{vertical-align:middle}
 .alert.err{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
 .alert.ok{background:#dcfce7;color:#166534;border:1px solid #86efac}
 .status-select{font-size:11px;padding:3px 8px;border-radius:99px;border:1px solid var(--border);background:#f9fafb;cursor:pointer;color:var(--text)}
-.desvio-pos{background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
+.desvio-pos{background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
 .desvio-neg{background:#dcfce7;color:#166534;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
 .desvio-zero{background:#f3f4f6;color:#555;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
+.desvio-pror{background:#fde68a;color:#78350f;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
 .tabs-inner{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:0}
 .tab-inner-btn{padding:7px 14px;font-size:12px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-weight:500;margin-bottom:-1px}
 .tab-inner-btn.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:700}
@@ -375,7 +383,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v255</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v258</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -1019,6 +1027,8 @@ function _obraNumDe(str){
   if(o) return String(o.num);
   var m=str.match(/^\s*([A-Za-z0-9.\-\/]+)\s*(?:\u2014|-)/);
   if(m&&(obrasReg||[]).some(function(x){return String(x.num)===String(m[1]);})) return String(m[1]);
+  /* [v256] a obra pode existir só na app principal (ex.: removida dos Autos) */
+  if(m){ try{ var _dA=JSON.parse(localStorage.getItem('controloObras_v4')||'{}'); if(((_dA&&_dA.obras)||[]).some(function(x){return x&&String(x.num)===String(m[1]);})) return String(m[1]); }catch(e){} }
   return '';
 }
 function curarIdentidadeObras(){
@@ -1220,6 +1230,7 @@ function carregar(){try{
   const d=JSON.parse(s);
   if(Array.isArray(d)){contratos=d;} // formato antigo (v1)
   else{contratos=d.contratos||[];obrasReg=d.obrasReg||[];if(d.tiposObra)tiposObra=d.tiposObra;if(d.tiposCliente)tiposCliente=d.tiposCliente;if(d.tiposFornecedor&&d.tiposFornecedor.length)tiposFornecedor=d.tiposFornecedor;if(d.utilizadores)utilizadores=d.utilizadores;auditoria=d.auditoria||[];utilizadorAtual=d.utilizadorAtual||'u_admin';empresas=d.empresas||[];obrasOcultasAutos=d.obrasOcultasAutos||[];}
+  try{ if(Array.isArray(obrasReg)&&Array.isArray(obrasOcultasAutos)&&obrasOcultasAutos.length){ obrasReg=obrasReg.filter(function(o){return o&&obrasOcultasAutos.indexOf(String(o.num))<0;}); } }catch(e){} /* [v256] tombstones aplicados sempre ao carregar */
   migrarEmpresas();
   try{ if(typeof window.appEmpresas==='function'){ var _appE=window.appEmpresas(); if(_appE&&_appE.length){ empresas=_appE; migrarEmpresas(); } } }catch(e){}
   try{ if(window.tiposObra&&window.tiposObra.length) tiposObra=window.tiposObra.slice(); if(window.tiposCliente&&window.tiposCliente.length) tiposCliente=window.tiposCliente.slice(); }catch(e){}
@@ -1449,7 +1460,7 @@ function abrirModalContrato(id){
     document.getElementById('modal-ct-title').textContent='Editar contrato';
     document.getElementById('ct-tipo').value=c.tipo;
     document.getElementById('ct-ref').value=c.ref||'';
-    popularSelectObras(c.obra||'');
+    popularSelectObrasContrato(c.obra||''); /* [v256] antes chamava a função errada (homónima) e o selector ficava vazio */
     document.getElementById('ct-entidade').value=c.entidade||'';
     popularSelectEmpresas('ct-empresa', c.empresaId||(empresas[0]&&empresas[0].id));
     document.getElementById('ct-data').value=c.data||'';
@@ -1461,7 +1472,7 @@ function abrirModalContrato(id){
   } else {
     document.getElementById('modal-ct-title').textContent='Novo Contrato';
     ['ct-ref','ct-entidade','ct-obs'].forEach(i=>document.getElementById(i).value='');
-    popularSelectObras('');
+    popularSelectObrasContrato('');
     document.getElementById('ct-tipo').value='sub';
     document.getElementById('ct-data').value=new Date().toISOString().slice(0,10);
     document.getElementById('ct-valor').value='';
@@ -1494,6 +1505,15 @@ function saveContrato(){
     Object.assign(c,data);
   } else {
     contratos.push(Object.assign({id:uid(),artigos:[],autos:[]},data));
+  }
+  /* [v256] associar uma obra ao contrato garante que ela existe nos Autos e deixa de estar oculta */
+  if(data.obra){
+    try{
+      var _numO=data.obraNum||(function(){var mm=String(data.obra).match(/^\s*([A-Za-z0-9.\-\/]+)/);return mm?mm[1]:'';})();
+      if(_numO){ var _iT=obrasOcultasAutos.indexOf(String(_numO)); if(_iT>=0)obrasOcultasAutos.splice(_iT,1); }
+      garantirObraReg(data.obra);
+      try{_ultimoRawObras=null;puxarObrasDaApp();}catch(e){}
+    }catch(e){}
   }
   garantirEmpresaFornecedor(data.entidade,data.tipo);
   guardar();closeModal('modal-contrato');renderTudo();
@@ -2308,14 +2328,24 @@ function obrasUnicas(){
 // ══════════════════════════════════════════════════════════════
 // GESTÃO DE OBRAS (formulário idêntico ao Controlo de Obras v19)
 // ══════════════════════════════════════════════════════════════
-function popularSelectObras(valorAtual){
+function popularSelectObrasContrato(valorAtual){
   const sel=document.getElementById('ct-obra');if(!sel)return;
-  const opts=obrasReg.map(o=>{
+  /* [v256] juntar as obras da app principal (controloObras_v4) às dos Autos — o selector estava vazio
+     quando a obra ainda não existia (ou tinha sido removida) no registo dos Autos */
+  let listaSel=obrasReg.slice();
+  try{
+    var _dApp=JSON.parse(localStorage.getItem('controloObras_v4')||'{}');
+    ((_dApp&&_dApp.obras)||[]).forEach(function(o){
+      if(o&&o.num&&!o.arquivada&&!listaSel.some(function(x){return String(x.num)===String(o.num);}))listaSel.push({num:o.num,nome:o.nome||String(o.num)});
+    });
+  }catch(e){}
+  listaSel.sort(function(a,b){return String(a.num).localeCompare(String(b.num),'pt',{numeric:true});});
+  const opts=listaSel.map(o=>{
     const v=o._nomeOriginal||(o.num+' — '+o.nome);
     return `<option value="${v.replace(/"/g,'&quot;')}">${o.num} — ${o.nome}</option>`;
   });
   // se o contrato tem uma obra que não está na lista, acrescenta-a
-  if(valorAtual && !obrasReg.some(o=>(o._nomeOriginal||(o.num+' — '+o.nome))===valorAtual)){
+  if(valorAtual && !listaSel.some(o=>(o._nomeOriginal||(o.num+' — '+o.nome))===valorAtual)){
     opts.unshift(`<option value="${String(valorAtual).replace(/"/g,'&quot;')}">${valorAtual}</option>`);
   }
   sel.innerHTML='<option value="">— selecione a obra —</option>'+opts.join('');
@@ -2601,7 +2631,7 @@ function novoContratoParaObra(num){
     var nomeObra=o?(o._nomeOriginal||(o.num+' — '+o.nome)):'';
     abrirModalContrato(); // abre o formulario de NOVO contrato
     // pre-seleciona a obra importada da app
-    try{ popularSelectObras(nomeObra); var sel=document.getElementById('ct-obra'); if(sel) sel.value=nomeObra; }catch(e){}
+    try{ popularSelectObrasContrato(nomeObra); var sel=document.getElementById('ct-obra'); if(sel) sel.value=nomeObra; }catch(e){}
   }catch(e){ alert('Nao foi possivel abrir o formulario de contrato: '+e.message); }
 }
 function irContratoAutos(cid){
@@ -5958,6 +5988,8 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <div class="form-group"><label>GG / Estaleiro (%)</label><input type="number" id="nf-estaleiro" step="0.01" placeholder="5"></div>
       <div class="form-group"><label>Custos acum. (€)</label><input type="number" id="nf-custos" placeholder="0"></div>
       <div class="form-group"><label>Autos acum. (€)</label><input type="number" id="nf-autos" placeholder="0"></div>
+      <div class="form-section">Observações</div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="nf-obs" rows="3" placeholder="Notas internas sobre a obra (condições, alertas, histórico...)" style="resize:vertical"></textarea></div>
       <div class="form-section">Documentos</div>
       <div class="form-group"><label>Lista de Quantidades (Excel) — vai para os Autos</label><input type="file" id="nf-lista-qtd" accept=".xlsx,.xls,.csv" onchange="nfCarregarLista(this)"><div id="nf-lista-info" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
       <div class="form-group"><label>Contrato (PDF)</label><input type="file" id="nf-contrato-pdf" accept=".pdf" onchange="nfCarregarPdf(this)"><div id="nf-pdf-info" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
@@ -6594,7 +6626,15 @@ function carregarTudo(){
       /* [v254] obras apagadas dos Autos ficam apagadas: unir os tombstones locais com os da cloud (uma versão antiga da cloud não pode ressuscitar a obra) */
       try{var _locA=JSON.parse(localStorage.getItem('autosmed_store_v1')||'{}');var _uT={};(_locA.obrasOcultasAutos||[]).concat(d.autos.obrasOcultasAutos||[]).forEach(function(n){if(n!=null)_uT[String(n)]=1;});d.autos.obrasOcultasAutos=Object.keys(_uT);}catch(e){}
       try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
-    if(d.autosModulo&&typeof d.autosModulo==='object'){try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
+    if(d.autosModulo&&typeof d.autosModulo==='object'){
+      /* [v256] obras apagadas dos Autos ficam apagadas: unir tombstones locais+cloud e expulsar essas obras do obrasReg vindo da cloud */
+      try{
+        var _locM=JSON.parse(localStorage.getItem('modulo_autos_v1')||'{}');
+        var _uM={};(_locM.obrasOcultasAutos||[]).concat(d.autosModulo.obrasOcultasAutos||[]).forEach(function(n){if(n!=null)_uM[String(n)]=1;});
+        d.autosModulo.obrasOcultasAutos=Object.keys(_uM);
+        if(Array.isArray(d.autosModulo.obrasReg))d.autosModulo.obrasReg=d.autosModulo.obrasReg.filter(function(o){return o&&!_uM[String(o.num)];});
+      }catch(e){}
+      try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
     if(d.subautos&&typeof d.subautos==='object'){try{localStorage.setItem('subautos_v1',JSON.stringify(d.subautos));}catch(e){}}
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
     if(d.prazos&&typeof d.prazos==='object'){try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(d.prazos));}catch(e){}}
@@ -6674,7 +6714,15 @@ function aplicarEstadoPartilhado(d){
       /* [v254] obras apagadas dos Autos ficam apagadas: unir os tombstones locais com os da cloud (uma versão antiga da cloud não pode ressuscitar a obra) */
       try{var _locA=JSON.parse(localStorage.getItem('autosmed_store_v1')||'{}');var _uT={};(_locA.obrasOcultasAutos||[]).concat(d.autos.obrasOcultasAutos||[]).forEach(function(n){if(n!=null)_uT[String(n)]=1;});d.autos.obrasOcultasAutos=Object.keys(_uT);}catch(e){}
       try{localStorage.setItem('autosmed_store_v1',JSON.stringify(d.autos));}catch(e){} try{var _fa=document.getElementById('frame-autosmed'); if(_fa&&_fa.contentWindow&&_fa.contentWindow.__autosPronto)_fa.contentWindow.postMessage({tipo:'autosmed:data',valor:JSON.stringify(d.autos)},'*');}catch(e){}}
-    if(d.autosModulo&&typeof d.autosModulo==='object'){try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
+    if(d.autosModulo&&typeof d.autosModulo==='object'){
+      /* [v256] obras apagadas dos Autos ficam apagadas: unir tombstones locais+cloud e expulsar essas obras do obrasReg vindo da cloud */
+      try{
+        var _locM=JSON.parse(localStorage.getItem('modulo_autos_v1')||'{}');
+        var _uM={};(_locM.obrasOcultasAutos||[]).concat(d.autosModulo.obrasOcultasAutos||[]).forEach(function(n){if(n!=null)_uM[String(n)]=1;});
+        d.autosModulo.obrasOcultasAutos=Object.keys(_uM);
+        if(Array.isArray(d.autosModulo.obrasReg))d.autosModulo.obrasReg=d.autosModulo.obrasReg.filter(function(o){return o&&!_uM[String(o.num)];});
+      }catch(e){}
+      try{localStorage.setItem('modulo_autos_v1',JSON.stringify(d.autosModulo));}catch(e){} try{if(window.AutosNat&&window.AutosNat.carregar){window.AutosNat.carregar();if(window.AutosNat.renderTudo)window.AutosNat.renderTudo();}}catch(e){}}
     if(d.subautos&&typeof d.subautos==='object'){try{localStorage.setItem('subautos_v1',JSON.stringify(d.subautos));}catch(e){}}
     if(Array.isArray(d.fechos)){try{localStorage.setItem('fechosMensais_v1',JSON.stringify(d.fechos));}catch(e){}}
     if(d.prazos&&typeof d.prazos==='object'){try{localStorage.setItem('prazos_fornecedor_v1',JSON.stringify(d.prazos));}catch(e){}}
@@ -7094,7 +7142,28 @@ function liquidezObra(o){
   // fallback: faturação líquida estimada pelos autos - custos
   return o.autos-(o.custos+o.gastosGerais);
 }
-function desvioMeses(o){return(o.prazoAtualMeses||o.prazoMeses)-(o.prazoMeses||0);}
+/* [v257] meses decorridos desde a consignação até HOJE (meses completos); sem consignação usa o.mesesPassados */
+function mesesDecorridos(o){
+  try{
+    var sD=String(o.consignacao||'').slice(0,10);
+    if(sD){ var d=new Date(sD);
+      if(!isNaN(d)){ var h=new Date(); var m=(h.getFullYear()-d.getFullYear())*12+(h.getMonth()-d.getMonth()); if(h.getDate()<d.getDate())m--; return Math.max(0,m); } }
+  }catch(e){}
+  return +o.mesesPassados||0;
+}
+/* [v257] desvio de prazo = meses decorridos até ao presente − prazo INICIAL da obra (aparece sempre, mesmo negativo).
+   A prorrogação NÃO mexe neste cálculo — apenas muda a cor da linha para amarelo quando compensa o desvio. */
+function desvioMeses(o){ return mesesDecorridos(o)-(+o.prazoMeses||0); }
+/* cor da linha na lista de obras: verde = dentro do prazo inicial; vermelho = excedido; amarelo = excedido mas coberto por prorrogação */
+function prazoClasseObra(o){
+  var ativa=(o.estado==='Em Curso'||o.estado==='Adjudicada'||o.estado==='Adjudicado');
+  if(!ativa)return '';
+  var desv=desvioMeses(o);
+  if(desv<=0)return 'prazo-ok';
+  var pIni=+o.prazoMeses||0, pAtu=+o.prazoAtualMeses||pIni;
+  if(pAtu>pIni && mesesDecorridos(o)<=pAtu)return 'prazo-pror';
+  return 'prazo-exc';
+}
 function estadoBadge(e){
   const m={'Em Curso':'em-curso','Adjudicado':'em-curso','Concluída':'concluida','Suspensa':'suspensa','Pós-Venda':'pos-venda','Cancelada':'cancelada'};
   return`<span class="badge ${m[e]||''}">${e}</span>`;
@@ -10230,17 +10299,19 @@ function renderObrasTable(list){
         }
         const loss=m<0;
         const pActual=o.prazoAtualMeses||o.prazoMeses;
-        const over=o.mesesPassados>pActual;
-        const desv=desvioMeses(o);
-        const prazTxt=`${pActual}m${over?` <span style="color:var(--red);font-size:10px">(+${o.mesesPassados-pActual}m)</span>`:''}`;
+        const mDec=(typeof mesesDecorridos==='function')?mesesDecorridos(o):(o.mesesPassados||0);
+        const over=mDec>pActual;
+        const desv=desvioMeses(o); /* [v257] meses decorridos − prazo inicial (sempre visível) */
+        const pcl=(typeof prazoClasseObra==='function')?prazoClasseObra(o):'';
+        const prazTxt=`${o.prazoMeses||0}m${(o.prazoAtualMeses&&o.prazoAtualMeses!==o.prazoMeses)?` <span style="color:#92400e;font-size:10px" title="Prorrogação: prazo atualizado">(→${o.prazoAtualMeses}m)</span>`:''}${over?` <span style="color:var(--red);font-size:10px">(+${mDec-pActual}m além do atual)</span>`:''}`;
         let desvTxt='';
-        if(desv>0) desvTxt=`<span class="desvio-pos">+${desv}m</span>`;
-        else if(desv<0) desvTxt=`<span class="desvio-neg">${desv}m</span>`;
-        else desvTxt=`<span class="desvio-zero">0m</span>`;
+        if(desv>0) desvTxt=`<span class="${pcl==='prazo-pror'?'desvio-pror':'desvio-pos'}" title="Meses decorridos (${mDec}m) − prazo inicial (${o.prazoMeses||0}m)${pcl==='prazo-pror'?' — coberto pela prorrogação':''}">+${desv}m</span>`;
+        else if(desv<0) desvTxt=`<span class="desvio-neg" title="Ainda dentro do prazo inicial: decorridos ${mDec}m de ${o.prazoMeses||0}m">${desv}m</span>`;
+        else desvTxt=`<span class="desvio-zero" title="No limite do prazo inicial">0m</span>`;
 
-        html += `<tr class="${loss?'loss':''}" style="cursor:pointer;border-left:3px solid ${st.cor}44" onclick="openObra('${o.num}')">
+        html += `<tr class="${loss?'loss ':''}${pcl}" style="cursor:pointer;border-left:3px solid ${st.cor}44" onclick="openObra('${o.num}')">
           <td style="width:48px;max-width:48px;overflow:hidden;padding-left:6px;padding-right:2px;cursor:text" ondblclick="editObraCodigo(event,'${o.num}')" onclick="event.stopPropagation()" title="Duplo-clique para editar o código"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40px">${o.num}</strong></td>
-          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;cursor:text;text-align:left" ondblclick="editObraNomeLocal(event,'${o.num}')" onclick="event.stopPropagation()" title="Duplo-clique para editar designação / localidade">${o.nome}${o.localidade?`<div style="font-size:10px;color:var(--muted)"><i class="ti ti-map-pin" style="font-size:9px"></i> ${o.localidade}</div>`:''}</td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;cursor:text;text-align:left" ondblclick="editObraNomeLocal(event,'${o.num}')" onclick="event.stopPropagation()" title="Duplo-clique para editar designação / localidade">${o.nome}${o.obs?` <i class="ti ti-note" style="color:var(--orange);font-size:11px" title="${String(o.obs).replace(/"/g,'&quot;').replace(/</g,'&lt;').substring(0,300)}"></i>`:''}${o.localidade?`<div style="font-size:10px;color:var(--muted)"><i class="ti ti-map-pin" style="font-size:9px"></i> ${o.localidade}</div>`:''}</td>
           <td onclick="event.stopPropagation()"><select onchange="setObraTipoInline('${o.num}',this.value)" style="width:100%;max-width:130px;border:1px solid var(--border);background:#fff;font-size:10.5px;color:var(--text);padding:3px 4px;border-radius:6px;cursor:pointer">${_optsObraSel(tiposObra,o.tipoObra)}</select></td>
           <td onclick="event.stopPropagation()"><select onchange="setObraClienteInline('${o.num}',this.value)" style="width:100%;max-width:130px;border:1px solid var(--border);background:#fff;font-size:10.5px;color:var(--text);padding:3px 4px;border-radius:6px;cursor:pointer">${_optsObraSel(tiposCliente,o.tipoCliente)}</select></td>
           <td onclick="event.stopPropagation()">
@@ -10480,8 +10551,9 @@ function openObra(num){
         <table style="font-size:12px;width:100%">
           <tr><td style="color:var(--muted);padding:3px 0">Prazo inicial</td><td style="font-weight:600">${o.prazoMeses} meses</td></tr>
           <tr><td style="color:var(--muted);padding:3px 0">Prazo atualizado</td><td style="font-weight:600">${o.prazoAtualMeses||o.prazoMeses} meses</td></tr>
-          <tr><td style="color:var(--muted);padding:3px 0">Meses decorridos</td><td style="font-weight:600">${o.mesesPassados} meses</td></tr>
+          <tr><td style="color:var(--muted);padding:3px 0">Meses decorridos</td><td style="font-weight:600">${mesesDecorridos(o)} meses</td></tr>
           <tr><td style="color:var(--muted);padding:3px 0">Desvio de prazo</td><td>${desvioMeses(o)>0?`<span class="desvio-pos">+${desvioMeses(o)} m</span>`:desvioMeses(o)<0?`<span class="desvio-neg">${desvioMeses(o)} m</span>`:`<span class="desvio-zero">0 m</span>`}</td></tr>
+          ${o.obs?`<tr><td style="color:var(--muted);padding:3px 0;vertical-align:top">Observações</td><td style="white-space:pre-wrap">${String(o.obs).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr>`:''}
         </table>
       </div>
       <div>
@@ -11067,7 +11139,7 @@ function indicesObra(o){
   const cpi=ct>0?ev/ct:null;                 // eficiência de custo
   // SPI: avanço físico vs tempo decorrido
   const pAtual=o.prazoAtualMeses||o.prazoMeses||0;
-  const pctTempo=pAtual>0?Math.min((o.mesesPassados||0)/pAtual,1.5):0;
+  const pctTempo=pAtual>0?Math.min(mesesDecorridos(o)/pAtual,1.5):0;
   const pctFisico=orc>0?Math.min(ct/orc,1.5):pctExec(o);
   const spi=pctTempo>0?pctFisico/pctTempo:null;
   return {ev,cpi,spi,pctTempo,pctFisico};
@@ -11107,6 +11179,7 @@ function abrirModalNovaObra(){
   document.getElementById('nf-custos').value='0';
   document.getElementById('nf-autos').value='0';
   document.getElementById('nf-data').value=new Date().toISOString().split('T')[0];
+  {const ob=document.getElementById('nf-obs');if(ob)ob.value='';} /* [v258] */
   document.getElementById('nf-num').disabled=false;
   _editObraNumOrig=null;
   populateSelects();
@@ -11139,6 +11212,7 @@ function abrirEditarObra(num){
   document.getElementById('nf-autos').value=o.autos||0;
   document.getElementById('nf-data').value=o.consignacao||'';
   document.getElementById('nf-estado').value=o.estado||'Em Curso';
+  {const ob=document.getElementById('nf-obs');if(ob)ob.value=o.obs||'';} /* [v258] */
   populateSelects();
   setTimeout(()=>{
     if(document.getElementById('nf-tipo-obra'))document.getElementById('nf-tipo-obra').value=o.tipoObra||tiposObra[0];
@@ -11183,6 +11257,7 @@ function saveNovaObra(){
     prazoAtualMeses:+document.getElementById('nf-prazo-atual').value||12,
     prazoRecebimento:+document.getElementById('nf-prazoReceb').value||0,
     consignacao:document.getElementById('nf-data').value,
+    obs:(document.getElementById('nf-obs')?document.getElementById('nf-obs').value.trim():''), /* [v258] observações */
     estaleiroPct:estaleiroPct,
   };
   if(_nfListaB64!==null){dados.listaQtdB64=_nfListaB64;dados.listaQtdNome=_nfListaNome;}
@@ -11417,7 +11492,7 @@ function renderOpIndicators(){
   const ativasN=obras.filter(o=>o.estado==='Em Curso').length;
   const concl=obras.filter(o=>o.estado==='Concluída').length;
   const prej=obras.filter(o=>margem(o)<0).length;
-  const prazEx=obras.filter(o=>o.mesesPassados>(o.prazoAtualMeses||o.prazoMeses)).length;
+  const prazEx=obras.filter(o=>mesesDecorridos(o)>(o.prazoAtualMeses||o.prazoMeses)).length;
   const comTM=obras.filter(o=>(o.trabalhosMais||0)>0).length;
   const el=document.getElementById('op-indicators');
   if(el)el.innerHTML=`
@@ -11439,9 +11514,10 @@ function calcularAlertasGlobais(){
     if(m<0) av.push({n:'err',o,t:`margem negativa (${fmt(m,0)}€)`});
     if(orc>0&&ct>orc*1.001) av.push({n:'err',o,t:`custo acima do orçamento (${fmtPct(ct/orc)} do previsto)`});
     if(pe>1.001) av.push({n:'warn',o,t:`faturação acima do valor contratado (${fmtPct(pe)})`});
-    if(o.mesesPassados>pAtual) av.push({n:'warn',o,t:`prazo excedido (+${o.mesesPassados-pAtual} meses)`});
-    else if(pAtual>0&&(pAtual-o.mesesPassados)===1) av.push({n:'warn',o,t:'prazo termina no próximo mês'});
-    else if(pAtual>0&&(pAtual-o.mesesPassados)===2) av.push({n:'info',o,t:'prazo termina em 2 meses'});
+    const _mDec=mesesDecorridos(o);
+    if(_mDec>pAtual) av.push({n:'warn',o,t:`prazo excedido (+${_mDec-pAtual} meses)`});
+    else if(pAtual>0&&(pAtual-_mDec)===1) av.push({n:'warn',o,t:'prazo termina no próximo mês'});
+    else if(pAtual>0&&(pAtual-_mDec)===2) av.push({n:'info',o,t:'prazo termina em 2 meses'});
     const liq=liquidezObra(o);
     if(liq<0) av.push({n:'warn',o,t:`liquidez negativa (${fmt(liq,0)}€)`});
     if(o.trabMaisPendente>0) av.push({n:'info',o,t:`trabalhos a mais por aprovar (${fmt(o.trabMaisPendente,0)}€)`});
@@ -11473,7 +11549,7 @@ function renderResumoExecutivo(){
     if(m<0)motivos.push('margem '+fmt(m,0)+'€');
     var liq=liquidezObra(o); if(liq<0)motivos.push('liquidez '+fmt(liq,0)+'€');
     if(pctExec(o)>1.001)motivos.push('sobre-faturada');
-    var pAtual=o.prazoAtualMeses||o.prazoMeses; if(pAtual&&o.mesesPassados>pAtual)motivos.push('prazo +'+(o.mesesPassados-pAtual)+'m');
+    var pAtual=o.prazoAtualMeses||o.prazoMeses; var _mD=mesesDecorridos(o); if(pAtual&&_mD>pAtual)motivos.push('prazo +'+(_mD-pAtual)+'m');
     if(motivos.length)risco.push({o:o,m:m,motivos:motivos});
   });
   risco.sort(function(a,b){return a.m-b.m;});
@@ -11644,7 +11720,7 @@ function renderDashboard(){
   const ativasN=obras.filter(o=>o.estado==='Em Curso').length;
   const concl=obras.filter(o=>o.estado==='Concluída').length;
   const prej=obras.filter(o=>margem(o)<0).length;
-  const prazEx=obras.filter(o=>o.mesesPassados>(o.prazoAtualMeses||o.prazoMeses)).length;
+  const prazEx=obras.filter(o=>mesesDecorridos(o)>(o.prazoAtualMeses||o.prazoMeses)).length;
   const comTM=obras.filter(o=>(o.trabalhosMais||0)>0).length;
   const liqNeg=obras.filter(o=>{const f=finObra(o);return f.temDados&&f.liquidez<0;}).length;
   const retElevada=obras.filter(o=>{const f=finObra(o);return f.temDados&&f.base>0&&(f.retido/f.base)>0.075;}).length;
@@ -11815,7 +11891,7 @@ function renderRelatorio(){
         <td style="text-align:right;font-weight:700;color:${pe>=1?'var(--green)':pe>=0.7?'var(--orange)':'var(--blue)'}">${fmtPct(pe)}</td>
         <td>${o.prazoMeses} m</td>
         <td>${o.prazoAtualMeses||o.prazoMeses} m</td>
-        <td>${o.mesesPassados} m</td>
+        <td>${mesesDecorridos(o)} m</td>
         <td>${desv>0?`<span class="desvio-pos">+${desv}m</span>`:desv<0?`<span class="desvio-neg">${desv}m</span>`:`<span class="desvio-zero">0m</span>`}</td></tr>`;
     });
 
@@ -15121,7 +15197,7 @@ function exportCSV(){
     rows.push([o.num,o.nome,o.tipoObra||'',o.tipoCliente||'',o.estado,
       o.adj,o.revPrecos||0,o.trabalhosMais||0,o.errosOmissoes||0,vt.toFixed(2),
       o.autos,fmtPct(pe),o.custos,o.gastosGerais,(o.custos+o.gastosGerais).toFixed(2),
-      m.toFixed(2),(r*100).toFixed(2),o.prazoMeses,o.prazoAtualMeses||o.prazoMeses,o.mesesPassados,desvioMeses(o)]);
+      m.toFixed(2),(r*100).toFixed(2),o.prazoMeses,o.prazoAtualMeses||o.prazoMeses,mesesDecorridos(o),desvioMeses(o)]);
   });
   const bom='\uFEFF';
   const csv=rows.map(r=>r.map(v=>{if(typeof v==='number')v=v.toFixed(2).replace('.',',');else if(/^-?\d+\.\d+$/.test(String(v)))v=String(v).replace('.',',');return `"${String(v).replace(/"/g,'""')}"`;}).join(';')).join('\n');
@@ -19055,6 +19131,7 @@ function imprimirFichaObra(numObra){
     +'<tr><th style="background:#eef2f7">Designação</th><td>'+esc(o.nome||'')+'</td></tr>'
     +'<tr><th style="background:#eef2f7">Dono de obra</th><td>'+esc(o.dono||'—')+'</td></tr>'
     +'<tr><th style="background:#eef2f7">Estado</th><td>'+esc(o.estado||'—')+'</td></tr>'
+    +(o.obs?('<tr><th style="background:#eef2f7">Observações</th><td>'+esc(o.obs)+'</td></tr>'):'')
     +'<tr><th style="background:#eef2f7">Prazo (meses)</th><td>'+esc(String(o.prazoMeses||'—'))+' → atual: '+esc(String(o.prazoAtualMeses||o.prazoMeses||'—'))+'</td></tr>'
     +'</tbody></table>'
     +'<table><tbody>'
@@ -19085,6 +19162,7 @@ function imprimirMapaObra(numObra){
     +'<tr><th style="background:#eef2f7">Designação</th><td>'+esc(o.nome||'—')+'</td></tr>'
     +'<tr><th style="background:#eef2f7">Dono de obra</th><td>'+esc(o.dono||'—')+'</td></tr>'
     +'<tr><th style="background:#eef2f7">Estado</th><td>'+esc(o.estado||'—')+'</td></tr>'
+    +(o.obs?('<tr><th style="background:#eef2f7">Observações</th><td>'+esc(o.obs)+'</td></tr>'):'')
     +'<tr><th style="background:#eef2f7">Prazo</th><td>'+esc(String(o.prazoMeses||'—'))+' meses'+((o.prazoAtualMeses&&o.prazoAtualMeses!=o.prazoMeses)?' (atual: '+esc(String(o.prazoAtualMeses))+')':'')+'</td></tr>'
     +'</tbody></table>'
     +'<table><tbody>'
@@ -20086,11 +20164,48 @@ try{
     }catch(e){}
   }
 
+  /* ─────────── larguras de colunas dos AUTOS (resize nativo do browser nos th) ───────────
+     O módulo Autos usa CSS resize:horizontal nos th — nada disso era gravado. Guarda por utilizador e repõe. */
+  function _awKey(t){
+    var cont=t.closest('[id]');
+    var ths=Array.prototype.slice.call(t.querySelectorAll('thead th')).slice(0,4).map(function(x){return String(x.textContent||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'');}).join('-');
+    return 'aw_'+((cont&&cont.id)||'x')+'_'+(ths||'semcab');
+  }
+  function _awLer(){try{return JSON.parse(uiLer('autosColW_v1')||'{}')||{};}catch(e){return{};}}
+  function _awGravarTabela(t){
+    try{
+      var ths=t.querySelectorAll('thead tr:first-child th'); if(!ths.length)return;
+      var m=_awLer(), k=_awKey(t), arr=[];
+      ths.forEach(function(th){arr.push(th.offsetWidth||0);});
+      if(JSON.stringify(m[k])!==JSON.stringify(arr)){ m[k]=arr; uiGravar('autosColW_v1',JSON.stringify(m)); }
+    }catch(e){}
+  }
+  document.addEventListener('mouseup',function(e){
+    try{
+      var th=e.target&&e.target.closest?e.target.closest('#autosmed-native th'):null;
+      if(!th)return;
+      var t=th.closest('table');
+      if(t)setTimeout(function(){_awGravarTabela(t);},120);
+    }catch(err){}
+  },true);
+  function _awAplicar(){
+    try{
+      var m=null;
+      document.querySelectorAll('#autosmed-native table').forEach(function(t){
+        if(t.__awAplicada)return; t.__awAplicada=true;
+        if(m===null)m=_awLer();
+        var arr=m[_awKey(t)]; if(!arr||!arr.length)return;
+        t.querySelectorAll('thead tr:first-child th').forEach(function(th,i){ if(arr[i]>30){th.style.width=arr[i]+'px';th.style.minWidth=arr[i]+'px';} });
+      });
+    }catch(e){}
+  }
+
   /* varrimento: restaura depois do login e grava ordenações alteradas */
   setInterval(function(){
     try{
       var u=(typeof _uiUser==='function')?_uiUser():'';
       if(!u)return;
+      try{_awAplicar();}catch(e){}
       if(!_ordRestaurado){ _ordRestaurado=true; restaurarOrds();
         /* re-desenhar as listas já visíveis com a ordenação reposta */
         try{if(typeof renderObras==='function')renderObras();}catch(e){}
