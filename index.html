@@ -383,7 +383,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v258</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v259</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -5879,7 +5879,8 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <div class="form-grid">
       <div class="form-group"><label>Código de obra</label><input type="text" id="cp-obra" placeholder="ex: 0285" autocomplete="off" oninput="_cpObraCodigoInput()"></div>
       <div class="form-group"><label>Descrição da obra</label><input type="text" id="cp-obra-desc" readonly tabindex="-1" placeholder="preenche ao escrever o código" style="background:#f1f5f9;color:var(--muted)"></div>
-      <div class="form-group" style="grid-column:1/-1"><label>Nome do processo</label><input type="text" id="cp-nome" placeholder="ex: Betão, Tubagens..."></div>
+      <div class="form-group"><label>Nome do processo</label><input type="text" id="cp-nome" placeholder="ex: Betão, Tubagens..."></div>
+      <div class="form-group"><label>Referência do contrato</label><input type="text" id="cp-ctref" placeholder="ex: Subempreitada — Cofragens (igual à referência nos Autos)" title="Referência que identifica o contrato. Ao exportar este processo para os Autos, o contrato é criado com esta referência."></div>
       <div class="form-group"><label>Tipo</label>
         <select id="cp-tipo"><option>FORNECIMENTO</option><option>SUBEMPREITADA</option><option>SERVIÇO</option><option>ALUGUER</option></select>
       </div>
@@ -8797,6 +8798,7 @@ function abrirModalCompra(id){
   if(id){const c=compras.find(x=>String(x.id)===String(id));if(c){
     document.getElementById('modal-compra-title').textContent='Editar processo de compra';
     _cpPopularObraSelect(c.obra||'');_cpPopularEmpresaSelect(c.empresaId||'');document.getElementById('cp-nome').value=c.nome||'';
+    {const _r=document.getElementById('cp-ctref');if(_r)_r.value=c.ctRef||'';} /* [v259] */
     document.getElementById('cp-tipo').value=c.tipo||'';document.getElementById('cp-resp').value=c.resp||'';
     document.getElementById('cp-situacao').value=c.situacao||'Adjudicado';document.getElementById('cp-dataAdj').value=c.dataAdj||'';
     document.getElementById('cp-custo').value=c.custo||'';document.getElementById('cp-adjud').value=c.adjud||'';
@@ -8813,7 +8815,7 @@ function abrirModalCompra(id){
   }}
   else{document.getElementById('modal-compra-title').textContent='Novo processo de compra';
     _cpPopularObraSelect('');_cpPopularEmpresaSelect('');
-    ['cp-nome','cp-resp','cp-dataAdj','cp-custo','cp-adjud','cp-obs','cp-fornecedor'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+    ['cp-nome','cp-ctref','cp-resp','cp-dataAdj','cp-custo','cp-adjud','cp-obs','cp-fornecedor'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
     _cpArtigos=[];cpRenderArtigos();
     _cpPropostas=[];cpRenderPropostas();
     _cpAnexos={contrato:null,lista:null};cpRenderAnexos();
@@ -8827,7 +8829,9 @@ async function saveCompra(){
   let adjud=parseNum(document.getElementById('cp-adjud').value);
   const artigos=cpLerArtigos();
   if(artigos.length){adjud=+artigos.reduce((s,a)=>s+(a.qt||0)*(a.precoUnit||0),0).toFixed(2);}
-  const data={obra,nome:document.getElementById('cp-nome').value.trim(),tipo:cpNormTipo(document.getElementById('cp-tipo').value),
+  const data={obra,nome:document.getElementById('cp-nome').value.trim(),
+    ctRef:(document.getElementById('cp-ctref')?document.getElementById('cp-ctref').value.trim():''), /* [v259] referência do contrato */
+    tipo:cpNormTipo(document.getElementById('cp-tipo').value),
     resp:document.getElementById('cp-resp').value.trim(),situacao:document.getElementById('cp-situacao').value,
     fornecedor:(document.getElementById('cp-fornecedor')?document.getElementById('cp-fornecedor').value.trim():''),
     empresaId:(document.getElementById('cp-empresa')?document.getElementById('cp-empresa').value:''),
@@ -9321,7 +9325,7 @@ async function criarAutoDaCompra(id){
   if(!confirm('Criar nos Autos de Medição a obra, o contrato de subempreitada e um Auto a partir deste processo?\n\nObra: '+(c.obra||'(sem obra)')+'\nProcesso: '+(c.nome||'')+(artigosCompra.length?('\n'+artigosCompra.length+' artigo(s) lançado(s)'):'')+avisoValidacao+(avisoValidacao?'\n\nCriar mesmo assim?':'')))return;
   let empreiteiro=(c.fornecedor||empresaDoAnexo||'').trim();
   if(!empreiteiro){ empreiteiro=(prompt('Nome do subempreiteiro/fornecedor para o contrato:', c.resp||'')||'').trim(); }
-  const dados={obra:c.obra||'',empreiteiro,ref:(c.nome||'Subempreitada'),valor:c.adjud||0,compraId:c.id,
+  const dados={obra:c.obra||'',empreiteiro,ref:((c.ctRef||'').trim()||c.nome||'Subempreitada'),valor:c.adjud||0,compraId:c.id, /* [v259] a referência do contrato acompanha a exportação */
     artigos:artigosCompra.map(a=>({item:a.item,desc:a.desc,un:a.un,qt:a.qt,precoUnit:a.precoUnit}))};
   enviarParaAutos({tipo:'criar_auto_subempreitada',dados});
   c.autoCriado=true;guardarCompras();renderCompras();
@@ -14737,14 +14741,15 @@ function renderCustos(resetPag){
       const colaps=(custosColapseAll!==null)?custosColapseAll:!!custosGrupoColaps[agr+':'+k];
       const todosSel=g.every(c=>custosSel.has(c.id));
       html+=`<tr style="background:#eef2ff;cursor:pointer" onclick="toggleColapsoCusto('${agr}','${k.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">
-        <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${todosSel?'checked':''} onclick="toggleSelGrupo('${agr}','${k.replace(/'/g,"\\'").replace(/"/g,"&quot;")}',this.checked)" style="cursor:pointer"></td>
-        <td colspan="8" style="font-weight:700;color:var(--blue)">
+        <td colspan="9" style="font-weight:700;color:var(--blue);text-align:left;padding-left:6px">
+          <input type="checkbox" ${todosSel?'checked':''} onclick="event.stopPropagation();toggleSelGrupo('${agr}','${k.replace(/'/g,"\\'").replace(/"/g,"&quot;")}',this.checked)" style="cursor:pointer;margin-right:6px;vertical-align:middle">
           <i class="ti ${colaps?'ti-chevron-right':'ti-chevron-down'}" style="margin-right:4px"></i>${rotulo}
           <span style="font-weight:400;color:var(--muted)">(${g.length})</span>
         </td>
         <td style="text-align:right;font-weight:700">${fmt(sSI,2)}</td>
         <td style="text-align:right;font-weight:700;color:var(--blue)">${fmt(sIva,2)}</td>
-        <td style="text-align:right;font-weight:700">${fmt(sSI+sIva,2)}</td><td></td></tr>`;
+        <td style="text-align:right;font-weight:700">${fmt(sSI+sIva,2)}</td>
+        <td colspan="3"></td></tr>`;
       if(!colaps)html+=g.map(linhaCusto).join('');
     });
     tb.innerHTML=html;
