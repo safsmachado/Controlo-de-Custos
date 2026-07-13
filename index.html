@@ -383,7 +383,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v261</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v266</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -421,6 +421,8 @@ table td{vertical-align:middle}
   <button class="nav-btn" onclick="showTab('pagamentos',this)"><i class="ti ti-cash"></i>Pagamentos</button>
   <button class="nav-btn" onclick="showTab('caucoes',this)"><i class="ti ti-shield-lock"></i>Cauções</button>
   <button class="nav-btn" onclick="showTab('precos',this)"><i class="ti ti-database"></i>Base de Preços</button>
+  <button class="nav-btn" onclick="showTab('revisao',this)"><i class="ti ti-trending-up"></i>Revisão de Preços</button>
+  <button class="nav-btn" onclick="showTab('caixa',this)"><i class="ti ti-wallet"></i>Folha de Caixa</button>
   <button class="nav-btn" onclick="showTab('definicoes',this)"><i class="ti ti-settings"></i>Definições</button>
 </div>
 
@@ -1886,8 +1888,8 @@ function renderAutos(){
       ${c.empresaId?`<button class="btn sm" title="Editar os dados da empresa emissora" onclick="window.AutosNat.abrirModalEmpresa('${c.empresaId}')"><i class="ti ti-building"></i> Editar empresa</button>`:''}
     </div>
     <div class="metric-grid">
-      <div class="metric"><div class="metric-label">Valor do contrato</div><div class="metric-value">${fmt(vc/1e3,1)}k€</div></div>
-      <div class="metric"><div class="metric-label">Faturado acum.</div><div class="metric-value success">${fmt(fa/1e3,1)}k€</div>${(function(){try{var pv=(c.autos||[]).filter(a=>!valProducao(a)).reduce((s2,a)=>s2+valorAuto(c,a),0);return pv>0.005?'<div class="metric-sub" style="color:var(--orange)">inclui '+fmt(pv/1e3,1)+'k€ por validar</div>':'';}catch(e){return '';}})()}</div>
+      <div class="metric"><div class="metric-label">Valor do contrato</div><div class="metric-value">${fmt(vc,2)}€</div></div>
+      <div class="metric"><div class="metric-label">Faturado acum.</div><div class="metric-value success">${fmt(fa,2)}€</div>${(function(){try{var pv=(c.autos||[]).filter(a=>!valProducao(a)).reduce((s2,a)=>s2+valorAuto(c,a),0);return pv>0.005?'<div class="metric-sub" style="color:var(--orange)">inclui '+fmt(pv,2)+'€ por validar</div>':'';}catch(e){return '';}})()}</div>
       <div class="metric"><div class="metric-label">% Execução</div><div class="metric-value">${fmtPct(pe)}</div></div>
       <div class="metric"><div class="metric-label">N.º de autos</div><div class="metric-value">${(c.autos||[]).length}</div></div>
     </div></div>`;
@@ -3709,6 +3711,8 @@ function sincronizarObrasReg(){
   nomesContratos.forEach(nomeObra=>{
     if(obrasReg.find(o=>(o._nomeOriginal||o.nome)===nomeObra)) return;
     if(typeof _obraNumDe==='function'&&_obraNumDe(nomeObra)) return; /* [FASE1] a obra ja existe pela identidade (numero) — nao duplicar */
+    /* [v262] não ressuscitar obras removidas do separador de Autos */
+    try{ var _mm=String(nomeObra).match(/^\s*([\w.\-\/]+)/); if(_mm&&Array.isArray(obrasOcultasAutos)&&obrasOcultasAutos.indexOf(String(_mm[1]))>=0)return; }catch(e){}
     // tenta separar "0376 — Rua das Flores" em num + nome
     let num='', nome=nomeObra;
     const m=nomeObra.match(/^\s*([\w.\-\/]+)\s*[—\-:]\s*(.+)$/);
@@ -4691,6 +4695,15 @@ try{ window.AutosNat.reporObraOculta = function(num){ /* [v254] criar a obra de 
   try{ _ultimoRawObras=null; puxarObrasDaApp(); }catch(e){}
   try{ renderObras(); }catch(e){}
 }; }catch(e){}
+try{ window.AutosNat.tombObraApagada = function(num){ /* [v262] a app apagou a obra: retirar dos Autos e não deixar voltar */
+  try{
+    var n=String(num);
+    if(Array.isArray(obrasOcultasAutos)&&obrasOcultasAutos.indexOf(n)<0)obrasOcultasAutos.push(n);
+    if(Array.isArray(obrasReg))obrasReg=obrasReg.filter(function(o){return String(o.num)!==n;});
+    guardar();
+    try{if(typeof renderObras==='function')renderObras();}catch(e){}
+  }catch(e){}
+}; }catch(e){}
 try{ window.AutosNat.onLogoSelected = onLogoSelected; }catch(e){}
 try{ window.AutosNat.onObrasFiltro = onObrasFiltro; }catch(e){}
 try{ window.AutosNat.posicionarDesc = posicionarDesc; }catch(e){}
@@ -5073,6 +5086,94 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   </div>
 </div>
 
+<!-- ═══════════════════════════════ REVISÃO DE PREÇOS ═══════════════════════════════ -->
+<div class="tab" id="tab-revisao">
+  <div class="tabs-inner" style="margin-bottom:14px" id="rp-subnav">
+    <button class="tab-inner-btn active" id="rp-btn-calc" onclick="rpSub('calc')">Cálculo por obra</button>
+    <button class="tab-inner-btn" id="rp-btn-form" onclick="rpSub('form')">Fórmulas</button>
+    <button class="tab-inner-btn" id="rp-btn-idx" onclick="rpSub('idx')">Índices oficiais</button>
+    <button class="tab-inner-btn" id="rp-btn-rel" onclick="rpSub('rel')">Relatório</button>
+  </div>
+  <div id="rp-sub-calc"></div>
+  <div id="rp-sub-form" style="display:none"></div>
+  <div id="rp-sub-idx" style="display:none"></div>
+  <div id="rp-sub-rel" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════ [v249] FOLHA DE CAIXA ═══════════════════════════════ -->
+<div class="tab" id="tab-caixa">
+  <div class="metric-grid" id="cx-metrics" style="margin-bottom:12px"></div>
+  <div class="toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+    <button class="btn primary" onclick="cxLerReciboClick()"><i class="ti ti-camera"></i>Ler recibo (foto)</button>
+    <button class="btn" onclick="abrirModalCaixa(null,null)"><i class="ti ti-plus"></i>Novo movimento</button>
+    <select id="cx-f-mes" autocomplete="off" onchange="renderCaixa()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)"></select>
+    <select id="cx-f-ano" autocomplete="off" onchange="renderCaixa()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)"></select>
+    <select id="cx-f-obra" autocomplete="off" onchange="renderCaixa()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);max-width:220px"></select>
+    <input type="search" id="cx-search" autocomplete="off" placeholder="Pesquisar fornecedor, documento, descrição..." oninput="renderCaixa()" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border);min-width:220px">
+    <button class="btn" onclick="exportarCaixaExcel()" style="margin-left:auto"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+  </div>
+  <div class="alert ok" id="cx-aviso-key" style="display:none;margin-bottom:10px"><i class="ti ti-info-circle"></i> Para ler recibos por foto, cole a chave da IA (Google Gemini) nas <b>Definições → Folha de Caixa — Leitura de recibos</b>. Sem chave, pode na mesma registar movimentos manualmente e anexar a foto.</div>
+  <div class="table-wrap" style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th style="white-space:nowrap">Data</th><th>Tipo</th><th>Fornecedor</th><th>Documento</th><th>Descrição</th><th>Obra</th>
+        <th style="text-align:right">S/IVA (€)</th><th style="text-align:right">IVA (€)</th><th style="text-align:right">Total (€)</th>
+        <th style="text-align:center">Foto</th><th style="text-align:center">Custos</th><th></th>
+      </tr></thead>
+      <tbody id="cx-tbody"></tbody>
+    </table>
+  </div>
+  <input type="file" id="cx-foto-input" accept="image/*" style="display:none" onchange="cxFotoEscolhida(this.files[0]);this.value='';">
+  <input type="file" id="cx-foto-anexo-input" accept="image/*" style="display:none" onchange="cxAnexarFotoModal(this.files[0]);this.value='';">
+</div>
+
+<!-- ══════════════ [v249] MODAL FOLHA DE CAIXA ══════════════ -->
+<div class="modal-backdrop" id="modal-caixa">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="modal-caixa-title"><i class="ti ti-wallet"></i> Novo movimento de caixa</h3>
+      <button class="modal-close" onclick="closeModal('modal-caixa')">&times;</button>
+    </div>
+    <div id="cx-ia-badge" style="display:none;font-size:12px;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;border-radius:8px;padding:8px 12px;margin-bottom:12px"><i class="ti ti-sparkles"></i> Dados lidos automaticamente da foto — <b>confirme antes de guardar</b>.</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Tipo</label>
+        <select id="cx-tipo">
+          <option value="saida">Saída (despesa paga)</option>
+          <option value="entrada">Entrada (reforço de caixa)</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Data</label><input type="date" id="cx-data"></div>
+      <div class="form-group"><label>Fornecedor</label><input type="text" id="cx-fornecedor" placeholder="Nome do fornecedor"></div>
+      <div class="form-group"><label>NIF</label><input type="text" id="cx-nif" placeholder="(opcional)"></div>
+      <div class="form-group"><label>Documento</label><input type="text" id="cx-documento" placeholder="N.º factura / recibo"></div>
+      <div class="form-group"><label>Método de pagamento</label>
+        <select id="cx-metodo">
+          <option value="dinheiro">Dinheiro</option>
+          <option value="multibanco">Multibanco / cartão</option>
+          <option value="transferencia">Transferência</option>
+          <option value="mbway">MB Way</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Descrição</label><input type="text" id="cx-desc" placeholder="O que foi comprado / pago"></div>
+      <div class="form-group"><label>Valor s/ IVA (€)</label><input type="number" id="cx-base" step="0.01" oninput="cxCalcTotal()"></div>
+      <div class="form-group"><label>IVA (€)</label><input type="number" id="cx-ivaval" step="0.01" oninput="cxCalcTotal()"></div>
+      <div class="form-group"><label>Total (€)</label><input type="number" id="cx-total" step="0.01" oninput="cxTotalManual()"></div>
+      <div class="form-group"><label>Obra (opcional)</label><select id="cx-obra"></select></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="cx-obs" placeholder="(opcional)"></div>
+    </div>
+    <div id="cx-foto-zona" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <img id="cx-foto-prev" style="display:none;max-height:120px;border-radius:8px;border:1px solid var(--border);cursor:zoom-in" onclick="cxAmpliarPrev()">
+      <button class="btn sm" onclick="document.getElementById('cx-foto-anexo-input').click()"><i class="ti ti-paperclip"></i><span id="cx-foto-btn-txt">Anexar foto do recibo</span></button>
+      <span id="cx-foto-estado" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-caixa')">Cancelar</button>
+      <button class="btn primary" onclick="saveCaixaMov()"><i class="ti ti-check"></i>Guardar movimento</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════ DEFINIÇÕES ═══════════════════════════════ -->
 <div class="tab" id="tab-definicoes">
   <div class="card">
@@ -5164,6 +5265,20 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <div class="section-title">Gráficos e Análises</div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Configure os gráficos do Dashboard: ative/desative, mude o tipo, a cor, a ordem e o tamanho. As alterações são guardadas automaticamente.</p>
     <div id="config-graficos"></div>
+  </div>
+<div class="card">
+    <div class="section-title"><i class="ti ti-wallet"></i> Folha de Caixa — Leitura de recibos (IA)</div>
+    <div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Para a Folha de Caixa ler as fotos dos recibos automaticamente, cole aqui uma chave do <b>Google AI Studio</b> (gratuita): abra <b>aistudio.google.com/apikey</b>, inicie sessão com uma conta Google, clique em <b>Create API key</b> e cole o código abaixo. A chave fica sincronizada para todos os computadores da equipa.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;max-width:640px">
+      <div style="flex:1;min-width:280px">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">Chave API Google Gemini</label>
+        <input id="cx-cfg-gkey" type="password" autocomplete="off" placeholder="AIza..." style="width:100%;padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid var(--border)">
+      </div>
+      <button class="btn sm" type="button" onclick="var i=document.getElementById('cx-cfg-gkey');i.type=(i.type==='password'?'text':'password')" title="Mostrar/ocultar"><i class="ti ti-eye"></i></button>
+      <button class="btn primary" onclick="saveCaixaCfg()"><i class="ti ti-device-floppy"></i>Guardar</button>
+      <button class="btn" onclick="cxTestarChave()"><i class="ti ti-plug-connected"></i>Testar</button>
+    </div>
+    <div id="cx-cfg-res" style="margin-top:8px;font-size:12px"></div>
   </div>
   <div class="card">
     <div class="section-title">Configurações gerais</div>
@@ -6030,6 +6145,9 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <div class="form-group"><label>Prazo (meses)</label><input type="number" id="nf-prazo" placeholder="12"></div>
       <div class="form-group"><label>Prazo atualizado (meses)</label><input type="number" id="nf-prazo-atual" placeholder="12"></div>
       <div class="form-group"><label>Prazo de recebimento (dias)</label><input type="number" id="nf-prazoReceb" placeholder="ex: 30"></div>
+      <div class="form-section">Caução</div>
+      <div class="form-group"><label>Tipo de caução</label><select id="nf-cau-tipo"><option value=""></option><option>Retenção</option><option>Garantia bancária</option><option>Seguro-caução</option><option>Retenção + Garantia</option></select></div>
+      <div class="form-group"><label>Caução / Retenção (%)</label><input type="number" id="nf-cau-pct" step="0.5" placeholder="5"></div>
       <div class="form-section">Custos</div>
       <div class="form-group"><label>Orçamento de custo (€)</label><input type="number" id="nf-orcamento" placeholder="0" title="Custo previsto da obra à partida (do orçamento de produção). Base para desvios e WIP."></div>
       <div class="form-group"><label>GG / Estaleiro (%)</label><input type="number" id="nf-estaleiro" step="0.01" placeholder="5"></div>
@@ -6695,6 +6813,9 @@ function carregarTudo(){
     if(d.avisosAuto&&typeof d.avisosAuto==='object'){try{localStorage.setItem('gc_avisos_auto_v1',JSON.stringify(d.avisosAuto));}catch(e){}}
     if(Array.isArray(d.auditoria)){try{var _au=d.auditoria.slice().sort(function(x,y){return String(y.d).localeCompare(String(x.d));}).slice(0,1500);localStorage.setItem('gc_auditoria_v1',JSON.stringify(_au));}catch(e){}}
     if(d.indiretosVal&&typeof d.indiretosVal==='object'){try{localStorage.setItem('indiretos_validados_v1',JSON.stringify(d.indiretosVal));}catch(e){}}
+    if(d.revisaoPrecos&&typeof d.revisaoPrecos==='object'){try{localStorage.setItem('revisao_precos_v1',JSON.stringify(d.revisaoPrecos));}catch(e){} try{if(typeof window.renderRevisao==='function'){var _tr=document.getElementById('tab-revisao'); if(_tr&&getComputedStyle(_tr).display!=='none')window.renderRevisao();}}catch(e){}}
+    if(Array.isArray(d.caixaMov)){try{localStorage.setItem('caixa_v1',JSON.stringify(d.caixaMov));}catch(e){} try{if(typeof caixaMov!=='undefined')caixaMov=d.caixaMov;}catch(e){} try{if(typeof renderCaixa==='function'){var _tc=document.getElementById('tab-caixa'); if(_tc&&getComputedStyle(_tc).display!=='none')renderCaixa();}}catch(e){}}
+    if(d.caixaCfg&&typeof d.caixaCfg==='object'){try{localStorage.setItem('caixa_cfg_v1',JSON.stringify(d.caixaCfg));}catch(e){} try{if(typeof caixaCfg!=='undefined')caixaCfg=d.caixaCfg;}catch(e){}}
     return true;
   }catch(e){console.warn('Falha a carregar:',e);return false;}
 }
@@ -6727,7 +6848,10 @@ function montarEstadoPartilhado(){
     autos:_ccLS('autosmed_store_v1',null),
     autosModulo:_ccLS('modulo_autos_v1',null),
     subautos:_ccLS('subautos_v1',null), fechos:_ccLS('fechosMensais_v1',null), prazos:_ccLS('prazos_fornecedor_v1',null), avisosAuto:_ccLS('gc_avisos_auto_v1',null), auditoria:_ccLS('gc_auditoria_v1',[]),
-    indiretosVal:_ccLS('indiretos_validados_v1',{})
+    indiretosVal:_ccLS('indiretos_validados_v1',{}),
+    revisaoPrecos:_ccLS('revisao_precos_v1',null),
+    caixaMov:_ccLS('caixa_v1',[]),
+    caixaCfg:_ccLS('caixa_cfg_v1',{})
   };
 }
 window.montarEstadoPartilhado=montarEstadoPartilhado;
@@ -6783,6 +6907,9 @@ function aplicarEstadoPartilhado(d){
     if(d.avisosAuto&&typeof d.avisosAuto==='object'){try{localStorage.setItem('gc_avisos_auto_v1',JSON.stringify(d.avisosAuto));}catch(e){}}
     if(Array.isArray(d.auditoria)){try{var _au=d.auditoria.slice().sort(function(x,y){return String(y.d).localeCompare(String(x.d));}).slice(0,1500);localStorage.setItem('gc_auditoria_v1',JSON.stringify(_au));}catch(e){}}
     if(d.indiretosVal&&typeof d.indiretosVal==='object'){try{localStorage.setItem('indiretos_validados_v1',JSON.stringify(d.indiretosVal));}catch(e){}}
+    if(d.revisaoPrecos&&typeof d.revisaoPrecos==='object'){try{localStorage.setItem('revisao_precos_v1',JSON.stringify(d.revisaoPrecos));}catch(e){} try{if(typeof window.renderRevisao==='function'){var _tr=document.getElementById('tab-revisao'); if(_tr&&getComputedStyle(_tr).display!=='none')window.renderRevisao();}}catch(e){}}
+    if(Array.isArray(d.caixaMov)){try{localStorage.setItem('caixa_v1',JSON.stringify(d.caixaMov));}catch(e){} try{if(typeof caixaMov!=='undefined')caixaMov=d.caixaMov;}catch(e){} try{if(typeof renderCaixa==='function'){var _tc=document.getElementById('tab-caixa'); if(_tc&&getComputedStyle(_tc).display!=='none')renderCaixa();}}catch(e){}}
+    if(d.caixaCfg&&typeof d.caixaCfg==='object'){try{localStorage.setItem('caixa_cfg_v1',JSON.stringify(d.caixaCfg));}catch(e){} try{if(typeof caixaCfg!=='undefined')caixaCfg=d.caixaCfg;}catch(e){}}
     return true;
   }catch(e){console.warn('aplicarEstado falhou',e);return false;}
 }
@@ -8334,8 +8461,8 @@ function processarComprasImport(){
   document.getElementById('cp-import-stats').innerHTML=`
     <div class="metric"><div class="metric-label">Processos</div><div class="metric-value">${cpImportPreview.length}</div></div>
     <div class="metric"><div class="metric-label">Obras</div><div class="metric-value">${obrasN.size}</div></div>
-    <div class="metric"><div class="metric-label">Total orçamento</div><div class="metric-value">${fmt(totCusto,0)}€</div></div>
-    <div class="metric"><div class="metric-label">Total adjudicado</div><div class="metric-value">${fmt(totAdj,0)}€</div></div>`;
+    <div class="metric"><div class="metric-label">Total orçamento</div><div class="metric-value">${fmt(totCusto,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Total adjudicado</div><div class="metric-value">${fmt(totAdj,2)}€</div></div>`;
   let html='<table><thead><tr><th>Obra</th><th>Processo</th><th>Tipo</th><th>Situação</th><th style="text-align:right">Orçamento</th><th style="text-align:right">Adjudicado</th></tr></thead><tbody>';
   cpImportPreview.slice(0,60).forEach(c=>{html+=`<tr><td style="font-size:11px">${c.obra.substring(0,28)}</td><td style="font-size:11px">${c.nome.substring(0,22)}</td><td style="font-size:10px">${c.tipo}</td><td style="font-size:10px">${c.situacao}</td><td style="text-align:right">${fmt(c.custo,2)}</td><td style="text-align:right">${fmt(c.adjud,2)}</td></tr>`;});
   if(cpImportPreview.length>60)html+=`<tr><td colspan="6" style="text-align:center;color:var(--muted)">... e mais ${cpImportPreview.length-60}</td></tr>`;
@@ -9550,7 +9677,7 @@ function pesquisaGlobal(q){
     .slice(0,5).forEach(c=>res.push({tipo:'Custo',txt:`${c.desc||c.documento}`,sub:`${c.obraNum} · ${fmt(Math.abs(c.valor||0),2)}€`,acao:`showTab('custos',navBtn('custos'))`}));
   // compras
   compras.filter(c=>(c.nome||'').toLowerCase().includes(q)||(c.obra||'').toLowerCase().includes(q))
-    .slice(0,4).forEach(c=>res.push({tipo:'Compra',txt:c.nome||c.obra,sub:`${fmt(c.adjud||0,0)}€ · ${c.situacao||''}`,acao:`showTab('compras',navBtn('compras'))`}));
+    .slice(0,4).forEach(c=>res.push({tipo:'Compra',txt:c.nome||c.obra,sub:`${fmt(c.adjud||0,2)}€ · ${c.situacao||''}`,acao:`showTab('compras',navBtn('compras'))`}));
   // RH — colaboradores
   if(typeof rhColab!=='undefined'){
     rhColab.filter(c=>(c.nome||'').toLowerCase().includes(q)||(c.funcao||'').toLowerCase().includes(q)||(c.dep||'').toLowerCase().includes(q))
@@ -9820,11 +9947,11 @@ function impPreview(){
   impDadosPreview.forEach(d=>{
     const existe=obras.find(o=>o.num===d.num);
     html+=`<tr><td><strong>${d.num}</strong></td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${d.nome}</td>
-      <td style="text-align:right">${d.adj?fmt(d.adj,0)+'€':'—'}</td>
-      <td style="text-align:right">${d.autos?fmt(d.autos,0)+'€':'—'}</td>
-      <td style="text-align:right">${d.custos?fmt(d.custos,0)+'€':'—'}</td>
-      <td style="text-align:right">${d.gastosGerais?fmt(d.gastosGerais,0)+'€':'—'}</td>
-      <td style="text-align:right">${d.trabalhosMais?fmt(d.trabalhosMais,0)+'€':'—'}</td>
+      <td style="text-align:right">${d.adj?fmt(d.adj,2)+'€':'—'}</td>
+      <td style="text-align:right">${d.autos?fmt(d.autos,2)+'€':'—'}</td>
+      <td style="text-align:right">${d.custos?fmt(d.custos,2)+'€':'—'}</td>
+      <td style="text-align:right">${d.gastosGerais?fmt(d.gastosGerais,2)+'€':'—'}</td>
+      <td style="text-align:right">${d.trabalhosMais?fmt(d.trabalhosMais,2)+'€':'—'}</td>
       <td>${estadoBadge(d.estado||'Em Curso')}</td>
       <td>${d.prazoMeses?d.prazoMeses+'m':'—'}</td>
       <td><span class="badge ${existe?'suspensa':'concluida'}">${existe?'Actualizar':'Nova'}</span></td></tr>`;
@@ -10042,7 +10169,7 @@ function impConfirmar(){
       <div class="metric"><div class="metric-label">Atualizadas</div><div class="metric-value warning">${atualizadas}</div></div>
       <div class="metric"><div class="metric-label">Duplicados ignorados</div><div class="metric-value">${duplicados}</div></div>
       <div class="metric"><div class="metric-label">Erros</div><div class="metric-value ${erros?'danger':''}">${erros}</div></div>
-      <div class="metric"><div class="metric-label">Custos importados</div><div class="metric-value">${fmt(custosImportados,0)}€</div></div>
+      <div class="metric"><div class="metric-label">Custos importados</div><div class="metric-value">${fmt(custosImportados,2)}€</div></div>
     </div>
     ${famHTML}
     <div style="margin-top:12px" class="table-wrap">
@@ -10322,12 +10449,12 @@ function renderObrasTable(list){
         </div>
       </td>
       <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmt(tAdj,2)}€</td>
-      <td style="text-align:right;font-weight:700;color:var(--blue);${_bb}">${tRP?fmt(tRP,0)+'€':'—'}</td>
-      <td style="text-align:right;font-weight:700;color:var(--orange);${_bb}">${tTM?fmt(tTM,0)+'€':'—'}</td>
+      <td style="text-align:right;font-weight:700;color:var(--blue);${_bb}">${tRP?fmt(tRP,2)+'€':'—'}</td>
+      <td style="text-align:right;font-weight:700;color:var(--orange);${_bb}">${tTM?fmt(tTM,2)+'€':'—'}</td>
       <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmt(tAutos,2)}€</td>
       <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmtPct(tPe)}</td>
       <td style="text-align:right;font-weight:700;color:${st.cor};${_bb}">${fmt(tCus,2)}€</td>
-      <td style="text-align:right;font-weight:700;color:${tM<0?'var(--red)':st.cor};${_bb}">${fmt(tM,0)}€</td>
+      <td style="text-align:right;font-weight:700;color:${tM<0?'var(--red)':st.cor};${_bb}">${fmt(tM,2)}€</td>
       <td style="text-align:right;font-weight:700;color:${tRent<0?'var(--red)':st.cor};${_bb}">${fmtPct(tRent)}</td>
       <td style="${_bb}"></td>
       <td style="${_bb}"></td>
@@ -10376,9 +10503,9 @@ function renderObrasTable(list){
               ${(function(){var _l=['Adjudicada','Em Curso','Pós-Venda','Concluída'];if(o.estado&&_l.indexOf(o.estado)<0)_l=_l.concat([o.estado]);return _l.map(s=>`<option${o.estado===s?' selected':''}>${s}</option>`).join('');})()}
             </select>
           </td>
-          <td style="text-align:right;cursor:text" ondblclick="editObraValor(event,'${o.num}','adj')" onclick="event.stopPropagation()" title="Duplo-clique para editar adjudicação">${fmt(o.adj,0)}€</td>
-          <td style="text-align:right;color:${o.revPrecos?'var(--blue)':'var(--muted)'};cursor:text" ondblclick="editObraValor(event,'${o.num}','revPrecos')" onclick="event.stopPropagation()" title="Duplo-clique para editar">${o.revPrecos?fmt(o.revPrecos,0)+'€':'—'}</td>
-          <td style="text-align:right;color:${o.trabalhosMais?'var(--orange)':'var(--muted)'};cursor:text" ondblclick="editObraValor(event,'${o.num}','trabalhosMais')" onclick="event.stopPropagation()" title="Duplo-clique para editar">${o.trabalhosMais?fmt(o.trabalhosMais,0)+'€':'—'}</td>
+          <td style="text-align:right;cursor:text" ondblclick="editObraValor(event,'${o.num}','adj')" onclick="event.stopPropagation()" title="Duplo-clique para editar adjudicação">${fmt(o.adj,2)}€</td>
+          <td style="text-align:right;color:${o.revPrecos?'var(--blue)':'var(--muted)'};cursor:text" ondblclick="editObraValor(event,'${o.num}','revPrecos')" onclick="event.stopPropagation()" title="Duplo-clique para editar">${o.revPrecos?fmt(o.revPrecos,2)+'€':'—'}</td>
+          <td style="text-align:right;color:${o.trabalhosMais?'var(--orange)':'var(--muted)'};cursor:text" ondblclick="editObraValor(event,'${o.num}','trabalhosMais')" onclick="event.stopPropagation()" title="Duplo-clique para editar">${o.trabalhosMais?fmt(o.trabalhosMais,2)+'€':'—'}</td>
           <td style="text-align:right">${fmt(vAutos,2)}€</td>
           <td style="text-align:right">
             <div style="min-width:56px">
@@ -10387,7 +10514,7 @@ function renderObrasTable(list){
             </div>
           </td>
           <td style="text-align:right">${fmt(vCustos,2)}€</td>
-          <td style="text-align:right" class="${loss?'val negative':'positive'}">${fmt(m,0)}€</td>
+          <td style="text-align:right" class="${loss?'val negative':'positive'}">${fmt(m,2)}€</td>
           <td style="text-align:right" class="${loss?'negative':r>=0.1?'positive':''}"><strong>${fmtPct(r)}</strong></td>
           <td>${prazTxt}</td>
           <td>${desvTxt}</td>
@@ -10420,12 +10547,12 @@ function renderObrasTable(list){
       <i class="ti ti-sigma" style="margin-right:4px"></i>TOTAL GERAL — ${data.length} obra${data.length!==1?'s':''}
     </td>
     <td style="text-align:right">${fmt(gAdj,2)}€</td>
-    <td style="text-align:right;color:#93c5fd">${gRP?fmt(gRP,0)+'€':'—'}</td>
-    <td style="text-align:right;color:#fcd34d">${gTM?fmt(gTM,0)+'€':'—'}</td>
+    <td style="text-align:right;color:#93c5fd">${gRP?fmt(gRP,2)+'€':'—'}</td>
+    <td style="text-align:right;color:#fcd34d">${gTM?fmt(gTM,2)+'€':'—'}</td>
     <td style="text-align:right">${fmt(gAutos,2)}€</td>
     <td style="text-align:right">${fmtPct(gPe)}</td>
     <td style="text-align:right">${fmt(gCus,2)}€</td>
-    <td style="text-align:right;color:${gM<0?'#fca5a5':'#86efac'}">${fmt(gM,0)}€</td>
+    <td style="text-align:right;color:${gM<0?'#fca5a5':'#86efac'}">${fmt(gM,2)}€</td>
     <td style="text-align:right;color:${gRent<0?'#fca5a5':'#86efac'}">${fmtPct(gRent)}</td>
     <td></td>
     <td></td>
@@ -10587,18 +10714,18 @@ function openObra(num){
     </div>
     <div class="metric-grid">
       <div class="metric"><div class="metric-label">Valor obra (c/ ajustes)</div><div class="metric-value">${fmt(vTotal,2)}€</div><div class="metric-sub">Adj. ${fmt(o.adj,2)}€</div></div>
-      <div class="metric"><div class="metric-label">Revisão de Preços</div><div class="metric-value" style="color:var(--blue)">${fmt(o.revPrecos,0)}€</div></div>
-      <div class="metric"><div class="metric-label">Trabalhos a Mais</div><div class="metric-value warning">${fmt(o.trabalhosMais,0)}€</div></div>
-      <div class="metric"><div class="metric-label">Erros & Omissões</div><div class="metric-value" style="color:var(--purple)">${fmt(o.errosOmissoes,0)}€</div></div>
+      <div class="metric"><div class="metric-label">Revisão de Preços</div><div class="metric-value" style="color:var(--blue)">${fmt(o.revPrecos,2)}€</div></div>
+      <div class="metric"><div class="metric-label">Trabalhos a Mais</div><div class="metric-value warning">${fmt(o.trabalhosMais,2)}€</div></div>
+      <div class="metric"><div class="metric-label">Erros & Omissões</div><div class="metric-value" style="color:var(--purple)">${fmt(o.errosOmissoes,2)}€</div></div>
       <div class="metric"><div class="metric-label">Autos acum.</div><div class="metric-value success">${fmt(o.autos,2)}€</div></div>
       <div class="metric"><div class="metric-label">% Execução</div><div class="metric-value ${pe>1.001?'danger':pe>=1?'success':'warning'}">${fmtPct(pe)}</div></div>
       <div class="metric"><div class="metric-label">Custos diretos</div><div class="metric-value">${fmt(o.custos,2)}€</div></div>
-      <div class="metric"><div class="metric-label">Custos indiretos</div><div class="metric-value">${fmt(o.gastosGerais,0)}€</div></div>
+      <div class="metric"><div class="metric-label">Custos indiretos</div><div class="metric-value">${fmt(o.gastosGerais,2)}€</div></div>
       <div class="metric"><div class="metric-label">Custo total atual</div><div class="metric-value">${fmt(ct,2)}€</div></div>
-      <div class="metric"><div class="metric-label">Margem atual</div><div class="metric-value ${m<0?'danger':'success'}">${fmt(m,0)}€</div></div>
+      <div class="metric"><div class="metric-label">Margem atual</div><div class="metric-value ${m<0?'danger':'success'}">${fmt(m,2)}€</div></div>
       <div class="metric"><div class="metric-label">Rentabilidade</div><div class="metric-value ${r<0?'danger':'success'}">${fmtPct(r)}</div></div>
-      <div class="metric" title="Custo Final Previsto (EAC): estimativa do custo total no fim da obra. Usa orçamento de custo, ou custo já gasto + compromissos por liquidar, ou projeção pela execução."><div class="metric-label">Custo final previsto (EAC)</div><div class="metric-value">${eac!==null?fmt(eac,0)+'€':'—'}</div><div class="metric-sub">${margemPrev!==null?'Margem prev. '+fmt(margemPrev,0)+'€':'sem dados'}</div></div>
-      <div class="metric" title="Valor adjudicado em processos de compra associados a esta obra (módulo Compras). Compromissos = dinheiro já assumido com fornecedores/subempreiteiros."><div class="metric-label">Comprometido (compras)</div><div class="metric-value">${comp.adjudicado>0?fmt(comp.adjudicado,0)+'€':'—'}</div><div class="metric-sub">${comp.nProcessos} processo(s)${compPorLiquidar>0?' · por liquidar '+fmt(compPorLiquidar,0)+'€':''}</div></div>
+      <div class="metric" title="Custo Final Previsto (EAC): estimativa do custo total no fim da obra. Usa orçamento de custo, ou custo já gasto + compromissos por liquidar, ou projeção pela execução."><div class="metric-label">Custo final previsto (EAC)</div><div class="metric-value">${eac!==null?fmt(eac,2)+'€':'—'}</div><div class="metric-sub">${margemPrev!==null?'Margem prev. '+fmt(margemPrev,2)+'€':'sem dados'}</div></div>
+      <div class="metric" title="Valor adjudicado em processos de compra associados a esta obra (módulo Compras). Compromissos = dinheiro já assumido com fornecedores/subempreiteiros."><div class="metric-label">Comprometido (compras)</div><div class="metric-value">${comp.adjudicado>0?fmt(comp.adjudicado,2)+'€':'—'}</div><div class="metric-sub">${comp.nProcessos} processo(s)${compPorLiquidar>0?' · por liquidar '+fmt(compPorLiquidar,2)+'€':''}</div></div>
       <div class="metric" title="CPI (eficiência de custo): >1 a obra gera mais valor do que gasta; <1 está a perder. SPI (eficiência de prazo): >1 à frente do plano; <1 atrasada."><div class="metric-label">CPI / SPI (eficiência)</div><div class="metric-value">${idxBadge(idx.cpi)} / ${idxBadge(idx.spi)}</div><div class="metric-sub">custo / prazo</div></div>
     </div>
     <hr class="divider">
@@ -11232,6 +11359,7 @@ function abrirModalNovaObra(){
   document.getElementById('nf-prazo').value='12';
   document.getElementById('nf-prazo-atual').value='12';
   document.getElementById('nf-prazoReceb').value='';
+  {var _ct=document.getElementById('nf-cau-tipo');if(_ct)_ct.value='';var _cp=document.getElementById('nf-cau-pct');if(_cp)_cp.value='';}
   document.getElementById('nf-estaleiro').value='5';
   document.getElementById('nf-custos').value='0';
   document.getElementById('nf-autos').value='0';
@@ -11264,6 +11392,7 @@ function abrirEditarObra(num){
   document.getElementById('nf-prazo').value=o.prazoMeses||12;
   document.getElementById('nf-prazo-atual').value=o.prazoAtualMeses||o.prazoMeses||12;
   document.getElementById('nf-prazoReceb').value=o.prazoRecebimento||'';
+  {var _ct=document.getElementById('nf-cau-tipo');if(_ct)_ct.value=o.cauTipo||'';var _cp=document.getElementById('nf-cau-pct');if(_cp)_cp.value=(o.cauPct!=null?o.cauPct:'');}
   document.getElementById('nf-estaleiro').value=o.estaleiroPct||5;
   document.getElementById('nf-custos').value=o.custos||0;
   document.getElementById('nf-autos').value=o.autos||0;
@@ -11313,6 +11442,8 @@ function saveNovaObra(){
     prazoMeses:+document.getElementById('nf-prazo').value||12,
     prazoAtualMeses:+document.getElementById('nf-prazo-atual').value||12,
     prazoRecebimento:+document.getElementById('nf-prazoReceb').value||0,
+    cauTipo:(document.getElementById('nf-cau-tipo')?document.getElementById('nf-cau-tipo').value:''),
+    cauPct:(document.getElementById('nf-cau-pct')&&document.getElementById('nf-cau-pct').value!==''?+document.getElementById('nf-cau-pct').value:''),
     consignacao:document.getElementById('nf-data').value,
     obs:(document.getElementById('nf-obs')?document.getElementById('nf-obs').value.trim():''), /* [v258] observações */
     estaleiroPct:estaleiroPct,
@@ -11337,6 +11468,8 @@ function saveNovaObra(){
       }
       orig.num=num;
       custos.forEach(c=>{if(c.obraNum===_editObraNumOrig)c.obraNum=num;});
+      /* [v262] antes as compras ficavam órfãs ao renumerar (Comprometido/EAC deixava de as ver) */
+      try{ if(typeof compras!=='undefined')compras.forEach(c=>{if(c.obra===_editObraNumOrig)c.obra=num;}); }catch(e){}
     }
     recalcGG(orig);
   }else{
@@ -11381,7 +11514,7 @@ function abrirTrabMais(num){
         <td style="text-align:right;font-weight:600">${fmt(t.valor)}€</td>
         <td><button class="btn sm danger" onclick="removeTrabMais('${num}',${i})"><i class="ti ti-trash"></i></button></td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:12px">Sem registos</td></tr>'}</tbody>
         </table>
-        ${(()=>{const ap=(o.trabMaisHist||[]).filter(t=>t.estado!=='pendente').reduce((s,t)=>s+t.valor,0);const pe=(o.trabMaisHist||[]).filter(t=>t.estado==='pendente').reduce((s,t)=>s+t.valor,0);return (ap||pe)?`<div style="margin-top:8px;font-size:12px;display:flex;gap:18px"><span>Aprovado: <strong class="positive">${fmt(ap,0)}€</strong></span><span>Pendente (exposição): <strong style="color:var(--orange)">${fmt(pe,0)}€</strong></span></div>`:'';})()}
+        ${(()=>{const ap=(o.trabMaisHist||[]).filter(t=>t.estado!=='pendente').reduce((s,t)=>s+t.valor,0);const pe=(o.trabMaisHist||[]).filter(t=>t.estado==='pendente').reduce((s,t)=>s+t.valor,0);return (ap||pe)?`<div style="margin-top:8px;font-size:12px;display:flex;gap:18px"><span>Aprovado: <strong class="positive">${fmt(ap,2)}€</strong></span><span>Pendente (exposição): <strong style="color:var(--orange)">${fmt(pe,2)}€</strong></span></div>`:'';})()}
       </div>
     </div>
     <div id="erros-content" style="display:none">
@@ -11568,7 +11701,7 @@ function calcularAlertasGlobais(){
     if(o.estado==='Concluída'||o.estado==='Cancelada')return;
     const m=margem(o), pe=pctExec(o), ct=o.custos+o.gastosGerais, orc=o.orcamentoCusto||0;
     const pAtual=o.prazoAtualMeses||o.prazoMeses;
-    if(m<0) av.push({n:'err',o,t:`margem negativa (${fmt(m,0)}€)`});
+    if(m<0) av.push({n:'err',o,t:`margem negativa (${fmt(m,2)}€)`});
     if(orc>0&&ct>orc*1.001) av.push({n:'err',o,t:`custo acima do orçamento (${fmtPct(ct/orc)} do previsto)`});
     if(pe>1.001) av.push({n:'warn',o,t:`faturação acima do valor contratado (${fmtPct(pe)})`});
     const _mDec=mesesDecorridos(o);
@@ -11576,8 +11709,8 @@ function calcularAlertasGlobais(){
     else if(pAtual>0&&(pAtual-_mDec)===1) av.push({n:'warn',o,t:'prazo termina no próximo mês'});
     else if(pAtual>0&&(pAtual-_mDec)===2) av.push({n:'info',o,t:'prazo termina em 2 meses'});
     const liq=liquidezObra(o);
-    if(liq<0) av.push({n:'warn',o,t:`liquidez negativa (${fmt(liq,0)}€)`});
-    if(o.trabMaisPendente>0) av.push({n:'info',o,t:`trabalhos a mais por aprovar (${fmt(o.trabMaisPendente,0)}€)`});
+    if(liq<0) av.push({n:'warn',o,t:`liquidez negativa (${fmt(liq,2)}€)`});
+    if(o.trabMaisPendente>0) av.push({n:'info',o,t:`trabalhos a mais por aprovar (${fmt(o.trabMaisPendente,2)}€)`});
   });
   // v17: certificações/seguros a expirar (próximos 60 dias ou expirados)
   (certificacoes||[]).forEach(c=>{
@@ -11586,6 +11719,34 @@ function calcularAlertasGlobais(){
     if(dias<0)av.push({n:'err',cert:c,t:`${c.tipo} "${c.nome}" expirado há ${-dias} dias`});
     else if(dias<=60)av.push({n:'warn',cert:c,t:`${c.tipo} "${c.nome}" expira em ${dias} dias`});
   });
+  /* [v262] CENTRAL DE ALERTAS — juntar avisos operacionais (pagamentos, recebimentos, cauções, autos) */
+  try{
+    // custos vencidos por pagar
+    var nPg=0,vPg=0;
+    (typeof custos!=='undefined'?custos:[]).forEach(function(c){
+      try{ if(typeof _faltaCusto!=='function'||typeof _diasAtraso!=='function')return; var f=_faltaCusto(c); if(f>0.005 && _diasAtraso(c)>0){nPg++;vPg+=f;} }catch(e){}
+    });
+    if(nPg>0)av.push({n:'warn',tab:'pagamentos',t:nPg+' pagamento(s) vencido(s) por liquidar — '+fmt(vPg,2)+'€'});
+  }catch(e){}
+  try{
+    // facturação por receber em atraso
+    var nRc=0,vRc=0,hoje=new Date();hoje.setHours(0,0,0,0);
+    obras.forEach(function(o){ if(o.arquivada)return; try{ ensureFin(o); mesesCalc(o).forEach(function(mc){ if(mc.recebido||!(mc.base>0))return; var dp=_dataPrevReceb(o,mc.mes); if(dp&&dp<hoje){nRc++;vRc+=(mc.totalCIva||0)-(mc.valorAdiant||0);} }); }catch(e){} });
+    if(nRc>0)av.push({n:'warn',tab:'facturacao',t:nRc+' facturação(ões) por receber em atraso — '+fmt(vRc,2)+'€'});
+  }catch(e){}
+  try{
+    // cauções / garantias a libertar (30 dias)
+    if(typeof window.cauLibertacoesPendentes==='function'){
+      var libs=window.cauLibertacoesPendentes()||[]; var venc=libs.filter(function(x){return x.dias!=null&&x.dias<0;}).length;
+      if(libs.length>0)av.push({n:venc?'warn':'info',tab:'caucoes',t:libs.length+' caução(ões)/garantia(s) a libertar nos próximos 30 dias'+(venc?(' ('+venc+' vencida(s))'):'')});
+    }
+  }catch(e){}
+  try{
+    // autos por validar no módulo de Autos
+    var _as=JSON.parse(localStorage.getItem('modulo_autos_v1')||'{}'); var nAu=0;
+    ((_as&&_as.contratos)||[]).forEach(function(ct){ (ct.autos||[]).forEach(function(a2){ var v=a2.validacoes||{}; if(!(v.producao&&v.producao.validado)){nAu++;} }); });
+    if(nAu>0)av.push({n:'info',tab:'autosmed',t:nAu+' auto(s) por validar pela Direção de Produção'});
+  }catch(e){}
   const ord={err:0,warn:1,info:2};
   av.sort((a,b)=>ord[a.n]-ord[b.n]);
   return av;
@@ -11603,8 +11764,8 @@ function renderResumoExecutivo(){
   var risco=[];
   ativos.forEach(function(o){
     var motivos=[]; var m=margem(o);
-    if(m<0)motivos.push('margem '+fmt(m,0)+'€');
-    var liq=liquidezObra(o); if(liq<0)motivos.push('liquidez '+fmt(liq,0)+'€');
+    if(m<0)motivos.push('margem '+fmt(m,2)+'€');
+    var liq=liquidezObra(o); if(liq<0)motivos.push('liquidez '+fmt(liq,2)+'€');
     if(pctExec(o)>1.001)motivos.push('sobre-faturada');
     var pAtual=o.prazoAtualMeses||o.prazoMeses; var _mD=mesesDecorridos(o); if(pAtual&&_mD>pAtual)motivos.push('prazo +'+(_mD-pAtual)+'m');
     if(motivos.length)risco.push({o:o,m:m,motivos:motivos});
@@ -11619,11 +11780,11 @@ function renderResumoExecutivo(){
   el.innerHTML='<div class="card" style="margin-bottom:12px">'
     +'<div class="section-title" style="margin-bottom:10px"><i class="ti ti-briefcase"></i> Resumo executivo</div>'
     +'<div class="metric-grid" style="margin-bottom:12px">'
-      +tile('Carteira adjudicada', fmt(tAdj,1)+'€','','')
-      +tile('Faturado', fmt(tAut,1)+'€','', fmtPct(tAdj>0?tAut/tAdj:0)+' da carteira')
-      +tile('Por faturar (backlog)', fmt(backlog,1)+'€','')
-      +tile('Margem global', fmt(tM,1)+'€',(tM<0?'danger':'success'), fmtPct(rGl)+' rent.')
-      +tile('Tesouraria (liquidez)', fmt(tLiq,1)+'€',(tLiq<0?'danger':'success'))
+      +tile('Carteira adjudicada', fmt(tAdj,2)+'€','','')
+      +tile('Faturado', fmt(tAut,2)+'€','', fmtPct(tAdj>0?tAut/tAdj:0)+' da carteira')
+      +tile('Por faturar (backlog)', fmt(backlog,2)+'€','')
+      +tile('Margem global', fmt(tM,2)+'€',(tM<0?'danger':'success'), fmtPct(rGl)+' rent.')
+      +tile('Tesouraria (liquidez)', fmt(tLiq,2)+'€',(tLiq<0?'danger':'success'))
     +'</div>'
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'
       +'<div style="flex:1;min-width:260px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Obras em risco ('+risco.length+')</div>'+riscoHtml+'</div>'
@@ -11684,16 +11845,16 @@ function renderDashboard(){
   let tFatLiq=0,tIvaG=0,tRetidoG=0,tLiqG=0,nComDados=0;
   obras.forEach(o=>{const f=finObra(o);if(f.temDados){nComDados++;tFatLiq+=f.fatLiq;tIvaG+=f.iva;tRetidoG+=f.retidoLiqAcum;tLiqG+=f.liquidez;}});
   document.getElementById('dash-metrics').innerHTML=`
-    <div class="metric"><div class="metric-label">Faturação total</div><div class="metric-value">${fmt(tAut,1)}€</div><div class="metric-sub">de ${fmt(tAdj,1)}€ adj.</div></div>
+    <div class="metric"><div class="metric-label">Faturação total</div><div class="metric-value">${fmt(tAut,2)}€</div><div class="metric-sub">de ${fmt(tAdj,2)}€ adj.</div></div>
     <div class="metric"><div class="metric-label">% Execução global</div><div class="metric-value ${peGlobal>=0.9?'success':peGlobal>=0.6?'warning':''}">${fmtPct(peGlobal)}</div></div>
-    <div class="metric"><div class="metric-label">Custos diretos</div><div class="metric-value warning">${fmt(tCus,1)}€</div></div>
-    <div class="metric"><div class="metric-label">Custos indiretos</div><div class="metric-value">${fmt(tGG,1)}€</div></div>
-    <div class="metric"><div class="metric-label">Trabalhos a Mais</div><div class="metric-value" style="color:var(--orange)">${fmt(tTM,0)}€</div></div>
-    <div class="metric"><div class="metric-label">Revisões de Preços</div><div class="metric-value" style="color:var(--blue)">${fmt(tRP,0)}€</div></div>
-    <div class="metric"><div class="metric-label">Margem global</div><div class="metric-value ${tM<0?'danger':'success'}">${fmt(tM,1)}€</div></div>
+    <div class="metric"><div class="metric-label">Custos diretos</div><div class="metric-value warning">${fmt(tCus,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Custos indiretos</div><div class="metric-value">${fmt(tGG,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Trabalhos a Mais</div><div class="metric-value" style="color:var(--orange)">${fmt(tTM,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Revisões de Preços</div><div class="metric-value" style="color:var(--blue)">${fmt(tRP,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Margem global</div><div class="metric-value ${tM<0?'danger':'success'}">${fmt(tM,2)}€</div></div>
     <div class="metric"><div class="metric-label">Rentabilidade</div><div class="metric-value ${rGl<0?'danger':'success'}">${fmtPct(rGl)}</div></div>
-    <div class="metric"><div class="metric-label">Faturação líquida</div><div class="metric-value success">${fmt(tFatLiq,1)}€</div><div class="metric-sub">${nComDados} obras c/ lançamentos</div></div>
-    <div class="metric"><div class="metric-label">IVA acumulado</div><div class="metric-value" style="color:var(--blue)">${fmt(tIvaG,0)}€</div></div>
+    <div class="metric"><div class="metric-label">Faturação líquida</div><div class="metric-value success">${fmt(tFatLiq,2)}€</div><div class="metric-sub">${nComDados} obras c/ lançamentos</div></div>
+    <div class="metric"><div class="metric-label">IVA acumulado</div><div class="metric-value" style="color:var(--blue)">${fmt(tIvaG,2)}€</div></div>
     ${(function(){
       /* [v252] mês recente = mês cronologicamente mais recente COM salários (não a ordem de inserção),
          apenas colaboradores não arquivados e com salário nesse mês */
@@ -11707,8 +11868,8 @@ function renderDashboard(){
       return `<div class="metric"><div class="metric-label">Custo RH${ult?' ('+ult+')':' (mês recente)'}</div><div class="metric-value" style="color:var(--purple)">${fmt(rhTot,2)}€</div></div>
       <div class="metric"><div class="metric-label">Peso RH nos custos</div><div class="metric-value">${fmtPct(pesoRH)}</div><div class="metric-sub">RH acum. vs custos acum.</div></div>`;
     })()}
-    <div class="metric"><div class="metric-label">Valor retido acum.</div><div class="metric-value" style="color:var(--purple)">${fmt(tRetidoG,0)}€</div></div>
-    <div class="metric"><div class="metric-label">Liquidez global</div><div class="metric-value ${tLiqG<0?'danger':'success'}">${fmt(tLiqG,1)}€</div></div>
+    <div class="metric"><div class="metric-label">Valor retido acum.</div><div class="metric-value" style="color:var(--purple)">${fmt(tRetidoG,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Liquidez global</div><div class="metric-value ${tLiqG<0?'danger':'success'}">${fmt(tLiqG,2)}€</div></div>
   `;
 
   const top8=obras.slice().sort((a,b)=>b.autos-a.autos).slice(0,8);
@@ -11754,7 +11915,7 @@ function renderDashboard(){
     return`<div style="margin-bottom:11px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
         <span>${o.num} — ${o.nome.substring(0,25)}</span>
-        <span class="${m2<0?'negative':'positive'}" style="font-weight:600">${fmt(m2,0)}€</span>
+        <span class="${m2<0?'negative':'positive'}" style="font-weight:600">${fmt(m2,2)}€</span>
       </div>
       <div style="height:6px;border-radius:3px;background:#f0f1f4">
         <div style="height:100%;border-radius:3px;width:${w}%;background:${m2<0?'#E24B4A':'#639922'}"></div>
@@ -11802,8 +11963,8 @@ function renderDashboard(){
     <div class="metric"><div class="metric-label">Liquidez negativa</div><div class="metric-value danger">${liqNeg}</div></div>
     <div class="metric"><div class="metric-label">Retenção elevada</div><div class="metric-value warning">${retElevada}</div></div>
     <div class="metric"><div class="metric-label">Por faturar (c/ lanç.)</div><div class="metric-value" style="color:var(--orange)">${porFaturar}</div></div>
-    <div class="metric" title="Peso da mão de obra (família A01) no total de custos lançados."><div class="metric-label">Peso mão de obra</div><div class="metric-value">${custoTotalDet>0?fmtPct(pesoMO):'—'}</div><div class="metric-sub">${fmt(custoMO,0)}€</div></div>
-    <div class="metric" title="Peso de equipamento/aluguer (família D01) no total de custos lançados."><div class="metric-label">Peso equipamento</div><div class="metric-value">${custoTotalDet>0?fmtPct(pesoEquip):'—'}</div><div class="metric-sub">${fmt(custoEquip,0)}€</div></div>
+    <div class="metric" title="Peso da mão de obra (família A01) no total de custos lançados."><div class="metric-label">Peso mão de obra</div><div class="metric-value">${custoTotalDet>0?fmtPct(pesoMO):'—'}</div><div class="metric-sub">${fmt(custoMO,2)}€</div></div>
+    <div class="metric" title="Peso de equipamento/aluguer (família D01) no total de custos lançados."><div class="metric-label">Peso equipamento</div><div class="metric-value">${custoTotalDet>0?fmtPct(pesoEquip):'—'}</div><div class="metric-sub">${fmt(custoEquip,2)}€</div></div>
   `;
 }
 
@@ -11831,8 +11992,8 @@ function renderRelatorio(){
       html+=`<tr class="${m<0?'loss':''}"><td>${o.num}</td><td>${o.nome}</td><td>${o.tipoObra||'—'}</td><td>${estadoBadge(o.estado)}</td>
         <td style="text-align:right">${fmt(o.adj,2)}€</td><td style="text-align:right">${fmt(o.autos,2)}€</td>
         <td style="text-align:right">${fmtPct(pe)}</td>
-        <td style="text-align:right">${fmt(o.custos,2)}€</td><td style="text-align:right">${fmt(o.gastosGerais,0)}€</td>
-        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,0)}€</td>
+        <td style="text-align:right">${fmt(o.custos,2)}€</td><td style="text-align:right">${fmt(o.gastosGerais,2)}€</td>
+        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,2)}€</td>
         <td style="text-align:right" class="${r<0?'negative':'positive'}">${fmtPct(r)}</td>
         <td>${o.prazoAtualMeses||o.prazoMeses}m</td>
         <td>${desv>0?`+${desv}m`:desv<0?`${desv}m`:'—'}</td></tr>`;
@@ -11842,8 +12003,8 @@ function renderRelatorio(){
     html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb">
       <td colspan="4">TOTAL</td><td style="text-align:right">${fmt(tA,2)}€</td>
       <td style="text-align:right">${fmt(tAu,2)}€</td><td></td>
-      <td style="text-align:right">${fmt(tC,2)}€</td><td style="text-align:right">${fmt(tGG,0)}€</td>
-      <td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmt(tM,0)}€</td>
+      <td style="text-align:right">${fmt(tC,2)}€</td><td style="text-align:right">${fmt(tGG,2)}€</td>
+      <td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmt(tM,2)}€</td>
       <td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmtPct((tC+tGG)>0?tM/(tC+tGG):0)}</td><td colspan="2"></td></tr>`;
 
   } else if(tipo==='consolidado'){
@@ -11855,16 +12016,16 @@ function renderRelatorio(){
     const linhaObra=(o)=>{const m=margem(o),ct=o.custos+o.gastosGerais,pe=pctExec(o),vt=valorObra(o);
       return `<tr class="${m<0?'loss':''}"><td>${o.num}</td><td>${o.nome}</td><td style="font-size:11px">${o.cliente||'—'}</td>
         <td style="text-align:right">${fmt(o.adj,2)}€</td>
-        <td style="text-align:right;color:var(--orange)">${o.trabalhosMais?fmt(o.trabalhosMais,0)+'€':'—'}</td>
-        <td style="text-align:right;color:var(--blue)">${o.revPrecos?fmt(o.revPrecos,0)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--orange)">${o.trabalhosMais?fmt(o.trabalhosMais,2)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--blue)">${o.revPrecos?fmt(o.revPrecos,2)+'€':'—'}</td>
         <td style="text-align:right;font-weight:600">${fmt(vt,2)}€</td>
         <td style="text-align:right">${fmt(o.autos,2)}€</td>
         <td style="text-align:right">${fmtPct(pe)}</td>
         <td style="text-align:right">${fmt(ct,2)}€</td>
-        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,0)}€</td>
+        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,2)}€</td>
         <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmtPct(ct>0?m/ct:0)}</td></tr>`;};
     const subtotal=(arr,rotulo)=>{const tA=arr.reduce((s,o)=>s+o.adj,0),tVt=arr.reduce((s,o)=>s+valorObra(o),0),tAu=arr.reduce((s,o)=>s+o.autos,0),tCt=arr.reduce((s,o)=>s+o.custos+o.gastosGerais,0),tM=arr.reduce((s,o)=>s+margem(o),0),tTM=arr.reduce((s,o)=>s+(o.trabalhosMais||0),0),tRP=arr.reduce((s,o)=>s+(o.revPrecos||0),0);
-      return `<tr style="font-weight:700;background:#eef2f7"><td colspan="3">${rotulo} (${arr.length})</td><td style="text-align:right">${fmt(tA,0)}€</td><td style="text-align:right">${fmt(tTM,0)}€</td><td style="text-align:right">${fmt(tRP,0)}€</td><td style="text-align:right">${fmt(tVt,0)}€</td><td style="text-align:right">${fmt(tAu,0)}€</td><td></td><td style="text-align:right">${fmt(tCt,0)}€</td><td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmt(tM,0)}€</td><td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmtPct(tCt>0?tM/tCt:0)}</td></tr>`;};
+      return `<tr style="font-weight:700;background:#eef2f7"><td colspan="3">${rotulo} (${arr.length})</td><td style="text-align:right">${fmt(tA,2)}€</td><td style="text-align:right">${fmt(tTM,2)}€</td><td style="text-align:right">${fmt(tRP,2)}€</td><td style="text-align:right">${fmt(tVt,2)}€</td><td style="text-align:right">${fmt(tAu,2)}€</td><td></td><td style="text-align:right">${fmt(tCt,2)}€</td><td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmt(tM,2)}€</td><td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmtPct(tCt>0?tM/tCt:0)}</td></tr>`;};
     const secHeader=(t)=>`<tr style="background:var(--blue);color:#fff"><td colspan="12" style="font-weight:700;padding:7px 8px">${t}</td></tr>`;
     html+=secHeader('OBRAS EM CURSO');
     if(emCurso.length){emCurso.forEach(o=>html+=linhaObra(o));html+=subtotal(emCurso,'Subtotal em curso');}
@@ -11884,17 +12045,17 @@ function renderRelatorio(){
       const temAnt=(ant!==undefined&&ant!==null);const dv=temAnt?(m-ant):0;
       const seta=!temAnt?'—':dv>0.5?'<span style="color:var(--green)">▲ melhorou</span>':dv<-0.5?'<span style="color:var(--red)">▼ piorou</span>':'<span style="color:var(--muted)">= igual</span>';
       html+=`<tr class="${m<0?'loss':''}"><td>${o.num}</td><td>${o.nome}</td>
-        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,0)}€</td>
-        <td style="text-align:right">${temAnt?fmt(ant,0)+'€':'—'}</td>
-        <td style="text-align:right" class="${dv<0?'negative':dv>0?'positive':''}">${temAnt?((dv>0?'+':'')+fmt(dv,0)+'€'):'—'}</td>
+        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,2)}€</td>
+        <td style="text-align:right">${temAnt?fmt(ant,2)+'€':'—'}</td>
+        <td style="text-align:right" class="${dv<0?'negative':dv>0?'positive':''}">${temAnt?((dv>0?'+':'')+fmt(dv,2)+'€'):'—'}</td>
         <td>${seta}</td></tr>`;
     });
     const tM=data.reduce((s,o)=>s+margem(o),0);
     const tAnt=ult?data.reduce((s,o)=>s+((ult.margens&&ult.margens[o.num])||0),0):0;
-    html+=`<tr style="font-weight:700;background:#eef2f7"><td colspan="2">TOTAL</td><td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmt(tM,0)}€</td><td style="text-align:right">${ult?fmt(tAnt,0)+'€':'—'}</td><td style="text-align:right">${ult?((tM-tAnt>0?'+':'')+fmt(tM-tAnt,0)+'€'):'—'}</td><td></td></tr>`;
+    html+=`<tr style="font-weight:700;background:#eef2f7"><td colspan="2">TOTAL</td><td style="text-align:right" class="${tM<0?'negative':'positive'}">${fmt(tM,2)}€</td><td style="text-align:right">${ult?fmt(tAnt,2)+'€':'—'}</td><td style="text-align:right">${ult?((tM-tAnt>0?'+':'')+fmt(tM-tAnt,2)+'€'):'—'}</td><td></td></tr>`;
     if(fechos.length){
       html+=`<tr><td colspan="6" style="background:var(--blue);color:#fff;font-weight:700;padding:6px 8px">Histórico de fechos guardados</td></tr>`;
-      fechos.slice().reverse().forEach(f=>{html+=`<tr><td colspan="2">${f.label}</td><td style="text-align:right" class="${f.total<0?'negative':'positive'}">${fmt(f.total,0)}€</td><td colspan="2" style="color:var(--muted);font-size:11px">${new Date(f.data).toLocaleDateString('pt-PT')}</td><td><button class="btn sm danger" onclick="apagarFecho('${f.ym}')"><i class="ti ti-trash"></i></button></td></tr>`;});
+      fechos.slice().reverse().forEach(f=>{html+=`<tr><td colspan="2">${f.label}</td><td style="text-align:right" class="${f.total<0?'negative':'positive'}">${fmt(f.total,2)}€</td><td colspan="2" style="color:var(--muted);font-size:11px">${new Date(f.data).toLocaleDateString('pt-PT')}</td><td><button class="btn sm danger" onclick="apagarFecho('${f.ym}')"><i class="ti ti-trash"></i></button></td></tr>`;});
     }
 
   } else if(tipo==='contacorrente'){
@@ -11928,13 +12089,13 @@ function renderRelatorio(){
       const m=margem(o);const ct=o.custos+o.gastosGerais;const pe=pctExec(o);const vt=valorObra(o);
       html+=`<tr class="${m<0?'loss':''}"><td>${o.num}</td><td>${o.nome}</td><td>${o.tipoObra||'—'}</td>
         <td style="text-align:right">${fmt(o.adj,2)}€</td>
-        <td style="text-align:right;color:var(--blue)">${o.revPrecos?fmt(o.revPrecos,0)+'€':'—'}</td>
-        <td style="text-align:right;color:var(--orange)">${o.trabalhosMais?fmt(o.trabalhosMais,0)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--blue)">${o.revPrecos?fmt(o.revPrecos,2)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--orange)">${o.trabalhosMais?fmt(o.trabalhosMais,2)+'€':'—'}</td>
         <td style="text-align:right;font-weight:600">${fmt(vt,2)}€</td>
         <td style="text-align:right">${fmtPct(pe)}</td>
         <td style="text-align:right">${fmt(o.autos,2)}€</td><td style="text-align:right">${fmt(o.custos,2)}€</td>
-        <td style="text-align:right">${fmt(o.gastosGerais,0)}€</td><td style="text-align:right">${fmt(ct,2)}€</td>
-        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,0)}€</td>
+        <td style="text-align:right">${fmt(o.gastosGerais,2)}€</td><td style="text-align:right">${fmt(ct,2)}€</td>
+        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,2)}€</td>
         <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmtPct(ct>0?m/ct:0)}</td></tr>`;
     });
 
@@ -11958,9 +12119,9 @@ function renderRelatorio(){
       const vt=valorObra(o);const ajustes=(o.revPrecos||0)+(o.trabalhosMais||0)-(o.errosOmissoes||0);
       html+=`<tr><td>${o.num}</td><td>${o.nome}</td><td>${o.tipoObra||'—'}</td>
         <td style="text-align:right">${fmt(o.adj,2)}€</td>
-        <td style="text-align:right;color:var(--blue)">${o.revPrecos?fmt(o.revPrecos,0)+'€':'—'}</td>
-        <td style="text-align:right;color:var(--orange)">${o.trabalhosMais?fmt(o.trabalhosMais,0)+'€':'—'}</td>
-        <td style="text-align:right;color:var(--purple)">${o.errosOmissoes?fmt(o.errosOmissoes,0)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--blue)">${o.revPrecos?fmt(o.revPrecos,2)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--orange)">${o.trabalhosMais?fmt(o.trabalhosMais,2)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--purple)">${o.errosOmissoes?fmt(o.errosOmissoes,2)+'€':'—'}</td>
         <td style="text-align:right;font-weight:700">${fmt(vt,2)}€</td>
         <td style="text-align:right;color:${ajustes>0?'var(--green)':ajustes<0?'var(--red)':'var(--muted)'}">${o.adj>0?fmtPct(ajustes/o.adj):'—'}</td></tr>`;
     });
@@ -11986,9 +12147,9 @@ function renderRelatorio(){
       else if(idx.cpi!==null&&idx.cpi>=1&&(idx.spi===null||idx.spi>=0.95))leitura='<span class="badge concluida">Saudável</span>';
       else leitura='<span class="badge em-curso">A acompanhar</span>';
       html+=`<tr class="${m<0?'loss':''}"><td>${o.num}</td><td>${o.nome}</td><td>${estadoBadge(o.estado)}</td>
-        <td style="text-align:right">${fmt(valorObra(o),0)}€</td>
-        <td style="text-align:right">${fmt(ct,0)}€</td>
-        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,0)}€</td>
+        <td style="text-align:right">${fmt(valorObra(o),2)}€</td>
+        <td style="text-align:right">${fmt(ct,2)}€</td>
+        <td style="text-align:right" class="${m<0?'negative':'positive'}">${fmt(m,2)}€</td>
         <td style="text-align:right" class="${r<0?'negative':'positive'}">${fmtPct(r)}</td>
         <td style="text-align:right">${fmtPct(pe)}</td>
         <td style="text-align:right">${idxBadge(idx.cpi)}</td>
@@ -12012,10 +12173,10 @@ function renderRelatorio(){
     meses.forEach(mes=>{
       const e=porMes[mes].entra,s=porMes[mes].sai,saldo=e-s;acc+=saldo;
       html+=`<tr class="${saldo<0?'loss':''}"><td><strong>${mes}</strong></td>
-        <td style="text-align:right;color:var(--green)">${fmt(e,0)}€</td>
-        <td style="text-align:right;color:var(--red)">${fmt(s,0)}€</td>
-        <td style="text-align:right;font-weight:600" class="${saldo<0?'negative':'positive'}">${fmt(saldo,0)}€</td>
-        <td style="text-align:right;font-weight:700" class="${acc<0?'negative':'positive'}">${fmt(acc,0)}€</td></tr>`;
+        <td style="text-align:right;color:var(--green)">${fmt(e,2)}€</td>
+        <td style="text-align:right;color:var(--red)">${fmt(s,2)}€</td>
+        <td style="text-align:right;font-weight:600" class="${saldo<0?'negative':'positive'}">${fmt(saldo,2)}€</td>
+        <td style="text-align:right;font-weight:700" class="${acc<0?'negative':'positive'}">${fmt(acc,2)}€</td></tr>`;
     });
     if(meses.length)html+=`<tr style="background:#f8f9fb;font-size:11px"><td colspan="5" style="color:var(--muted);padding:8px">Saldo acumulado negativo = a empresa adiantou dinheiro às obras (precisa de tesouraria). Positivo = as obras estão a financiar-se.</td></tr>`;
   } else if(tipo==='retencoes'){
@@ -12033,13 +12194,13 @@ function renderRelatorio(){
       const retPct=o.retencaoPct||0;
       html+=`<tr><td>${o.num}</td><td>${o.nome}</td><td style="font-size:11px">${o.dono||o.tipoCliente||'—'}</td><td>${estadoBadge(o.estado)}</td>
         <td style="text-align:right">${fmtPct(retPct)}</td>
-        <td style="text-align:right">${fmt(f.base,0)}€</td>
-        <td style="text-align:right;color:var(--purple);font-weight:600">${fmt(f.retido,0)}€</td>
-        <td style="text-align:right">${f.adiant?fmt(f.adiant,0)+'€':'—'}</td>
-        <td style="text-align:right;font-weight:700">${fmt(f.retidoLiqAcum,0)}€</td></tr>`;
+        <td style="text-align:right">${fmt(f.base,2)}€</td>
+        <td style="text-align:right;color:var(--purple);font-weight:600">${fmt(f.retido,2)}€</td>
+        <td style="text-align:right">${f.adiant?fmt(f.adiant,2)+'€':'—'}</td>
+        <td style="text-align:right;font-weight:700">${fmt(f.retidoLiqAcum,2)}€</td></tr>`;
     });
     if(!any)html+='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:16px">Nenhuma obra com retenção registada. Defina a % de retenção na obra e lance a faturação mensal.</td></tr>';
-    else html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb"><td colspan="8" style="text-align:right">TOTAL retido a receber →</td><td style="text-align:right;color:var(--purple)">${fmt(tRet,0)}€</td></tr>`;
+    else html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb"><td colspan="8" style="text-align:right">TOTAL retido a receber →</td><td style="text-align:right;color:var(--purple)">${fmt(tRet,2)}€</td></tr>`;
   } else if(tipo==='subempreiteiros'){
     // Mapa de subempreiteiros: a partir das compras (tipo subempreitada) e custos família C.
     const subs={};
@@ -12070,11 +12231,11 @@ function renderRelatorio(){
       html+=`<tr><td><strong>${s.nome}</strong></td>
         <td style="text-align:right">${s.nproc}</td>
         <td style="text-align:right">${s.obras.size}</td>
-        <td style="text-align:right;font-weight:600">${fmt(s.adjud,0)}€</td>
-        <td style="text-align:right">${real?fmt(real,0)+'€':'—'}</td>
-        <td style="text-align:right" class="${dv>0?'negative':'positive'}">${real?fmt(dv,0)+'€':'—'}</td></tr>`;
+        <td style="text-align:right;font-weight:600">${fmt(s.adjud,2)}€</td>
+        <td style="text-align:right">${real?fmt(real,2)+'€':'—'}</td>
+        <td style="text-align:right" class="${dv>0?'negative':'positive'}">${real?fmt(dv,2)+'€':'—'}</td></tr>`;
     });
-    if(lista.length)html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb"><td colspan="3">TOTAL</td><td style="text-align:right">${fmt(tAdj,0)}€</td><td style="text-align:right">${fmt(tReal,0)}€</td><td style="text-align:right" class="${tReal-tAdj>0?'negative':'positive'}">${fmt(tReal-tAdj,0)}€</td></tr>`;
+    if(lista.length)html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb"><td colspan="3">TOTAL</td><td style="text-align:right">${fmt(tAdj,2)}€</td><td style="text-align:right">${fmt(tReal,2)}€</td><td style="text-align:right" class="${tReal-tAdj>0?'negative':'positive'}">${fmt(tReal-tAdj,2)}€</td></tr>`;
   } else if(tipo==='orcvsreal'){
     // Orçamento vs Real por família, agregado em todas as obras filtradas.
     const orcObras=data.reduce((s,o)=>s+(o.orcamentoCusto||0),0);
@@ -12091,15 +12252,15 @@ function renderRelatorio(){
     if(fams.length===0)html+='<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px">Sem custos lançados nas obras filtradas.</td></tr>';
     fams.forEach(f=>{
       html+=`<tr><td><span class="badge em-curso">${f}</span></td>
-        <td style="text-align:right;font-weight:600">${fmt(porFam[f],0)}€</td>
+        <td style="text-align:right;font-weight:600">${fmt(porFam[f],2)}€</td>
         <td style="text-align:right">${totalReal>0?fmtPct(porFam[f]/totalReal):'—'}</td></tr>`;
     });
     if(fams.length){
-      html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb"><td>TOTAL REAL</td><td style="text-align:right">${fmt(totalReal,0)}€</td><td></td></tr>`;
+      html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb"><td>TOTAL REAL</td><td style="text-align:right">${fmt(totalReal,2)}€</td><td></td></tr>`;
       if(orcObras>0){
         const dv=totalReal-orcObras;
-        html+=`<tr style="font-weight:700;background:#f8f9fb"><td>Orçamento de custo das obras</td><td style="text-align:right">${fmt(orcObras,0)}€</td><td></td></tr>
-        <tr style="font-weight:700;background:#f8f9fb"><td>Desvio (real − orçamento)</td><td style="text-align:right" class="${dv>0?'negative':'positive'}">${fmt(dv,0)}€</td><td style="text-align:right" class="${dv>0?'negative':'positive'}">${fmtPct(orcObras>0?dv/orcObras:0)}</td></tr>`;
+        html+=`<tr style="font-weight:700;background:#f8f9fb"><td>Orçamento de custo das obras</td><td style="text-align:right">${fmt(orcObras,2)}€</td><td></td></tr>
+        <tr style="font-weight:700;background:#f8f9fb"><td>Desvio (real − orçamento)</td><td style="text-align:right" class="${dv>0?'negative':'positive'}">${fmt(dv,2)}€</td><td style="text-align:right" class="${dv>0?'negative':'positive'}">${fmtPct(orcObras>0?dv/orcObras:0)}</td></tr>`;
       } else {
         html+=`<tr style="background:#f8f9fb;font-size:11px"><td colspan="3" style="color:var(--muted);padding:8px">Defina o orçamento de custo nas obras para ver o desvio face ao real.</td></tr>`;
       }
@@ -12112,14 +12273,14 @@ function renderRelatorio(){
       const f=finObra(o);if(!f.temDados)return;any=true;
       const est=estadoFatObra(o);
       html+=`<tr class="${f.liquidez<0?'loss':''}"><td>${o.num}</td><td>${o.nome}</td>
-        <td style="text-align:right">${fmt(f.base,0)}€</td>
-        <td style="text-align:right;color:var(--blue)">${fmt(f.iva,0)}€</td>
-        <td style="text-align:right;font-weight:600">${fmt(f.totalCIva,0)}€</td>
-        <td style="text-align:right">${f.adiant?fmt(f.adiant,0)+'€':'—'}</td>
-        <td style="text-align:right;color:var(--purple)">${fmt(f.retidoLiqAcum,0)}€</td>
-        <td style="text-align:right;color:var(--green);font-weight:600">${fmt(f.fatLiq,0)}€</td>
-        <td style="text-align:right">${fmt(f.custosTot,0)}€</td>
-        <td style="text-align:right;font-weight:700" class="${f.liquidez<0?'negative':'positive'}">${fmt(f.liquidez,0)}€</td>
+        <td style="text-align:right">${fmt(f.base,2)}€</td>
+        <td style="text-align:right;color:var(--blue)">${fmt(f.iva,2)}€</td>
+        <td style="text-align:right;font-weight:600">${fmt(f.totalCIva,2)}€</td>
+        <td style="text-align:right">${f.adiant?fmt(f.adiant,2)+'€':'—'}</td>
+        <td style="text-align:right;color:var(--purple)">${fmt(f.retidoLiqAcum,2)}€</td>
+        <td style="text-align:right;color:var(--green);font-weight:600">${fmt(f.fatLiq,2)}€</td>
+        <td style="text-align:right">${fmt(f.custosTot,2)}€</td>
+        <td style="text-align:right;font-weight:700" class="${f.liquidez<0?'negative':'positive'}">${fmt(f.liquidez,2)}€</td>
         <td>${estadoFatBadge(est)}</td></tr>`;
     });
     if(!any)html+='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:16px">Nenhuma obra com lançamentos mensais ainda.</td></tr>';
@@ -12145,9 +12306,9 @@ function renderRelatorio(){
       const orc=o.orcamentoCusto||0;
       if(orc<=0){semOrc++;
         html+=`<tr style="opacity:.6"><td>${o.num}</td><td>${o.nome}</td><td>${estadoBadge(o.estado)}</td>
-          <td style="text-align:right">${fmt(vo,0)}€</td>
+          <td style="text-align:right">${fmt(vo,2)}€</td>
           <td style="text-align:right;color:var(--orange)">— em falta —</td>
-          <td style="text-align:right">${fmt(ct,0)}€</td>
+          <td style="text-align:right">${fmt(ct,2)}€</td>
           <td colspan="5" style="text-align:center;color:var(--muted);font-size:11px"><i class="ti ti-alert-triangle"></i> Defina o orçamento de custo na ficha da obra para calcular o WIP</td></tr>`;
         return;}
       any=true;
@@ -12159,18 +12320,18 @@ function renderRelatorio(){
                 : overUnder<-1000?'<span class="badge cancelada">Por faturar</span>'
                 : '<span class="badge suspensa">Equilibrado</span>';
       html+=`<tr class="${overUnder<-1000?'loss':''}"><td>${o.num}</td><td>${o.nome}</td><td>${estadoBadge(o.estado)}</td>
-        <td style="text-align:right">${fmt(vo,0)}€</td>
-        <td style="text-align:right">${fmt(orc,0)}€</td>
-        <td style="text-align:right">${fmt(ct,0)}€</td>
+        <td style="text-align:right">${fmt(vo,2)}€</td>
+        <td style="text-align:right">${fmt(orc,2)}€</td>
+        <td style="text-align:right">${fmt(ct,2)}€</td>
         <td style="text-align:right;font-weight:600;color:${pctFisica>1?'var(--red)':'var(--text)'}">${fmtPct(pctFisica)}</td>
-        <td style="text-align:right">${fmt(o.autos,0)}€</td>
-        <td style="text-align:right;color:var(--muted)">${fmt(deviaFaturar,0)}€</td>
-        <td style="text-align:right;font-weight:700" class="${overUnder<0?'negative':'positive'}">${fmt(overUnder,0)}€</td>
+        <td style="text-align:right">${fmt(o.autos,2)}€</td>
+        <td style="text-align:right;color:var(--muted)">${fmt(deviaFaturar,2)}€</td>
+        <td style="text-align:right;font-weight:700" class="${overUnder<0?'negative':'positive'}">${fmt(overUnder,2)}€</td>
         <td>${sit}</td></tr>`;
     });
     if(any)html+=`<tr style="font-weight:700;border-top:2px solid var(--border);background:#f8f9fb">
       <td colspan="9" style="text-align:right">TOTAL faturado à frente / por faturar →</td>
-      <td style="text-align:right"><span class="positive">${fmt(tOver,0)}€</span> / <span class="negative">${fmt(tUnder,0)}€</span></td><td></td></tr>`;
+      <td style="text-align:right"><span class="positive">${fmt(tOver,2)}€</span> / <span class="negative">${fmt(tUnder,2)}€</span></td><td></td></tr>`;
     if(semOrc>0&&!any)html=html.replace('<tbody>','<tbody>')+`</tbody></table></div><div class="alert warn" style="margin-top:10px"><i class="ti ti-info-circle"></i> ${semOrc} obra(s) sem orçamento de custo definido. O relatório WIP precisa do orçamento de custo (custo previsto) de cada obra — preencha-o na ficha da obra (botão editar).</div>`;
   } else { // mensal
     html+=`<thead><tr><th style="width:60px;min-width:56px">COD</th><th>Obra</th><th>Mês</th><th style="text-align:right">Autos</th><th style="text-align:right">Rev.Preços</th><th style="text-align:right">Trab.Mais</th><th style="text-align:right">Custos tot.</th><th style="text-align:right">IVA</th><th style="text-align:right">Total c/IVA</th><th style="text-align:right">Retido ac.</th><th style="text-align:right">Fat.Líq.</th><th style="text-align:right">Liquidez</th><th>Fat.</th></tr></thead><tbody>`;
@@ -12316,7 +12477,7 @@ function renderIndiretos(){
   const tAnual=ativos.filter(i=>i.period==='Anual').reduce((s,i)=>s+i.valor,0); /* [v260] os "Anual" não entravam em nenhum KPI */
   document.getElementById('indir-totais').innerHTML=`
     <div class="metric"><div class="metric-label">Mensal (ativos)</div><div class="metric-value">${fmt(tMensal+tAnual/12)}€</div><div class="metric-sub">€/mês (inclui anuais ÷12)</div></div>
-    <div class="metric"><div class="metric-label">Anual equiv.</div><div class="metric-value">${fmt(tMensal*12+tAnual,0)}€</div></div>
+    <div class="metric"><div class="metric-label">Anual equiv.</div><div class="metric-value">${fmt(tMensal*12+tAnual,2)}€</div></div>
     <div class="metric"><div class="metric-label">Pontual/Único</div><div class="metric-value warning">${fmt(tUnico)}€</div></div>
     <div class="metric"><div class="metric-label">Total registos</div><div class="metric-value">${indiretos.length} <span style="font-size:11px;color:var(--green)">(${ativos.length} ativos)</span></div></div>
   `;
@@ -13253,7 +13414,7 @@ function switchObrasTab(tab){
 }
 function arquivarObra(num){const o=obras.find(x=>x.num===num);if(!o)return;o.arquivada=true;compras.forEach(c=>{if(c.obra===num)c.arquivada=true;});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
 function reporObra(num){const o=obras.find(x=>x.num===num);if(!o)return;o.arquivada=false;compras.forEach(c=>{if(c.obra===num)c.arquivada=false;});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
-function apagarObraArquivo(num){if(!confirm('Apagar definitivamente a obra '+num+', incluindo os seus contratos e custos? Esta ação não pode ser anulada.'))return;obras=obras.filter(x=>x.num!==num);compras=compras.filter(c=>c.obra!==num);if(typeof custos!=='undefined')custos=custos.filter(c=>c.obraNum!==num);if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
+function apagarObraArquivo(num){if(!confirm('Apagar definitivamente a obra '+num+', incluindo os seus contratos e custos? Esta ação não pode ser anulada.'))return;obras=obras.filter(x=>x.num!==num);compras=compras.filter(c=>c.obra!==num);if(typeof custos!=='undefined')custos=custos.filter(c=>c.obraNum!==num);try{if(window.AutosNat&&typeof window.AutosNat.tombObraApagada==='function')window.AutosNat.tombObraApagada(num);}catch(e){} /* [v262] apagar na app remove também dos Autos */if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
 // [v166->] #16 FUNDIR OBRAS — utilitario de consola, o Sergio corre uma vez: window.fundirObras('0380','0382')
 // A obra de ORIGEM e absorvida pela obra de DESTINO (fica tudo em destNum) e a origem e eliminada no fim.
 // Reaproveita fundirDadosObra(dest,src) -- a MESMA funcao ja usada quando se renomeia uma obra para um
@@ -13434,16 +13595,16 @@ function renderFacturacao(){
   const tFatLiq=lista.reduce((s,x)=>s+x.fin.fatLiq,0);
   const tLiq=lista.reduce((s,x)=>s+x.fin.liquidez,0);
   let tPorReceber=0,tEmAtraso=0;const _hojeKpi=new Date();_hojeKpi.setHours(0,0,0,0);
-  lista.forEach(x=>{mesesCalc(x.o).forEach(mc=>{if(!mc.recebido&&mc.estadoFat!=='nao'){tPorReceber+=mc.totalCIva||0;const dp=_dataPrevReceb(x.o,mc.mes);if(dp&&dp<_hojeKpi)tEmAtraso+=mc.totalCIva||0;}});});
+  lista.forEach(x=>{mesesCalc(x.o).forEach(mc=>{if(!mc.recebido&&mc.estadoFat!=='nao'){var _pr=(mc.totalCIva||0)-(mc.valorAdiant||0); /* [v262] descontar o adiantamento já recebido */ tPorReceber+=_pr;const dp=_dataPrevReceb(x.o,mc.mes);if(dp&&dp<_hojeKpi)tEmAtraso+=_pr;}});});
   document.getElementById('fact-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Total faturado s/ IVA</div><div class="metric-value">${fmt(tBase,2)}€</div></div>
-    <div class="metric"><div class="metric-label">IVA total</div><div class="metric-value" style="color:var(--blue)">${fmt(tIva,0)}€</div></div>
+    <div class="metric"><div class="metric-label">IVA total</div><div class="metric-value" style="color:var(--blue)">${fmt(tIva,2)}€</div></div>
     <div class="metric"><div class="metric-label">Total c/ IVA</div><div class="metric-value">${fmt(tCIva,2)}€</div></div>
-    <div class="metric"><div class="metric-label">Valor retido acum.</div><div class="metric-value" style="color:var(--purple)">${fmt(tRetido,0)}€</div></div>
+    <div class="metric"><div class="metric-label">Valor retido acum.</div><div class="metric-value" style="color:var(--purple)">${fmt(tRetido,2)}€</div></div>
     <div class="metric"><div class="metric-label">Faturação líquida</div><div class="metric-value success">${fmt(tFatLiq,2)}€</div></div>
     <div class="metric"><div class="metric-label">Liquidez acumulada</div><div class="metric-value ${tLiq<0?'danger':'success'}">${fmt(tLiq,2)}€</div></div>
-    <div class="metric"><div class="metric-label">Por receber</div><div class="metric-value" style="color:var(--orange)">${fmt(tPorReceber,0)}€</div></div>
-    <div class="metric"><div class="metric-label">Em atraso</div><div class="metric-value ${tEmAtraso>0?'danger':'success'}">${fmt(tEmAtraso,0)}€</div></div>`;
+    <div class="metric"><div class="metric-label">Por receber</div><div class="metric-value" style="color:var(--orange)">${fmt(tPorReceber,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Em atraso</div><div class="metric-value ${tEmAtraso>0?'danger':'success'}">${fmt(tEmAtraso,2)}€</div></div>`;
 
   if(lista.length===0){
     document.getElementById('fact-tbody').innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:20px">Nenhuma obra com lançamentos mensais. Abra uma obra e adicione meses na grelha de lançamentos.</td></tr>';
@@ -14266,9 +14427,9 @@ function _pgFluxoPrevisional(contas){
   var labels=[]; for(var i=0;i<NSEM;i++){ var d0=new Date(hoje.getTime()+i*7*DIA); labels.push(('0'+d0.getDate()).slice(-2)+'/'+('0'+(d0.getMonth()+1)).slice(-2)); }
   var saldo=[],acc=0; for(var j=0;j<NSEM;j++){ acc+=entr[j]-sai[j]; saldo.push(+acc.toFixed(2)); }
   var k=document.getElementById('pg-fluxo-kpis');
-  if(k)k.innerHTML='<div class="metric"><div class="metric-label">A receber (90 dias)</div><div class="metric-value success">'+fmt(totE,0)+'€</div></div>'
-    +'<div class="metric"><div class="metric-label">A pagar (90 dias)</div><div class="metric-value warning">'+fmt(totS,0)+'€</div></div>'
-    +'<div class="metric"><div class="metric-label">Saldo previsto</div><div class="metric-value '+((totE-totS)<0?'danger':'success')+'">'+fmt(totE-totS,0)+'€</div></div>';
+  if(k)k.innerHTML='<div class="metric"><div class="metric-label">A receber (90 dias)</div><div class="metric-value success">'+fmt(totE,2)+'€</div></div>'
+    +'<div class="metric"><div class="metric-label">A pagar (90 dias)</div><div class="metric-value warning">'+fmt(totS,2)+'€</div></div>'
+    +'<div class="metric"><div class="metric-label">Saldo previsto</div><div class="metric-value '+((totE-totS)<0?'danger':'success')+'">'+fmt(totE-totS,2)+'€</div></div>';
   try{ if(_pgChartFluxo)_pgChartFluxo.destroy(); }catch(e){}
   try{
     _pgChartFluxo=new Chart(cv,{data:{labels:labels,datasets:[
@@ -14589,7 +14750,7 @@ function renderOrcamentoReal(){
   const desvT=tOrc-tReal;
   html+='<tr style="background:#f1f5f9;font-weight:700"><td>TOTAL</td><td style="text-align:right">'+fmt(tOrc,2)+'€</td><td style="text-align:right">'+fmt(tReal,2)+'€</td><td style="text-align:right;color:'+(desvT<0?'var(--red)':'var(--green)')+'">'+fmt(desvT,2)+'€</td><td style="text-align:right">'+(tOrc>0?fmtPct(tReal/tOrc):'—')+'</td></tr>';
   if(tb)tb.innerHTML=html;
-  if(mt)mt.innerHTML='<div class="metric"><div class="metric-label">Orçamento total</div><div class="metric-value">'+fmt(tOrc,0)+'€</div></div><div class="metric"><div class="metric-label">Custo real</div><div class="metric-value warning">'+fmt(tReal,0)+'€</div></div><div class="metric"><div class="metric-label">Desvio</div><div class="metric-value '+(desvT<0?'danger':'success')+'">'+fmt(desvT,0)+'€</div></div><div class="metric"><div class="metric-label">% orçamento usado</div><div class="metric-value '+(tOrc>0&&tReal/tOrc>1?'danger':'')+'">'+(tOrc>0?fmtPct(tReal/tOrc):'—')+'</div></div>';
+  if(mt)mt.innerHTML='<div class="metric"><div class="metric-label">Orçamento total</div><div class="metric-value">'+fmt(tOrc,2)+'€</div></div><div class="metric"><div class="metric-label">Custo real</div><div class="metric-value warning">'+fmt(tReal,2)+'€</div></div><div class="metric"><div class="metric-label">Desvio</div><div class="metric-value '+(desvT<0?'danger':'success')+'">'+fmt(desvT,2)+'€</div></div><div class="metric"><div class="metric-label">% orçamento usado</div><div class="metric-value '+(tOrc>0&&tReal/tOrc>1?'danger':'')+'">'+(tOrc>0?fmtPct(tReal/tOrc):'—')+'</div></div>';
 }
 function setOrcCapitulo(num,fid,val){
   const o=obras.find(x=>x.num===num);if(!o)return;
@@ -14796,9 +14957,9 @@ function renderCustos(resetPag){
   const nObras=new Set(lista.map(c=>c.obraNum)).size;
   document.getElementById('custos-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Registos</div><div class="metric-value">${lista.length}</div></div>
-    <div class="metric"><div class="metric-label">Total s/ IVA</div><div class="metric-value">${fmt(totalSI,1)}€</div></div>
-    <div class="metric"><div class="metric-label">IVA</div><div class="metric-value" style="color:var(--blue)">${fmt(totalIva,1)}€</div></div>
-    <div class="metric"><div class="metric-label">Total c/ IVA</div><div class="metric-value">${fmt(totalCI,1)}€</div></div>
+    <div class="metric"><div class="metric-label">Total s/ IVA</div><div class="metric-value">${fmt(totalSI,2)}€</div></div>
+    <div class="metric"><div class="metric-label">IVA</div><div class="metric-value" style="color:var(--blue)">${fmt(totalIva,2)}€</div></div>
+    <div class="metric"><div class="metric-label">Total c/ IVA</div><div class="metric-value">${fmt(totalCI,2)}€</div></div>
     <div class="metric"><div class="metric-label">Obras com custos</div><div class="metric-value">${nObras}</div></div>`;
 
   const tb=document.getElementById('custos-tbody');
@@ -15231,7 +15392,7 @@ function processarImportCustos(filename){
       <div class="metric"><div class="metric-label">Linhas importadas</div><div class="metric-value success">${novos.length}</div></div>
       <div class="metric"><div class="metric-label">Novas obras criadas</div><div class="metric-value success">${obrasCriadas}</div></div>
       <div class="metric"><div class="metric-label">Obras com custos</div><div class="metric-value">${obrasAtual}</div></div>
-      <div class="metric"><div class="metric-label">Custos (abs.)</div><div class="metric-value">${fmt(totalImp,1)}€</div></div>
+      <div class="metric"><div class="metric-label">Custos (abs.)</div><div class="metric-value">${fmt(totalImp,2)}€</div></div>
       <div class="metric"><div class="metric-label">Atualizados (corrigidos)</div><div class="metric-value">${atualizadosCount}</div></div><div class="metric"><div class="metric-label">Duplicados ignorados</div><div class="metric-value">${dupCount}</div></div>
       <div class="metric"><div class="metric-label">Famílias associadas</div><div class="metric-value">${comFam}/${novos.length}</div></div>
       <div class="metric"><div class="metric-label">Sem obra (Não Definido)</div><div class="metric-value warning">${semObra}</div></div>
@@ -15913,10 +16074,13 @@ function confirmarLancamento(){
 #panel-gerir-users input,#panel-gerir-users select{padding:8px 10px;border:1px solid var(--border,#cbd5e1);border-radius:8px;font-size:13px;background:var(--surface,#fff);color:var(--text,#111);font-family:inherit}
 #panel-gerir-users .um-filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 #panel-gerir-users .um-filtros input{flex:1;min-width:200px}
-#panel-gerir-users .um-card{background:rgba(0,0,0,.02);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+#panel-gerir-users .um-card{background:rgba(0,0,0,.02);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(140px,1.4fr) 90px 130px 80px 120px auto;align-items:center;gap:12px}
+@media(max-width:820px){#panel-gerir-users .um-card{grid-template-columns:1fr 1fr}}
 #panel-gerir-users .um-card.um-inativo{opacity:.55}
-#panel-gerir-users .um-col{flex:1;min-width:120px}
-#panel-gerir-users .um-acts{flex:0 0 auto;display:flex;gap:6px}
+#panel-gerir-users .um-col{min-width:0}
+#panel-gerir-users .um-col .um-val{overflow:hidden;text-overflow:ellipsis}
+#panel-gerir-users .um-col img{max-height:26px;max-width:80px;width:auto;object-fit:contain;vertical-align:middle;border:1px solid var(--border,#e2e8f0);border-radius:4px;background:#fff;padding:1px}
+#panel-gerir-users .um-acts{justify-self:end;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 #panel-gerir-users .um-lbl{font-size:10px;text-transform:uppercase;color:var(--muted,#94a3b8);margin-bottom:2px}
 #panel-gerir-users .um-val{font-size:13px;color:var(--text,#111)}
 #panel-gerir-users .um-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #ccc}
@@ -16138,10 +16302,10 @@ function confirmarLancamento(){
     }).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--muted)">Sem subempreitadas. Crie um processo de compra do tipo "Subempreitada" com lista de quantidades.</td></tr>';
     var kp=g('sp-kpis');
     if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Subcontratos</div><div class="metric-value">'+lista.length+'</div></div>'
-      +'<div class="metric"><div class="metric-label">Adjudicado</div><div class="metric-value">'+fmt(tAdj,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Executado</div><div class="metric-value">'+fmt(tExec,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Retido</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Pago</div><div class="metric-value success">'+fmt(tPag,0)+'€</div></div>';
+      +'<div class="metric"><div class="metric-label">Adjudicado</div><div class="metric-value">'+fmt(tAdj,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Executado</div><div class="metric-value">'+fmt(tExec,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Retido</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Pago</div><div class="metric-value success">'+fmt(tPag,2)+'€</div></div>';
   };
 
   /* ---------- detalhe do subcontrato ---------- */
@@ -16329,11 +16493,11 @@ function confirmarLancamento(){
     });
     html+='</tbody></table>';
     tab.innerHTML=html;
-    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Adjudicado a subs</div><div class="metric-value">'+fmt(tAdj,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Executado</div><div class="metric-value">'+fmt(tExec,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Por executar</div><div class="metric-value" style="color:var(--orange)">'+fmt(tPE,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Retido</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Executado por pagar</div><div class="metric-value danger">'+fmt(tPP,0)+'€</div></div>';
+    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Adjudicado a subs</div><div class="metric-value">'+fmt(tAdj,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Executado</div><div class="metric-value">'+fmt(tExec,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Por executar</div><div class="metric-value" style="color:var(--orange)">'+fmt(tPE,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Retido</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Executado por pagar</div><div class="metric-value danger">'+fmt(tPP,2)+'€</div></div>';
   };
 
   /* ---------- garantias ---------- */
@@ -16361,8 +16525,8 @@ function confirmarLancamento(){
       if(!x.libertada&&dias!=null&&dias<=60)nVencer++;
       return '<tr><td><b>'+esc(x.c.obra||'')+'</b></td><td>'+esc(x.c.fornecedor||'')+'</td><td>'+esc(x.tipo)+'</td><td>'+esc(x.banco)+(x.n?(' · '+esc(x.n)):'')+'</td><td style="text-align:right">'+eur(x.valor)+'</td><td>'+esc(x.validade||'—')+'</td><td>'+estado+'</td><td><button class="btn sm" onclick="abrirSubDetalhe(\''+esc(String(x.c.id))+'\')">Abrir ▸</button></td></tr>';
     }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--muted)">Sem garantias nem retenções registadas.</td></tr>';
-    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Retenções pendentes</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Garantias bancárias</div><div class="metric-value">'+fmt(tBanc,0)+'€</div></div>'
+    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Retenções pendentes</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Garantias bancárias</div><div class="metric-value">'+fmt(tBanc,2)+'€</div></div>'
       +'<div class="metric"><div class="metric-label">A vencer (≤60 dias)</div><div class="metric-value '+(nVencer?'danger':'success')+'">'+nVencer+'</div></div>';
   };
 
@@ -16414,9 +16578,9 @@ function confirmarLancamento(){
     }).join('');
     tab.innerHTML='<table><thead><tr><th>Mês</th><th style="text-align:right">Produção</th><th style="text-align:right">Custo permitido</th><th style="text-align:right">Custo real</th><th style="text-align:right">Ganho/perda</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>'+(linhas||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">Sem lançamentos mensais.</td></tr>')+'</tbody></table>';
     if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Rácio de custo orçamentado</div><div class="metric-value">'+fmtPct(racio)+'</div></div>'
-      +'<div class="metric"><div class="metric-label">Custo permitido acumulado</div><div class="metric-value">'+fmt(permAcum,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Custo real acumulado</div><div class="metric-value warning">'+fmt(realAcum,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Ganho / perda</div><div class="metric-value '+(permAcum-realAcum<0?'danger':'success')+'">'+(permAcum-realAcum<0?'':'+')+fmt(permAcum-realAcum,0)+'€</div></div>';
+      +'<div class="metric"><div class="metric-label">Custo permitido acumulado</div><div class="metric-value">'+fmt(permAcum,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Custo real acumulado</div><div class="metric-value warning">'+fmt(realAcum,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Ganho / perda</div><div class="metric-value '+(permAcum-realAcum<0?'danger':'success')+'">'+(permAcum-realAcum<0?'':'+')+fmt(permAcum-realAcum,2)+'€</div></div>';
   };
 
   /* ---------- SNAPSHOTS ---------- */
@@ -16729,9 +16893,9 @@ function confirmarLancamento(){
         +'<td style="text-align:right;color:'+(real-orc>0&&orc>0?'var(--red)':'var(--text)')+'">'+(orc>0?fmt(real-orc,2)+'€':'—')+'</td>'
         +'<td style="text-align:right">'+chip+'</td><td></td></tr>';
     }).join('');
-    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Orçamento total</div><div class="metric-value">'+fmt(totO,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Real (custos lançados)</div><div class="metric-value warning">'+fmt(totR,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Desvio</div><div class="metric-value '+(totR>totO&&totO>0?'danger':'success')+'">'+fmt(totR-totO,0)+'€</div></div>'
+    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Orçamento total</div><div class="metric-value">'+fmt(totO,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Real (custos lançados)</div><div class="metric-value warning">'+fmt(totR,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Desvio</div><div class="metric-value '+(totR>totO&&totO>0?'danger':'success')+'">'+fmt(totR-totO,2)+'€</div></div>'
       +'<div class="metric"><div class="metric-label">Consumo do orçamento</div><div class="metric-value">'+(totO>0?fmtPct(totR/totO):'—')+'</div></div>';
   };
   window.orSetOrc=function(num,famId,val){
@@ -16824,10 +16988,10 @@ function confirmarLancamento(){
     tab.innerHTML='<table><thead><tr><th>Mês</th><th style="text-align:right">Faturado c/IVA</th><th style="text-align:right">Recebido</th><th style="text-align:right">Por receber</th><th style="text-align:right">Custos</th><th style="text-align:right">Retenção</th><th style="text-align:right">Saldo do mês</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>'
       +(linhas.length?linhas.join(''):'<tr><td colspan="8" style="text-align:center;color:var(--muted)">Sem lançamentos mensais nas obras.</td></tr>')
       +'</tbody></table>';
-    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Faturado c/IVA</div><div class="metric-value">'+fmt(tFat,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Recebido</div><div class="metric-value success">'+fmt(tRec,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Por receber</div><div class="metric-value '+(tFat-tRec>0?'danger':'success')+'">'+fmt(tFat-tRec,0)+'€</div></div>'
-      +'<div class="metric"><div class="metric-label">Retenções acumuladas</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,0)+'€</div></div>';
+    if(kp)kp.innerHTML='<div class="metric"><div class="metric-label">Faturado c/IVA</div><div class="metric-value">'+fmt(tFat,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Recebido</div><div class="metric-value success">'+fmt(tRec,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Por receber</div><div class="metric-value '+(tFat-tRec>0?'danger':'success')+'">'+fmt(tFat-tRec,2)+'€</div></div>'
+      +'<div class="metric"><div class="metric-label">Retenções acumuladas</div><div class="metric-value" style="color:var(--purple)">'+fmt(tRet,2)+'€</div></div>';
   };
 
   /* ---------- 8) RELATÓRIO MENSAL (PDF via impressão) ---------- */
@@ -16939,7 +17103,8 @@ function confirmarLancamento(){
       var icon={err:'ti-alert-octagon',warn:'ti-alert-triangle',info:'ti-info-circle'};
       var cor={err:'#c0392b',warn:'#C77A2E',info:'#1B4D8F'};
       li.innerHTML=av.slice(0,30).map(function(a){
-        var clique=a.o?"openObra('"+a.o.num+"');document.getElementById('sino-painel').style.display='none'":"showTab('definicoes',navBtn('definicoes'));document.getElementById('sino-painel').style.display='none'";
+        var _dst=a.o?"openObra('"+a.o.num+"')":(a.tab?"showTab('"+a.tab+"',navBtn('"+a.tab+"'))":"showTab('definicoes',navBtn('definicoes'))");
+        var clique=_dst+";document.getElementById('sino-painel').style.display='none'";
         var tit=a.o?('<b>'+esc(a.o.num)+'</b> — '+esc((a.o.nome||'').substring(0,30))):'<b>Validade</b>';
         return '<div onclick="'+clique+'" style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:10px;cursor:pointer" onmouseover="this.style.background=\'#F1F4F8\'" onmouseout="this.style.background=\'\'">'
           +'<i class="ti '+icon[a.n]+'" style="color:'+cor[a.n]+';font-size:16px;margin-top:1px"></i>'
@@ -16975,10 +17140,10 @@ function confirmarLancamento(){
       var k=g('ini-kpis');
       if(k)k.innerHTML=
         '<div class="metric"><div class="metric-label">Obras em curso</div><div class="metric-value">'+nAtivas+'</div><div class="metric-sub">'+obras.filter(function(o){return !o.arquivada;}).length+' no total</div></div>'
-        +'<div class="metric"><div class="metric-label">Adjudicação</div><div class="metric-value">'+fmt(adj,0)+'€</div></div>'
-        +'<div class="metric"><div class="metric-label">Faturação (autos + RP + TM)</div><div class="metric-value">'+fmt(fat,0)+'€</div></div>'
-        +'<div class="metric"><div class="metric-label">Custos totais</div><div class="metric-value warning">'+fmt(cst,0)+'€</div></div>'
-        +'<div class="metric"><div class="metric-label">Margem</div><div class="metric-value '+(mrg<0?'danger':'success')+'">'+fmt(mrg,0)+'€</div></div>'
+        +'<div class="metric"><div class="metric-label">Adjudicação</div><div class="metric-value">'+fmt(adj,2)+'€</div></div>'
+        +'<div class="metric"><div class="metric-label">Faturação (autos + RP + TM)</div><div class="metric-value">'+fmt(fat,2)+'€</div></div>'
+        +'<div class="metric"><div class="metric-label">Custos totais</div><div class="metric-value warning">'+fmt(cst,2)+'€</div></div>'
+        +'<div class="metric"><div class="metric-label">Margem</div><div class="metric-value '+(mrg<0?'danger':'success')+'">'+fmt(mrg,2)+'€</div></div>'
         +'<div class="metric" onclick="toggleSino()" style="cursor:pointer"><div class="metric-label">Alertas</div><div class="metric-value '+(av.length?'danger':'success')+'">'+av.length+'</div><div class="metric-sub">'+(av.length?'clique para ver':'tudo em ordem')+'</div></div>';
       var at=g('ini-atalhos');
       if(at)at.innerHTML=ATALHOS.map(function(a){
@@ -16989,7 +17154,7 @@ function confirmarLancamento(){
       /* atividade recente: últimos custos + compras (id = timestamp) */
       var evs=[];
       (typeof custos!=='undefined'?custos:[]).forEach(function(c){evs.push({ts:+c.id||0,ic:'ti-coins',bg:'#EAF1FA',cor:'#1B4D8F',t:(c.desc||c.documento||'Custo'),s:(c.obraNum||'')+(c.fornecedor?' · '+c.fornecedor:'')+' · '+fmt(Math.abs(c.valor||0),2)+'€'});});
-      (typeof compras!=='undefined'?compras:[]).forEach(function(c){evs.push({ts:+c.id||0,ic:'ti-shopping-cart',bg:'#FDF0E6',cor:'#C77A2E',t:(c.nome||'Processo de compra'),s:(c.obra||'')+' · '+fmt(c.adjud||0,0)+'€'});});
+      (typeof compras!=='undefined'?compras:[]).forEach(function(c){evs.push({ts:+c.id||0,ic:'ti-shopping-cart',bg:'#FDF0E6',cor:'#C77A2E',t:(c.nome||'Processo de compra'),s:(c.obra||'')+' · '+fmt(c.adjud||0,2)+'€'});});
       evs.sort(function(a,b){return b.ts-a.ts;});
       var atv=g('ini-atividade');
       if(atv){
@@ -17011,8 +17176,8 @@ function confirmarLancamento(){
           var icon={err:'ti-alert-octagon',warn:'ti-alert-triangle',info:'ti-info-circle'};
           al.innerHTML=av.slice(0,6).map(function(a){
             var cls=a.n==='err'?'err':a.n==='warn'?'warn':'ok';
-            var tit=a.o?('<strong>'+esc(a.o.num)+'</strong> — '+esc((a.o.nome||'').substring(0,26))+': '+esc(a.t)):('<strong>Validade</strong>: '+esc(a.t));
-            var cl=a.o?'openObra(\''+a.o.num+'\')':'showTab(\'definicoes\',navBtn(\'definicoes\'))';
+            var tit=a.o?('<strong>'+esc(a.o.num)+'</strong> — '+esc((a.o.nome||'').substring(0,26))+': '+esc(a.t)):(a.tab?esc(a.t):('<strong>Validade</strong>: '+esc(a.t)));
+            var cl=a.o?'openObra(\''+a.o.num+'\')':(a.tab?'showTab(\''+a.tab+'\',navBtn(\''+a.tab+'\'))':'showTab(\'definicoes\',navBtn(\'definicoes\'))');
             return '<div class="alert '+cls+'" onclick="'+cl+'" style="cursor:pointer;margin-bottom:6px"><i class="ti '+icon[a.n]+'"></i> '+tit+'</div>';
           }).join('')+(av.length>6?'<div style="font-size:11px;color:var(--muted);text-align:center">+ '+(av.length-6)+' outros — ver Dashboard</div>':'');
         }
@@ -17069,9 +17234,25 @@ function confirmarLancamento(){
 
   /* ---------- regras de caução ---------- */
   function prazoAnos(reg){var m=String(reg.prazo||'').match(/(\d+)/);return m?Math.max(1,Math.min(10,+m[1])):5;}
-  function baseGar(reg){return (+reg.garValor||0)||(+reg.retValor||0)||(+reg.retEstim||0)||(+reg.cauEstim||0);}
-  function baseLib(reg,tipo){ return tipo==='gar' ? (+reg.garValor||0) : ((+reg.retValor||0)||(+reg.retEstim||0)); }
-  function retEf(reg){ return (+reg.retValor>0)?+reg.retValor:(+reg.retEstim||0); } // valor efetivo: usa estimado por defeito
+  function segArr(reg){ if(!Array.isArray(reg.seguros)){ reg.seguros=[]; if((+reg.garValor||0)>0||reg.garNum||reg.garData||(reg.tipoCaucao&&reg.tipoCaucao!=='Retenção')){ reg.seguros.push({tipoCaucao:reg.tipoCaucao||'Garantia bancária',cauPct:(reg.cauPct!=null?reg.cauPct:''),garNum:reg.garNum||'',garData:reg.garData||'',garValor:+reg.garValor||0}); } } return reg.seguros; }
+  function garTotal(reg){ return segArr(reg).reduce(function(s,x){return s+(+x.garValor||0);},0); }
+  function baseGar(reg){return garTotal(reg)||(+reg.retValor||0)||(+reg.retEstim||0)||(+reg.cauEstim||0);}
+  function baseLib(reg,tipo){ return tipo==='gar' ? garTotal(reg) : retEf(reg); }
+  function retEf(reg){ if(+reg.retValor>0)return +reg.retValor; try{var o=acharObra(reg); if(o){var f=retidoObra(o); if(f>0)return f;}}catch(e){} return +reg.retEstim||0; } // efetivo: manual, senão retido da faturacão, senão estimado
+  function recebidoTipo(reg,tipo){ var base=baseLib(reg,tipo); if(base<=0)return 0; var pa=prazoAnos(reg),arr=arrLib(reg,tipo),s=0; for(var i=0;i<pa;i++){var a=arr[i]||{}; if(a.receb){var fr=fracLib(reg,tipo,i); if(fr==null)fr=1/pa; s+=base*fr;}} return s; }
+  function libTipo(reg,tipo){ return Math.max(0, baseLib(reg,tipo)-recebidoTipo(reg,tipo)); }
+  function libTotal(reg){ return libTipo(reg,'ret')+libTipo(reg,'gar'); }
+  function segurosFormHTML(r,chave){ var arr=segArr(r); var TIPOS=['','Garantia bancária','Seguro-caução','Depósito'];
+    var linhas=arr.map(function(sg,i){ return '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px;padding:6px;border:1px solid var(--border);border-radius:8px">'
+      +'<div><label style="font-size:10px;font-weight:700;color:#5A5D61;display:block">Tipo</label><select onchange="ccSeguroSet(\''+escA(chave)+'\','+i+',\'tipoCaucao\',this.value)" style="padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px">'+TIPOS.map(function(op){return '<option'+(String(sg.tipoCaucao||'')===op?' selected':'')+'>'+esc(op)+'</option>';}).join('')+'</select></div>'
+      +'<div><label style="font-size:10px;font-weight:700;color:#5A5D61;display:block">%</label><input value="'+escA(sg.cauPct!=null?sg.cauPct:'')+'" onchange="ccSeguroSet(\''+escA(chave)+'\','+i+',\'cauPct\',this.value)" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px"></div>'
+      +'<div><label style="font-size:10px;font-weight:700;color:#5A5D61;display:block">Nº</label><input value="'+escA(sg.garNum||'')+'" onchange="ccSeguroSet(\''+escA(chave)+'\','+i+',\'garNum\',this.value)" style="width:110px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px"></div>'
+      +'<div><label style="font-size:10px;font-weight:700;color:#5A5D61;display:block">Data</label><input value="'+escA(sg.garData||'')+'" onchange="ccSeguroSet(\''+escA(chave)+'\','+i+',\'garData\',this.value)" style="width:110px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px"></div>'
+      +'<div><label style="font-size:10px;font-weight:700;color:#5A5D61;display:block">Valor (€)</label><input value="'+escA(sg.garValor!=null?sg.garValor:'')+'" onchange="ccSeguroSet(\''+escA(chave)+'\','+i+',\'garValor\',this.value)" style="width:110px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px"></div>'
+      +'<button class="btn sm danger" onclick="ccSeguroDel(\''+escA(chave)+'\','+i+')" title="Remover"><i class="ti ti-trash"></i></button></div>'; }).join('');
+    return '<div class="section-title" style="display:flex;justify-content:space-between;align-items:center">Garantia / Caução (seguros) <button class="btn sm primary" onclick="ccSeguroAdd(\''+escA(chave)+'\')"><i class="ti ti-plus"></i> Novo seguro</button></div>'
+      +'<div style="margin-bottom:6px">'+(linhas||'<div style="padding:6px;color:var(--muted);font-size:12px">Sem seguros. Clique em "Novo seguro".</div>')+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px">Total garantia/caução: <b>'+eur(garTotal(r))+'</b></div>'; }
   function arrLib(reg,tipo){ var k=tipo==='gar'?'anosGar':'anosRet';
     if((!reg[k]||!reg[k].length) && reg.anos && reg.anos.length){
       var antigoEhGar=(+reg.garValor||0)>0;
@@ -17190,6 +17371,7 @@ function confirmarLancamento(){
     out.sort(function(a,b){return (a.dias||0)-(b.dias||0);});
     return out;
   }
+  try{ window.cauLibertacoesPendentes=cauLibertacoesPendentes; }catch(e){} /* [v262] para a central de alertas */
   function painelLibertacoes(escopo,containerId){
     var box=g(containerId);if(!box)return;
     var pend=cauLibertacoesPendentes(escopo);
@@ -17415,7 +17597,9 @@ function confirmarLancamento(){
   function valOrdCli(r,campo){
     if(campo==='_proxData'||campo==='_proxValor'){var p=proxLib(r);if(campo==='_proxData')return p&&p.data?p.data.getTime():9e15;return p?p.valor:-1;}
     if(campo==='retValor')return retEf(r);
-    if(['garValor','retValor','retPct','libertar','cauEstim','retEstim'].indexOf(campo)>=0)return +r[campo]||0;
+    if(campo==='garValor')return garTotal(r);
+    if(campo==='libertar')return libTotal(r);
+    if(['retPct','cauEstim','retEstim'].indexOf(campo)>=0)return +r[campo]||0;
     return String(r[campo]||'').toLowerCase();
   }
   window.cauEstToggle=function(g){cauEstCol[g]=!cauEstCol[g];renderCaucClientes();};
@@ -17436,7 +17620,7 @@ function confirmarLancamento(){
     });
     lista.sort(function(a,b){var x=valOrdCli(a,ordCli.campo),y=valOrdCli(b,ordCli.campo);if(x<y)return ordCli.dir==='asc'?-1:1;if(x>y)return ordCli.dir==='asc'?1:-1;return 0;});
     var tGar=0,tRetEf=0,tLib=0,tProx=0;
-    lista.forEach(function(r){tGar+=+r.garValor||0;tRetEf+=retEf(r);tLib+=+r.libertar||0;var _pp=proxLib(r);if(_pp)tProx+=+_pp.valor||0;});
+    lista.forEach(function(r){tGar+=garTotal(r);tRetEf+=retEf(r);tLib+=libTotal(r);var _pp=proxLib(r);if(_pp)tProx+=+_pp.valor||0;});
     var head=montarHead(COLS_CLI,ordCli,'cauOrdCli');
     function linhaCli(r){
       var ch=escA(r._chave);var o=acharObra(r);var p=proxLib(r);
@@ -17446,7 +17630,9 @@ function confirmarLancamento(){
         if(c.t==='acoes')return '<td style="white-space:nowrap;text-align:center"><button class="btn sm" onclick="event.stopPropagation();ccArquivar(\''+ch+'\')" title="'+(r.arquivada?'Reabrir':'Arquivar')+'"><i class="ti ti-'+(r.arquivada?'archive-off':'archive')+'"></i></button>'+(r.arquivada?' <button class="btn sm danger" onclick="event.stopPropagation();ccApagar(\''+ch+'\')" title="Apagar definitivamente"><i class="ti ti-trash"></i></button>':'')+'</td>';
         if(c.t==='cdata'){if(!p)return '<td style="text-align:center;color:var(--muted)">\u2014</td>';var cor=p.vencida?'#c0392b':(p.dias!=null&&p.dias<=30?'#C77A2E':'var(--text)');return '<td style="text-align:center;white-space:nowrap;color:'+cor+'">'+(p.data?fmtData(p.data):'(s/ data)')+'</td>';}
         if(c.t==='cval'){if(!p)return '<td style="text-align:center;color:var(--muted)">\u2014</td>';return '<td style="text-align:center;white-space:nowrap">'+eur(p.valor)+'</td>';}
-        if(c.k==='retValor'){var _vRe=(+r.retValor>0)?r.retValor:(+r.retEstim>0?r.retEstim:'');return celNum(ch,c.k,_vRe,'ccCellEl');}
+        if(c.k==='retValor'){return '<td style="text-align:center">'+eur(retEf(r))+'</td>';}
+        if(c.k==='garValor'){return '<td style="text-align:center">'+eur(garTotal(r))+'</td>';}
+        if(c.k==='libertar'){return '<td style="text-align:center">'+eur(libTotal(r))+'</td>';}
         if(c.t==='num')return celNum(ch,c.k,(r[c.k]!=null?r[c.k]:''),'ccCellEl');
         var val=r[c.k]!=null?r[c.k]:'';
         if(c.t==='pct')val=(val!==''&&val!=null)?(num(val)*100):'';
@@ -17462,7 +17648,7 @@ function confirmarLancamento(){
     var body='';
     var _GSTYLE={'Em Curso':{cor:'#1e40af',bg:'#dbeafe',icone:'ti-player-play'},'Pós-Venda':{cor:'#5b21b6',bg:'#ede9fe',icone:'ti-rosette'},'Concluída':{cor:'#166534',bg:'#dcfce7',icone:'ti-circle-check'}};
     _GR.forEach(function(gn){var arr=_gC[gn];if(!arr||!arr.length)return;var col=!!cauEstCol[gn];
-      var sg=0,sr=0,sl=0,sp=0;arr.forEach(function(r){sg+=+r.garValor||0;sr+=retEf(r);sl+=+r.libertar||0;var _pp=proxLib(r);if(_pp)sp+=+_pp.valor||0;});
+      var sg=0,sr=0,sl=0,sp=0;arr.forEach(function(r){sg+=garTotal(r);sr+=retEf(r);sl+=libTotal(r);var _pp=proxLib(r);if(_pp)sp+=+_pp.valor||0;});
       var st=_GSTYLE[gn]||{cor:'#475569',bg:'#eef2f7',icone:'ti-folder'};
       // Linha do grupo: título + contagem na 1ª coluna; totais nas colunas respetivas.
       var grpCels=COLS_CLI.map(function(c,_idx){
@@ -17520,9 +17706,9 @@ function confirmarLancamento(){
     g('cc-corpo').innerHTML=
       (o?'<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-link"></i> Ligada à obra <b>'+esc(o.num)+'</b> (por código). Retenção da faturação: <b>'+eur(fatRet)+'</b>. <button class="btn sm" onclick="ccPuxarFat(\''+escA(chave)+'\')">Usar este valor</button></div>':'<div class="alert warn" style="margin-bottom:10px"><i class="ti ti-unlink"></i> Sem obra com este código.</div>')
       +'<div class="section-title">Identificação</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Código','cod')+fld('Obra','nome','240px')+fldSel('Natureza','natureza',['','Pública','Privada'])+fldSelEstado('Estado')+fld('Contrato','contrato')+fld('Data de Consignação','consignacao','150px')+'</div>'
-      +'<div class="section-title">Garantia / Caução</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fldSel('Tipo de caução','tipoCaucao',['','Garantia bancária','Retenção','Seguro-caução','Depósito'],'170px')+fld('Caução %','cauPct')+fld('Nº garantia','garNum')+fld('Data garantia','garData')+fld('Valor garantia (GB)','garValor')+'</div>'
+      +segurosFormHTML(r,chave)
       +'<div class="section-title">Retenções</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Retenção %','retPct')+fld('Valor estimado','retEstim')+fld('Valor efetivo','retValor')+'</div>'
-      +'<div class="section-title">Prazo e receções</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Prazo garantia','prazo')+fld('Rec. provisória','recProv')+fld('Rec. definitiva','recDefinitiva')+fld('A libertar','libertar')+'</div>'
+      +'<div class="section-title">Prazo e receções</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+fld('Prazo garantia','prazo')+fld('Rec. provisória','recProv')+fld('Rec. definitiva','recDefinitiva')        +'<div><label style="font-size:10.5px;font-weight:700;color:#5A5D61;display:block;margin-bottom:2px">A libertar (retenção)</label><input value="'+escA(eur(libTipo(r,'ret')))+'" readonly style="width:130px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:#f1f4f8"></div>'        +'<div><label style="font-size:10.5px;font-weight:700;color:#5A5D61;display:block;margin-bottom:2px">A libertar (garantia)</label><input value="'+escA(eur(libTipo(r,'gar')))+'" readonly style="width:130px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:#f1f4f8"></div>'        +'</div>'
       +'<div class="section-title">Libertações (Retenção e Garantia)</div>'+libTabelasHTML(r,chave,'ccAno','ccProgramar')
       +cronHTML(r,chave);
     openModal('modal-cauc-cli');
@@ -17532,6 +17718,9 @@ function confirmarLancamento(){
   window.ccAno=function(chave,tipo,i,campo,val){var r=cli[chave];if(!r)return;var arr=arrLib(r,tipo);if(!arr[i])arr[i]={};arr[i][campo]=val;cliSave();renderCaucClientes();};
   window.ccProgramar=function(chave,tipo){var r=cli[chave];if(!r)return;if(tipo)programarT(r,tipo);else programar(r);cliSave();abrirCaucCli(chave);renderCaucClientes();};
   window.ccPuxarFat=function(chave){var r=cli[chave];if(!r)return;var o=acharObra(r);if(!o)return;r.retValor=+retidoObra(o).toFixed(2);cliSave();abrirCaucCli(chave);renderCaucClientes();};
+  window.ccSeguroSet=function(chave,idx,campo,val){var r=cli[chave];if(!r)return;var arr=segArr(r);if(!arr[idx])return;arr[idx][campo]=(campo==='garValor'||campo==='cauPct')?num(val):val;cliSave();abrirCaucCli(chave);renderCaucClientes();};
+  window.ccSeguroAdd=function(chave){var r=cli[chave];if(!r)return;segArr(r).push({tipoCaucao:'Garantia bancária',cauPct:'',garNum:'',garData:'',garValor:0});cliSave();abrirCaucCli(chave);renderCaucClientes();};
+  window.ccSeguroDel=function(chave,idx){var r=cli[chave];if(!r)return;var arr=segArr(r);if(arr[idx]&&!confirm('Remover este seguro?'))return;arr.splice(idx,1);cliSave();abrirCaucCli(chave);renderCaucClientes();};
 
   /* ---------- cronologia DENTRO do formulário ---------- */
   function cronHTML(reg,chave){
@@ -17567,8 +17756,8 @@ function confirmarLancamento(){
       arr.forEach(function(o){
         if(o.arquivada)return;
         var ex=Object.keys(cli).find(function(k){return acharObra(cli[k])===o;});
-        if(ex){var r=cli[ex];r.retValor=+retidoObra(o).toFixed(2);r._obraNum=String(o.num);r.estado=(window.grpEstadoNorm?window.grpEstadoNorm(o.estado):g3(o.estado));if(o.nome)r.nome=o.nome;if(o.tipoCliente)r.natureza=o.tipoCliente;r.nobra=String(o.num);}
-        else{cli[String(o.num)]={cod:String(o.num),nobra:String(o.num),nome:o.nome||'',natureza:o.tipoCliente||'',estado:g3(o.estado),retPct:(o.retencaoPct||0.05),retEstim:+((+o.adj||0)*(o.retencaoPct||0.05)).toFixed(2),retValor:+retidoObra(o).toFixed(2),prazo:'5 anos',anos:[{},{},{},{},{}],_obraNum:String(o.num)};}
+        if(ex){var r=cli[ex];r.retValor=+retidoObra(o).toFixed(2);r._obraNum=String(o.num);r.estado=(window.grpEstadoNorm?window.grpEstadoNorm(o.estado):g3(o.estado));if(o.nome)r.nome=o.nome;if(o.tipoCliente)r.natureza=o.tipoCliente;r.nobra=String(o.num);if(o.cauTipo)r.tipoCaucao=o.cauTipo;if(o.cauPct!=null&&o.cauPct!=='')r.retPct=(+o.cauPct)/100;}
+        else{var _rp=(o.cauPct!=null&&o.cauPct!==''?(+o.cauPct)/100:(o.retencaoPct||0.05));cli[String(o.num)]={cod:String(o.num),nobra:String(o.num),nome:o.nome||'',natureza:o.tipoCliente||'',estado:g3(o.estado),tipoCaucao:(o.cauTipo||''),retPct:_rp,retEstim:+((+o.adj||0)*_rp).toFixed(2),retValor:+retidoObra(o).toFixed(2),prazo:'5 anos',anos:[{},{},{},{},{}],_obraNum:String(o.num)};}
       });
       cliSave();
       if(render!==false&&typeof renderCaucClientes==='function')renderCaucClientes();
@@ -17949,7 +18138,7 @@ function confirmarLancamento(){
       var cor={err:'#c0392b',warn:'#C77A2E',info:'#1B4D8F'};
       li.innerHTML=barra+visiveis.slice(0,40).map(function(a){
         var lido=!!e.lidos[a.__id];
-        var clique=a.o?("openObra('"+a.o.num+"');document.getElementById('sino-painel').style.display='none'"):(a.validacao?'':'document.getElementById(\'sino-painel\').style.display=\'none\'');
+        var clique=a.o?("openObra('"+a.o.num+"');document.getElementById('sino-painel').style.display='none'"):(a.tab?("showTab('"+a.tab+"',navBtn('"+a.tab+"'));document.getElementById('sino-painel').style.display='none'"):(a.validacao?'':'document.getElementById(\'sino-painel\').style.display=\'none\''));
         var tit=a.o?('<b>'+esc(a.o.num)+'</b> — '+esc((a.o.nome||'').substring(0,30))):(a.validacao?'<b>Validação</b>':'<b>Aviso</b>');
         var btnMail=a.validacao?('<button class="btn sm" onclick="event.stopPropagation();avisarValidacaoEmail(\''+esc(a.perfilDestino||'')+'\',\''+esc((a.doc||'').replace(/\'/g,"\\\\'"))+'\')" title="Avisar responsável por email" style="margin-left:auto;flex:none"><i class="ti ti-mail-forward"></i></button>'):'';
         return '<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:10px;cursor:'+(clique?'pointer':'default')+';opacity:'+(lido?'0.5':'1')+'" '+(clique?'onclick="'+clique+'"':'')+' onmouseover="this.style.background=\'#F1F4F8\'" onmouseout="this.style.background=\'\'">'
@@ -18147,7 +18336,8 @@ function confirmarLancamento(){
     {v:'obras',t:'Obras'},{v:'facturacao',t:'Facturação'},{v:'autosmed',t:'Autos de Medição'},
     {v:'custos',t:'Custos'},{v:'dashboard',t:'Dashboard'},{v:'relatorios',t:'Relatórios'},
     {v:'rh',t:'RH'},{v:'compras',t:'Compras'},{v:'pagamentos',t:'Pagamentos'},
-    {v:'caucoes',t:'Cauções'},{v:'precos',t:'Base de Preços'},{v:'definicoes',t:'Definições'}
+    {v:'caucoes',t:'Cauções'},{v:'precos',t:'Base de Preços'},{v:'revisao',t:'Revisão de Preços'},{v:'caixa',t:'Folha de Caixa'},
+{v:'definicoes',t:'Definições'}
   ];
   window._MODULOS=MODULOS;
   function modLabel(v){for(var i=0;i<MODULOS.length;i++){if(MODULOS[i].v===v)return MODULOS[i].t;}return v;}
@@ -18301,8 +18491,8 @@ function confirmarLancamento(){
 
   /* ---- Gestao de Utilizadores ---- */
   function umPopularPerfis(){var sel=document.getElementById('um-perfil');if(!sel)return;sel.innerHTML=PERFIS.map(function(x){return '<option value="'+x.v+'"'+(x.v==='medidor'?' selected':'')+'>'+x.t+'</option>';}).join('');try{sel.onchange=function(){try{umPermHint();}catch(e){}};umPermHint();}catch(e){}}
-  window.abrirGerirUsers=function(){if(!ehAdmin()){alert('Apenas o Administrador pode gerir utilizadores.');return;}var p=document.getElementById('panel-gerir-users');if(p)p.style.display='block';umPopularPerfis();renderListaUsers();};
-  window.fecharGerirUsers=function(){var p=document.getElementById('panel-gerir-users');if(p)p.style.display='none';};
+  window.abrirGerirUsers=function(){if(!ehAdmin()){alert('Apenas o Administrador pode gerir utilizadores.');return;}var p=document.getElementById('panel-gerir-users');if(p){p.style.display='block';p.style.zIndex='100001';}try{document.body.style.overflow='hidden';}catch(e){}umPopularPerfis();renderListaUsers();};
+  window.fecharGerirUsers=function(){var p=document.getElementById('panel-gerir-users');if(p)p.style.display='none';try{document.body.style.overflow='';}catch(e){}};
   window.umLimparForm=function(){['um-nome','um-user','um-pass','um-email'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});var r=document.getElementById('um-perfil');if(r)r.value='medidor';};
   window.umEditarEmail=function(user){var users=lerUsers(),i=findIdx(users,user);if(i<0)return;var novo=prompt('Email do utilizador (para avisos):',users[i].email||'');if(novo===null)return;users[i].email=novo.trim();gravarUsers(users);renderListaUsers();};
   window.umFiltrar=function(){renderListaUsers();};
@@ -18538,8 +18728,8 @@ function confirmarLancamento(){
     }
   }
   window.cloudRetomar=function(){ _syncPausado=false; _syncFalhas=0; _syncAvisado={}; try{cloudIniciarSync();}catch(e){} };
-  var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes','custosArquivo','auditoria'];
-  var _CC_OBJ=['rhConfig','utilizadores','usersRemovidos','uiPrefsUser','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','autosModulo','subautos','fechos','prazos','avisosAuto','indiretosVal'];
+  var _CC_ARR=['obras','indiretos','categorias','familias','tiposObra','tiposCliente','custos','rhColab','centrosCusto','rhRegrasDistrib','compras','certificacoes','custosArquivo','auditoria','caixaMov'];
+  var _CC_OBJ=['rhConfig','utilizadores','usersRemovidos','uiPrefsUser','caucoesCli','caucoesForn','navOrdem','rhDepOrdem','autos','autosModulo','subautos','fechos','prazos','avisosAuto','indiretosVal','revisaoPrecos','caixaCfg'];
   function _ccChave(o){
     if(o&&typeof o==='object'){
       if(o.id!=null)return '#'+o.id;
@@ -19332,7 +19522,7 @@ try{
     try{ _c[id]=new Chart(el,cfg); }catch(e){ try{console.warn('an7 chart '+id,e);}catch(_){} }
   }
   function kfmt(v){var a=Math.abs(v);if(a>=1e6)return (v/1e6).toFixed(1).replace('.',',')+' M€';if(a>=1e3)return Math.round(v/1e3)+' k€';return Math.round(v)+' €';}
-  function efmt(v){try{return fmt(v,0)+'€';}catch(e){return Math.round(v)+'€';}}
+  function efmt(v){try{return fmt(v,2)+'€';}catch(e){return Math.round(v)+'€';}}
   var PAL={fat:'#2E6FC0',cus:'#E24B4A',saldo:'#11365E',ok:'#2E9B5E',mau:'#c0392b',av:'#EF9F27'};
   function baseOpts(extra){
     var o={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
@@ -20475,6 +20665,1050 @@ try{
       +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);};<\/scr'+'ipt></body></html>');
     w.document.close();
   };
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   REVISÃO DE PREÇOS — regime do Decreto-Lei n.º 6/2004 (fórmula polinomial)
+   Ct = a·(St/So) + Σ bi·(Mit/Mio) + c·(Et/Eo) + d      (Σ coef + d = 1)
+   Revisão do mês = Valor produzido no mês × (Ct − 1), com banda-morta de ±1%
+   (art. 9.º). Índices oficiais IMPIC/INE (mão-de-obra S, materiais Mxx, equip. E).
+   Código original; a fórmula e as famílias de índices são informação legal/factual.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  function g(id){return document.getElementById(id);}
+  function esc(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function eur(v){return fmt(+v||0,2)+'€';}
+  var RP_KEY='revisao_precos_v1';
+
+  /* ---- famílias oficiais de índices (código → designação) ---- */
+  var FAMILIAS=[
+    {c:'S',n:'Mão-de-obra',g:'MO'},
+    {c:'M01',n:'Britas',g:'MT'},{c:'M02',n:'Areias',g:'MT'},{c:'M03',n:'Inertes',g:'MT'},
+    {c:'M05',n:'Cantarias de calcário e granito',g:'MT'},{c:'M06',n:'Ladrilhos e cantarias',g:'MT'},
+    {c:'M09',n:'Produtos cerâmicos vermelhos',g:'MT'},{c:'M10',n:'Azulejos e mosaicos',g:'MT'},
+    {c:'M13',n:'Chapa de aço macio',g:'MT'},{c:'M15',n:'Chapa de aço galvanizada',g:'MT'},
+    {c:'M18',n:'Betumes a granel',g:'MT'},{c:'M20',n:'Cimento em saco',g:'MT'},
+    {c:'M21',n:'Explosivos',g:'MT'},{c:'M22',n:'Gasóleo',g:'MT'},{c:'M23',n:'Vidro',g:'MT'},
+    {c:'M24',n:'Madeiras de pinho',g:'MT'},{c:'M25',n:'Madeiras especiais ou exóticas',g:'MT'},
+    {c:'M26',n:'Derivados de madeira',g:'MT'},{c:'M29',n:'Tintas para construção civil',g:'MT'},
+    {c:'M30',n:'Tintas para estradas',g:'MT'},{c:'M31',n:'Membrana betuminosa',g:'MT'},
+    {c:'M32',n:'Tubo de PVC',g:'MT'},{c:'M34',n:'Blocos de betão normal',g:'MT'},
+    {c:'M35',n:'Manilhas de betão',g:'MT'},{c:'M40',n:'Caixilharia em alumínio termolacado',g:'MT'},
+    {c:'M42',n:'Tubagem de aço e aparelhos p/ canalizações',g:'MT'},{c:'M43',n:'Aço para betão armado',g:'MT'},
+    {c:'M44',n:'Aço para betão pré-esforçado',g:'MT'},{c:'M45',n:'Perfilados pesados e ligeiros',g:'MT'},
+    {c:'M46',n:'Produtos para instalações eléctricas',g:'MT'},{c:'M47',n:'Produtos pré-fabricados de betão',g:'MT'},
+    {c:'M48',n:'Produtos para ajardinamentos',g:'MT'},{c:'M49',n:'Geotêxteis',g:'MT'},
+    {c:'E',n:'Equipamento de apoio',g:'EQ'}
+  ];
+  function famNome(c){for(var i=0;i<FAMILIAS.length;i++)if(FAMILIAS[i].c===c)return FAMILIAS[i].n;return c;}
+
+  /* ---- fórmulas-tipo (modelos). F01 conforme Despacho 1592/2004; as restantes
+          são composições simplificadas de partida — CONFIRMAR no Despacho em vigor. ---- */
+  var FORMULAS_TIPO=[
+    {id:'F01',nome:'F01 — Edifícios de habitação',oficial:true,constante:0.10,termos:[
+      {cod:'S',coef:0.44},{cod:'M03',coef:0.02},{cod:'M05',coef:0.01},{cod:'M09',coef:0.05},{cod:'M10',coef:0.02},
+      {cod:'M18',coef:0.01},{cod:'M20',coef:0.06},{cod:'M24',coef:0.06},{cod:'M25',coef:0.03},{cod:'M26',coef:0.03},
+      {cod:'M29',coef:0.02},{cod:'M32',coef:0.01},{cod:'M40',coef:0.03},{cod:'M42',coef:0.03},{cod:'M43',coef:0.03},
+      {cod:'M45',coef:0.01},{cod:'M46',coef:0.02},{cod:'E',coef:0.02}]},
+    {id:'MOD-EDI',nome:'Modelo — Edifícios (simplificado)',oficial:false,constante:0.10,termos:[
+      {cod:'S',coef:0.45},{cod:'M20',coef:0.10},{cod:'M43',coef:0.10},{cod:'M09',coef:0.05},{cod:'M24',coef:0.05},
+      {cod:'M40',coef:0.05},{cod:'M46',coef:0.05},{cod:'E',coef:0.05}]},
+    {id:'MOD-EST',nome:'Modelo — Estradas/pavimentos (simplificado)',oficial:false,constante:0.10,termos:[
+      {cod:'S',coef:0.35},{cod:'M03',coef:0.15},{cod:'M18',coef:0.15},{cod:'M22',coef:0.10},{cod:'M20',coef:0.05},{cod:'E',coef:0.10}]},
+    {id:'MOD-BET',nome:'Modelo — Estruturas de betão (simplificado)',oficial:false,constante:0.10,termos:[
+      {cod:'S',coef:0.30},{cod:'M20',coef:0.20},{cod:'M43',coef:0.20},{cod:'M03',coef:0.10},{cod:'E',coef:0.10}]}
+  ];
+
+  /* ---- armazenamento ---- */
+  function rpLer(){try{var o=JSON.parse(localStorage.getItem(RP_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
+  function rpDados(){
+    var d=rpLer();
+    if(!d.indices)d.indices={};
+    if(!Array.isArray(d.formulas))d.formulas=JSON.parse(JSON.stringify(FORMULAS_TIPO));
+    if(!d.obras)d.obras={};
+    return d;
+  }
+  function rpGravar(d){try{localStorage.setItem(RP_KEY,JSON.stringify(d));}catch(e){alert('Sem espaço para gravar a revisão de preços.');}try{if(window._syncAgendar)window._syncAgendar();}catch(e){}}
+
+  /* ---- meses utilitários ---- */
+  var MESNOME=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function mesRot(m){var p=String(m).split('-');return p.length===2?(MESNOME[(+p[1]-1)||0]+'/'+p[0].slice(2)):m;}
+  function mesesEntre(a,b){/* lista "YYYY-MM" de a até b inclusive */
+    var out=[];if(!a||!b)return out;var pa=a.split('-'),pb=b.split('-');var y=+pa[0],mo=+pa[1],ey=+pb[0],em=+pb[1];var n=0;
+    while((y<ey||(y===ey&&mo<=em))&&n<400){out.push(y+'-'+('0'+mo).slice(-2));mo++;if(mo>12){mo=1;y++;}n++;}return out;}
+
+  /* ═══════════ MOTOR DE CÁLCULO ═══════════ */
+  function rpIdx(d,mes,cod){var m=d.indices[mes];if(!m)return null;var v=m[cod];return (v==null||v==='')?null:(+v);}
+  function rpCt(d,formula,mesBase,mesT){
+    var ct=0,faltam=[],termos=[];
+    (formula.termos||[]).forEach(function(t){
+      var i0=rpIdx(d,mesBase,t.cod), it=rpIdx(d,mesT,t.cod);
+      if(i0==null||it==null||!i0){faltam.push(t.cod);return;}
+      var ratio=it/i0, contrib=(+t.coef||0)*ratio;
+      ct+=contrib; termos.push({cod:t.cod,coef:+t.coef||0,i0:i0,it:it,ratio:ratio,contrib:contrib});
+    });
+    ct+=(+formula.constante||0);
+    return {ct:ct,faltam:faltam,termos:termos,completo:faltam.length===0};
+  }
+  function rpSomaCoef(f){var s=+f.constante||0;(f.termos||[]).forEach(function(t){s+=(+t.coef||0);});return s;}
+
+  /* produção mensal da obra (base da revisão): dos meses de faturação/autos da app */
+  function rpProducaoObra(numObra){
+    var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(numObra);});
+    var out=[];
+    if(!o)return out;
+    try{
+      if(typeof ensureFin==='function')ensureFin(o);
+      var linhas=(typeof mesesCalc==='function')?mesesCalc(o):[];
+      linhas.forEach(function(mc){
+        var val=(+mc.autos||0)+(+mc.trabMais||0); // valor de trabalho executado no mês (s/ IVA)
+        var mk=_mesToISO(mc.mes);
+        if(mk)out.push({mes:mk,rot:mc.mes,valor:val});
+      });
+    }catch(e){}
+    out.sort(function(a,b){return a.mes<b.mes?-1:1;});
+    return out;
+  }
+  function _mesToISO(mesStr){
+    if(!mesStr)return null;
+    if(/^\d{4}-\d{2}$/.test(mesStr))return mesStr;
+    var meses={'janeiro':1,'fevereiro':2,'março':3,'marco':3,'abril':4,'maio':5,'junho':6,'julho':7,'agosto':8,'setembro':9,'outubro':10,'novembro':11,'dezembro':12};
+    var m=String(mesStr).toLowerCase().match(/([a-zç]+)\D+(\d{4})/);
+    if(m&&meses[m[1]])return m[2]+'-'+('0'+meses[m[1]]).slice(-2);
+    return null;
+  }
+
+  /* revisão da obra: por mês, aplicando a fórmula. modo 'real' usa a produção real;
+     'plano' usa o plano de pagamentos inicial (datas planeadas). */
+  function rpCalcObra(numObra){
+    var d=rpDados();
+    var cfg=d.obras[numObra];
+    if(!cfg||!cfg.formulaId||!cfg.mesBase)return null;
+    var formula=(d.formulas||[]).find(function(f){return f.id===cfg.formulaId;});
+    if(!formula)return null;
+    var banda=(cfg.banda!=null)?+cfg.banda:0.01; // ±1% por defeito (art. 9.º)
+    var extra=cfg.extraordinaria?1.1:1; // DL 36/2022 (opcional)
+    var base;
+    if(cfg.modo==='plano' && Array.isArray(cfg.plano) && cfg.plano.length){
+      base=cfg.plano.filter(function(x){return x.mes;}).map(function(x){return {mes:x.mes,rot:mesRot(x.mes),valor:+x.valor||0};});
+    } else if(cfg.modo==='manual' && cfg.manual){
+      base=Object.keys(cfg.manual).sort().map(function(mk){return {mes:mk,rot:mesRot(mk),valor:+cfg.manual[mk]||0};});
+    } else {
+      base=rpProducaoObra(numObra); // 'real' (auto)
+    }
+    var linhas=[],totVal=0,totRev=0,algumFalta=false;
+    base.forEach(function(p){
+      var r=rpCt(d,formula,cfg.mesBase,p.mes);
+      var ctEff=r.ct;
+      var ctAj=(extra!==1 && ctEff>1)? (1+(ctEff-1)*1.1) : ctEff;
+      var revisavel=Math.abs(ctAj-1)>=banda;
+      var rev=revisavel? (p.valor*(ctAj-1)) : 0;
+      if(!r.completo)algumFalta=true;
+      totVal+=p.valor; totRev+=rev;
+      linhas.push({mes:p.mes,rot:p.rot,valor:p.valor,ct:ctEff,ctAj:ctAj,revisavel:revisavel,revisao:rev,completo:r.completo,faltam:r.faltam,termos:r.termos});
+    });
+    return {cfg:cfg,formula:formula,linhas:linhas,totVal:totVal,totRev:totRev,algumFalta:algumFalta,pct:totVal>0?totRev/totVal:0};
+  }
+  window._rpCalcObra=rpCalcObra;
+
+  /* ═══════════ NAVEGAÇÃO ═══════════ */
+  var subAtual='calc';
+  window.rpSub=function(s){
+    subAtual=s;
+    ['calc','form','idx','rel'].forEach(function(x){
+      var b=g('rp-btn-'+x); if(b)b.classList.toggle('active',x===s);
+      var dv=g('rp-sub-'+x); if(dv)dv.style.display=(x===s)?'':'none';
+    });
+    rpRender();
+  };
+  function rpRender(){
+    try{
+      if(subAtual==='calc')rpRenderCalc();
+      else if(subAtual==='form')rpRenderForm();
+      else if(subAtual==='idx')rpRenderIdx();
+      else if(subAtual==='rel')rpRenderRel();
+    }catch(e){try{console.warn('rp render',e);}catch(_){}}
+  }
+  window.renderRevisao=function(){ rpRender(); };
+
+  /* ═══════════ SUB: CÁLCULO POR OBRA ═══════════ */
+  var rpObraSel='';
+  function rpListaObras(){return (typeof obras!=='undefined'?obras:[]).filter(function(o){return o&&!o.arquivada;}).sort(function(a,b){return String(a.num).localeCompare(String(b.num),'pt',{numeric:true});});}
+  function rpRenderCalc(){
+    var host=g('rp-sub-calc'); if(!host)return;
+    var d=rpDados();
+    var obrasL=rpListaObras();
+    if(!rpObraSel && obrasL.length)rpObraSel=obrasL[0].num;
+    var cfg=d.obras[rpObraSel]||{};
+    var formOpts='<option value="">— escolher fórmula —</option>'+(d.formulas||[]).map(function(f){return '<option value="'+esc(f.id)+'"'+(cfg.formulaId===f.id?' selected':'')+'>'+esc(f.nome)+'</option>';}).join('');
+    var obraOpts=obrasL.map(function(o){return '<option value="'+esc(o.num)+'"'+(String(o.num)===String(rpObraSel)?' selected':'')+'>'+esc(o.num)+' — '+esc((o.nome||'').substring(0,40))+'</option>';}).join('');
+    var h='';
+    h+='<div class="alert ok" style="margin-bottom:12px"><i class="ti ti-info-circle"></i> Revisão de preços pela fórmula polinomial (DL 6/2004). Escolha a obra, a fórmula e o <b>mês base</b> (mês do concurso/proposta). O cálculo usa os <b>índices oficiais</b> (separador Índices) e a produção mensal (autos/facturação) — ou o plano de pagamentos.</div>';
+    h+='<div class="card"><div class="an7-head" style="margin:0 0 10px 0">'
+      +'<label style="font-size:12px;color:var(--muted)">Obra</label><select id="rp-obra" onchange="_rpSetObra(this.value)" style="min-width:280px">'+obraOpts+'</select>'
+      +'<span style="flex:1"></span>'
+      +'<button class="btn sm" onclick="rpSub(\'rel\')"><i class="ti ti-report"></i> Relatório</button>'
+      +'</div>';
+    if(!rpObraSel){ h+='<div class="an7-sub" style="padding:12px">Sem obras. Crie uma obra primeiro.</div></div>'; host.innerHTML=h; return; }
+    h+='<div class="metric-grid" style="margin-bottom:6px">'
+      +'<div class="form-group"><label>Fórmula de revisão</label><select id="rp-formula" onchange="_rpCfg(\'formulaId\',this.value)">'+formOpts+'</select></div>'
+      +'<div class="form-group"><label>Mês base (proposta)</label><input type="month" id="rp-mesbase" value="'+esc(cfg.mesBase||'')+'" onchange="_rpCfg(\'mesBase\',this.value)"></div>'
+      +'<div class="form-group"><label>Base do cálculo</label><select id="rp-modo" onchange="_rpCfg(\'modo\',this.value)">'
+        +'<option value="real"'+((cfg.modo||'real')==='real'?' selected':'')+'>Produção real (autos/facturação)</option>'
+        +'<option value="plano"'+(cfg.modo==='plano'?' selected':'')+'>Plano de pagamentos inicial</option>'
+        +'<option value="manual"'+(cfg.modo==='manual'?' selected':'')+'>Valores manuais</option></select></div>'
+      +'<div class="form-group"><label>Banda-morta (art. 9.º)</label><select id="rp-banda" onchange="_rpCfg(\'banda\',this.value)">'
+        +'<option value="0.01"'+((cfg.banda==null||cfg.banda==0.01)?' selected':'')+'>±1% (legal)</option>'
+        +'<option value="0"'+(cfg.banda==0?' selected':'')+'>Sem banda (todos os meses)</option></select>'
+        +'<label style="font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0"><input type="checkbox" id="rp-extra" '+(cfg.extraordinaria?'checked':'')+' onchange="_rpCfg(\'extraordinaria\',this.checked)" style="width:auto"> Revisão extraordinária ×1,1 (DL 36/2022)</label></div>'
+      +'</div>';
+    /* plano de pagamentos / manual */
+    if(cfg.modo==='plano'||cfg.modo==='manual'){
+      h+='<div class="card" style="background:#fbfcfe"><div class="section-title">'+(cfg.modo==='plano'?'Plano de pagamentos inicial':'Valores manuais por mês')+' <button class="btn sm" onclick="_rpAddLinhaPlano()"><i class="ti ti-plus"></i> Linha</button></div>';
+      h+='<div class="table-wrap"><table class="an7-tbl"><thead><tr><th>Mês</th><th style="text-align:right">Valor previsto (s/IVA)</th><th></th></tr></thead><tbody id="rp-plano-body"></tbody></table></div></div>';
+    }
+    h+='<div id="rp-calc-resultado"></div>';
+    h+='</div>';
+    host.innerHTML=h;
+    _rpRenderPlano(); _rpRenderResultado();
+  }
+  window._rpSetObra=function(v){rpObraSel=v;rpRenderCalc();};
+  window._rpCfg=function(campo,val){
+    var d=rpDados(); if(!d.obras[rpObraSel])d.obras[rpObraSel]={};
+    d.obras[rpObraSel][campo]=val; rpGravar(d);
+    if(campo==='modo')rpRenderCalc(); else {_rpRenderResultado();_rpRenderPlano();}
+  };
+  window._rpAddLinhaPlano=function(){
+    var d=rpDados(); var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};
+    if(c.modo==='manual'){ c.manual=c.manual||{}; var mk=prompt('Mês (AAAA-MM):',''); if(!mk)return; c.manual[mk]=0; }
+    else { c.plano=c.plano||[]; c.plano.push({mes:'',valor:0}); }
+    rpGravar(d); _rpRenderPlano(); _rpRenderResultado();
+  };
+  function _rpRenderPlano(){
+    var body=g('rp-plano-body'); if(!body)return;
+    var d=rpDados(); var c=d.obras[rpObraSel]||{};
+    var linhas=[];
+    if(c.modo==='manual'){ linhas=Object.keys(c.manual||{}).sort().map(function(mk){return {mes:mk,valor:c.manual[mk],manual:true};}); }
+    else { linhas=(c.plano||[]).map(function(x,i){return {mes:x.mes,valor:x.valor,i:i};}); }
+    if(!linhas.length){body.innerHTML='<tr><td colspan="3" class="an7-sub" style="padding:10px">Sem linhas. Use "+ Linha".</td></tr>';return;}
+    body.innerHTML=linhas.map(function(l){
+      return '<tr><td><input type="month" value="'+esc(l.mes)+'" onchange="_rpPlanoSet('+(l.manual?'\'m\'':l.i)+',\'mes\',this.value,\''+esc(l.mes)+'\')" style="padding:3px 6px"></td>'
+        +'<td class="num"><input type="number" step="0.01" value="'+(l.valor!=null?l.valor:'')+'" onchange="_rpPlanoSet('+(l.manual?'\'m\'':l.i)+',\'valor\',this.value,\''+esc(l.mes)+'\')" style="width:130px;text-align:right;padding:3px 6px"></td>'
+        +'<td><button class="btn sm danger" onclick="_rpPlanoDel('+(l.manual?'\'m\'':l.i)+',\''+esc(l.mes)+'\')"><i class="ti ti-x"></i></button></td></tr>';
+    }).join('');
+  }
+  window._rpPlanoSet=function(i,campo,val,mesAntigo){
+    var d=rpDados(); var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};
+    if(i==='m'){ c.manual=c.manual||{}; if(campo==='valor'){c.manual[mesAntigo]=+val||0;} else { var v=c.manual[mesAntigo]; delete c.manual[mesAntigo]; c.manual[val]=v; } }
+    else { c.plano=c.plano||[]; if(c.plano[i]){c.plano[i][campo]=(campo==='valor')?(+val||0):val;} }
+    rpGravar(d); _rpRenderResultado();
+  };
+  window._rpPlanoDel=function(i,mk){
+    var d=rpDados(); var c=d.obras[rpObraSel]||{};
+    if(i==='m'){ if(c.manual)delete c.manual[mk]; } else { if(c.plano)c.plano.splice(i,1); }
+    rpGravar(d); _rpRenderPlano(); _rpRenderResultado();
+  };
+  function _rpRenderResultado(){
+    var box=g('rp-calc-resultado'); if(!box)return;
+    var r=rpCalcObra(rpObraSel);
+    if(!r){box.innerHTML='<div class="alert warn" style="margin-top:10px"><i class="ti ti-alert-triangle"></i> Escolha a fórmula e o mês base para calcular.</div>';return;}
+    var somaC=rpSomaCoef(r.formula);
+    var avisoSoma=(Math.abs(somaC-1)>0.0001)?'<span style="color:var(--red)"> (Σ coeficientes = '+somaC.toFixed(3)+' ≠ 1,000!)</span>':'';
+    var h='';
+    h+='<div class="metric-grid" style="margin-top:12px">'
+      +'<div class="metric"><div class="metric-label">Produção considerada</div><div class="metric-value">'+eur(r.totVal)+'</div></div>'
+      +'<div class="metric"><div class="metric-label">Revisão de preços</div><div class="metric-value '+(r.totRev<0?'danger':'success')+'">'+eur(r.totRev)+'</div></div>'
+      +'<div class="metric"><div class="metric-label">% sobre produção</div><div class="metric-value">'+fmtPct(r.pct)+'</div></div>'
+      +'<div class="metric"><div class="metric-label">Fórmula (Σ coef.)</div><div class="metric-value" style="font-size:14px">'+somaC.toFixed(3)+avisoSoma+'</div></div>'
+      +'</div>';
+    if(r.algumFalta)h+='<div class="alert warn"><i class="ti ti-alert-triangle"></i> Faltam índices em alguns meses (ver coluna). Preencha-os no separador <b>Índices oficiais</b> para o cálculo ficar completo.</div>';
+    h+='<div class="card" style="padding:0"><div class="table-wrap"><table class="an7-tbl"><thead><tr>'
+      +'<th>Mês</th><th style="text-align:right">Produção (s/IVA)</th><th style="text-align:right">Coef. Ct</th><th style="text-align:center">Revisável?</th><th style="text-align:right">Revisão (€)</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>';
+    var acc=0;
+    r.linhas.forEach(function(l){
+      acc+=l.revisao;
+      h+='<tr'+(!l.completo?' style="background:#fff7ed"':'')+'><td>'+esc(l.rot||mesRot(l.mes))+(l.completo?'':' <i class="ti ti-alert-triangle" style="color:var(--orange)" title="Faltam índices: '+esc((l.faltam||[]).join(', '))+'"></i>')+'</td>'
+        +'<td class="num">'+eur(l.valor)+'</td>'
+        +'<td class="num">'+ (l.ct?l.ct.toFixed(5):'—') +'</td>'
+        +'<td class="num" style="text-align:center">'+(l.revisavel?'<span style="color:var(--green)">Sim</span>':'<span style="color:var(--muted)">Não (&lt;1%)</span>')+'</td>'
+        +'<td class="num" style="color:'+(l.revisao<0?'var(--red)':'var(--green)')+'">'+eur(l.revisao)+'</td>'
+        +'<td class="num" style="font-weight:600">'+eur(acc)+'</td></tr>';
+    });
+    h+='<tr style="font-weight:800;border-top:2px solid var(--border)"><td>TOTAL</td><td class="num">'+eur(r.totVal)+'</td><td></td><td></td><td class="num" style="color:'+(r.totRev<0?'var(--red)':'var(--green)')+'">'+eur(r.totRev)+'</td><td class="num">'+eur(r.totRev)+'</td></tr>';
+    h+='</tbody></table></div></div>';
+    box.innerHTML=h;
+  }
+
+  /* ═══════════ SUB: FÓRMULAS (construtor) ═══════════ */
+  var rpFormSel='';
+  function rpRenderForm(){
+    var host=g('rp-sub-form'); if(!host)return;
+    var d=rpDados();
+    if(!rpFormSel && d.formulas.length)rpFormSel=d.formulas[0].id;
+    var f=(d.formulas||[]).find(function(x){return x.id===rpFormSel;})||d.formulas[0];
+    var h='';
+    h+='<div class="alert ok" style="margin-bottom:12px"><i class="ti ti-info-circle"></i> As <b>fórmulas-tipo</b> definem o peso da mão-de-obra, de cada material e do equipamento. A soma de todos os coeficientes + a constante tem de ser <b>1,000</b>. F01 segue o Despacho 1592/2004; os "Modelos" são pontos de partida — confirme sempre os coeficientes no Despacho em vigor para a sua obra.</div>';
+    h+='<div class="two-col"><div class="card"><div class="section-title">Fórmulas <button class="btn sm" onclick="_rpNovaFormula()"><i class="ti ti-plus"></i> Nova</button></div>';
+    h+='<div style="display:flex;flex-direction:column;gap:4px">'+(d.formulas||[]).map(function(x){
+      return '<div onclick="_rpSelForm(\''+esc(x.id)+'\')" style="padding:8px 10px;border:1px solid '+(x.id===rpFormSel?'var(--blue)':'var(--border)')+';border-radius:8px;cursor:pointer;background:'+(x.id===rpFormSel?'var(--blue-lt)':'#fff')+'"><b style="font-size:12px">'+esc(x.nome)+'</b>'+(x.oficial?' <span class="badge" style="background:#dcfce7;color:#166534">oficial</span>':'')+'<div style="font-size:10.5px;color:var(--muted)">Σ '+rpSomaCoef(x).toFixed(3)+' · '+((x.termos||[]).length)+' termos</div></div>';
+    }).join('')+'</div></div>';
+    /* editor */
+    h+='<div class="card"><div class="section-title">Construtor de fórmula</div>';
+    if(f){
+      var soma=rpSomaCoef(f);
+      h+='<div class="form-group" style="margin-bottom:8px"><label>Nome</label><input type="text" value="'+esc(f.nome)+'" onchange="_rpFormNome(this.value)"'+(f.oficial?' readonly title="Fórmula oficial — duplique para editar"':'')+'></div>';
+      h+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="font-size:12px;color:var(--muted)">Constante (d):</span><input type="number" step="0.01" value="'+(f.constante!=null?f.constante:0.10)+'" onchange="_rpFormConst(this.value)" style="width:90px;padding:4px 6px"'+(f.oficial?' readonly':'')+'>'
+        +'<span style="flex:1"></span><span style="font-weight:700;color:'+(Math.abs(soma-1)<0.0001?'var(--green)':'var(--red)')+'">Σ = '+soma.toFixed(3)+(Math.abs(soma-1)<0.0001?' ✓':' (deve ser 1,000)')+'</span></div>';
+      h+='<div class="table-wrap" style="max-height:360px;overflow:auto"><table class="an7-tbl"><thead><tr><th>Família de índice</th><th style="text-align:right">Coeficiente</th><th></th></tr></thead><tbody>';
+      (f.termos||[]).forEach(function(t,i){
+        h+='<tr><td>'+esc(t.cod)+' — '+esc(famNome(t.cod))+'</td><td class="num"><input type="number" step="0.01" value="'+(t.coef!=null?t.coef:'')+'" onchange="_rpTermoCoef('+i+',this.value)" style="width:90px;text-align:right;padding:3px 6px"'+(f.oficial?' readonly':'')+'></td><td>'+(f.oficial?'':'<button class="btn sm danger" onclick="_rpTermoDel('+i+')"><i class="ti ti-x"></i></button>')+'</td></tr>';
+      });
+      h+='</tbody></table></div>';
+      if(!f.oficial){
+        var jaTem={}; (f.termos||[]).forEach(function(t){jaTem[t.cod]=1;});
+        h+='<div style="display:flex;gap:6px;margin-top:8px;align-items:center"><select id="rp-add-fam" style="flex:1;padding:5px 8px">'+FAMILIAS.filter(function(fm){return !jaTem[fm.c];}).map(function(fm){return '<option value="'+fm.c+'">'+fm.c+' — '+esc(fm.n)+'</option>';}).join('')+'</select><button class="btn sm" onclick="_rpTermoAdd()"><i class="ti ti-plus"></i> Adicionar família</button></div>';
+      }
+      h+='<div style="display:flex;gap:8px;margin-top:12px">'
+        +'<button class="btn sm" onclick="_rpDupForm()"><i class="ti ti-copy"></i> Duplicar</button>'
+        +(f.oficial?'':'<button class="btn sm danger" onclick="_rpDelForm()"><i class="ti ti-trash"></i> Apagar</button>')
+        +'<span style="flex:1"></span>'
+        +'<button class="btn sm" onclick="_rpNormalizar()" title="Ajustar a constante para a soma dar 1,000">Normalizar Σ→1</button></div>';
+    }
+    h+='</div></div>';
+    host.innerHTML=h;
+  }
+  window._rpSelForm=function(id){rpFormSel=id;rpRenderForm();};
+  function _rpF(){var d=rpDados();return {d:d,f:(d.formulas||[]).find(function(x){return x.id===rpFormSel;})};}
+  window._rpNovaFormula=function(){var d=rpDados();var id='cust'+Date.now();d.formulas.push({id:id,nome:'Nova fórmula',oficial:false,constante:0.10,termos:[{cod:'S',coef:0.40},{cod:'E',coef:0.05}]});rpGravar(d);rpFormSel=id;rpRenderForm();};
+  window._rpDupForm=function(){var x=_rpF();if(!x.f)return;var d=x.d;var id='cust'+Date.now();var nova=JSON.parse(JSON.stringify(x.f));nova.id=id;nova.oficial=false;nova.nome=x.f.nome+' (cópia)';d.formulas.push(nova);rpGravar(d);rpFormSel=id;rpRenderForm();};
+  window._rpDelForm=function(){var x=_rpF();if(!x.f||x.f.oficial)return;if(!confirm('Apagar a fórmula "'+x.f.nome+'"?'))return;var d=x.d;d.formulas=d.formulas.filter(function(y){return y.id!==rpFormSel;});rpGravar(d);rpFormSel=d.formulas[0]?d.formulas[0].id:'';rpRenderForm();};
+  window._rpFormNome=function(v){var x=_rpF();if(!x.f||x.f.oficial)return;x.f.nome=v;rpGravar(x.d);};
+  window._rpFormConst=function(v){var x=_rpF();if(!x.f||x.f.oficial)return;x.f.constante=+v||0;rpGravar(x.d);rpRenderForm();};
+  window._rpTermoCoef=function(i,v){var x=_rpF();if(!x.f||x.f.oficial)return;if(x.f.termos[i])x.f.termos[i].coef=+v||0;rpGravar(x.d);rpRenderForm();};
+  window._rpTermoDel=function(i){var x=_rpF();if(!x.f||x.f.oficial)return;x.f.termos.splice(i,1);rpGravar(x.d);rpRenderForm();};
+  window._rpTermoAdd=function(){var x=_rpF();if(!x.f||x.f.oficial)return;var sel=g('rp-add-fam');if(!sel||!sel.value)return;x.f.termos.push({cod:sel.value,coef:0});rpGravar(x.d);rpRenderForm();};
+  window._rpNormalizar=function(){var x=_rpF();if(!x.f)return;if(x.f.oficial){alert('Fórmula oficial — duplique para ajustar.');return;}var soma=0;(x.f.termos||[]).forEach(function(t){soma+=(+t.coef||0);});x.f.constante=+(1-soma).toFixed(4);rpGravar(x.d);rpRenderForm();};
+
+  /* ═══════════ SUB: ÍNDICES OFICIAIS ═══════════ */
+  var rpIdxCods=null;
+  function rpFamiliasUsadas(){
+    /* famílias efetivamente usadas nas fórmulas (para a grelha ser gerível) */
+    var d=rpDados(); var set={'S':1,'E':1};
+    (d.formulas||[]).forEach(function(f){(f.termos||[]).forEach(function(t){set[t.cod]=1;});});
+    return FAMILIAS.filter(function(fm){return set[fm.c];});
+  }
+  function rpRenderIdx(){
+    var host=g('rp-sub-idx'); if(!host)return;
+    var d=rpDados();
+    var fams=rpFamiliasUsadas();
+    var meses=Object.keys(d.indices).sort();
+    var h='';
+    h+='<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Índices oficiais de custos (mão-de-obra <b>S</b>, materiais <b>Mxx</b>, equipamento <b>E</b>), publicados pelo IMPIC em Diário da República. '
+      +'Introduza aqui os índices de cada mês (base 100). Só aparecem as famílias usadas nas suas fórmulas. '
+      +'<b>Automático:</b> o botão \"Atualizar índices oficiais (IMPIC)\" vai buscar os índices publicados pelo IMPIC e preenche esta grelha; corre também sozinho uma vez por mês. Em alternativa pode <b>colar</b> do Excel ou inserir à mão. Os índices ficam sincronizados em todos os computadores.</div>';
+    h+='<div class="toolbar" style="margin-bottom:10px">'
+      +'<button class="btn primary" onclick="_rpAddMes()"><i class="ti ti-plus"></i> Adicionar mês</button>'
+      +'<button class="btn" onclick="_rpColar()"><i class="ti ti-clipboard"></i> Colar do Excel</button>'
+      +'<button class="btn primary" id="rp-btn-online" onclick="_rpAtualizarIndicesOnline(false)"><i class="ti ti-cloud-download"></i> Atualizar índices oficiais (IMPIC)</button>'
+      +'<a class="btn" href="https://www.impic.pt/impic/pt-pt/indices-de-revisao-de-precos-em-empreitadas" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Abrir IMPIC</a>'
+      +'<span style="flex:1"></span><span style="font-size:11px;color:var(--muted)">'+meses.length+' mês(es) · '+fams.length+' famílias</span></div>';
+    if(!meses.length){ h+='<div class="an7-sub" style="padding:14px">Ainda sem índices. Use "Adicionar mês" ou "Colar do Excel".</div>'; host.innerHTML=h; return; }
+    h+='<div class="table-wrap" style="overflow:auto;max-height:60vh"><table class="an7-tbl" style="min-width:'+(160+fams.length*70)+'px"><thead><tr><th style="position:sticky;left:0;background:#11365E">Família \\ Mês</th>'+meses.map(function(m){return '<th style="text-align:right;white-space:nowrap">'+mesRot(m)+'<br><button class="btn sm danger" style="padding:0 4px;font-size:9px" onclick="_rpDelMes(\''+m+'\')" title="Apagar mês">×</button></th>';}).join('')+'</tr></thead><tbody>';
+    fams.forEach(function(fm){
+      h+='<tr><td style="position:sticky;left:0;background:#f5f8fb;font-weight:600">'+fm.c+' <span style="font-weight:400;color:var(--muted);font-size:10px">'+esc(fm.n)+'</span></td>'
+        +meses.map(function(m){var v=(d.indices[m]||{})[fm.c];return '<td class="num"><input type="number" step="0.01" value="'+(v!=null?v:'')+'" onchange="_rpSetIdx(\''+m+'\',\''+fm.c+'\',this.value)" style="width:64px;text-align:right;padding:2px 4px;font-size:11px"></td>';}).join('')
+        +'</tr>';
+    });
+    h+='</tbody></table></div>';
+    host.innerHTML=h;
+  }
+  window._rpSetIdx=function(mes,cod,val){var d=rpDados();d.indices[mes]=d.indices[mes]||{};if(val===''||val==null)delete d.indices[mes][cod];else d.indices[mes][cod]=+val;rpGravar(d);};
+  window._rpAddMes=function(){var mk=prompt('Mês a adicionar (AAAA-MM):',new Date().toISOString().slice(0,7));if(!mk||!/^\d{4}-\d{2}$/.test(mk)){if(mk)alert('Formato inválido. Use AAAA-MM.');return;}var d=rpDados();d.indices[mk]=d.indices[mk]||{};rpGravar(d);rpRenderIdx();};
+  window._rpDelMes=function(m){if(!confirm('Apagar os índices de '+mesRot(m)+'?'))return;var d=rpDados();delete d.indices[m];rpGravar(d);rpRenderIdx();};
+  window._rpColar=function(){
+    var txt=prompt('Cole aqui a tabela de índices copiada do Excel.\n\nFormato: 1.ª coluna = código da família (S, M01, E...), 1.ª linha = meses (AAAA-MM). Separado por TAB.\n\nEm alternativa, cole 3 colunas: Mês  Família  Valor.');
+    if(!txt)return;
+    var d=rpDados(); var linhas=txt.trim().split(/\r?\n/).map(function(l){return l.split(/\t|;/);});
+    try{
+      var cab=linhas[0].map(function(x){return String(x).trim();});
+      // deteta formato: se cab[0] vazio/"familia" e restantes parecem meses → matriz
+      var pareceMatriz=cab.slice(1).some(function(x){return /^\d{4}[-\/]\d{2}$/.test(x)||/^\d{4}-\d{1,2}$/.test(x);});
+      if(pareceMatriz){
+        var meses=cab.slice(1).map(function(x){return x.replace('/','-');});
+        linhas.slice(1).forEach(function(row){
+          var cod=String(row[0]).trim().toUpperCase(); if(!cod)return;
+          meses.forEach(function(m,j){var v=parseFloat(String(row[j+1]||'').replace(',','.'));if(!isNaN(v)){d.indices[m]=d.indices[m]||{};d.indices[m][cod]=v;}});
+        });
+      } else {
+        linhas.forEach(function(row){
+          if(row.length<3)return; var m=String(row[0]).trim().replace('/','-'), cod=String(row[1]).trim().toUpperCase(), v=parseFloat(String(row[2]).replace(',','.'));
+          if(/^\d{4}-\d{1,2}$/.test(m)&&cod&&!isNaN(v)){var mm=m.split('-');m=mm[0]+'-'+('0'+mm[1]).slice(-2);d.indices[m]=d.indices[m]||{};d.indices[m][cod]=v;}
+        });
+      }
+      rpGravar(d); rpRenderIdx(); alert('Índices importados.');
+    }catch(e){alert('Não consegui interpretar a colagem. Verifique o formato.');}
+  };
+  window._rpTentarOnline=function(){
+    alert('Actualização automática pela internet:\n\nO IMPIC/INE não disponibiliza os índices num formato que o navegador possa descarregar directamente (é bloqueado por segurança — CORS), mesmo com a aplicação online. Para ficar 100% automático seria preciso um pequeno serviço no servidor (na conta cloud) a ir buscar os índices uma vez por mês.\n\nPor agora (fiável): abra o IMPIC (botão ao lado), copie a tabela de índices do trimestre e use "Colar do Excel". Os índices ficam guardados e sincronizados na sua conta para todos os computadores.');
+    try{window.open('https://www.impic.pt/impic/pt-pt/indices-de-revisao-de-precos-em-empreitadas/publicacao-em-diario-da-republica','_blank');}catch(e){}
+  };
+
+  /* ═══════════ SUB: RELATÓRIO ═══════════ */
+  function rpRenderRel(){
+    var host=g('rp-sub-rel'); if(!host)return;
+    var obrasL=rpListaObras();
+    var d=rpDados();
+    var comCfg=obrasL.filter(function(o){var c=d.obras[o.num];return c&&c.formulaId&&c.mesBase;});
+    var opts=comCfg.map(function(o){return '<option value="'+esc(o.num)+'"'+(String(o.num)===String(rpObraSel)?' selected':'')+'>'+esc(o.num)+' — '+esc((o.nome||'').substring(0,40))+'</option>';}).join('');
+    var h='<div class="card"><div class="an7-head" style="margin:0 0 10px 0"><label style="font-size:12px;color:var(--muted)">Obra</label>'
+      +'<select id="rp-rel-obra" onchange="_rpSetObra(this.value);rpRenderRel&&rpRenderRel();" style="min-width:280px">'+(opts||'<option>— configure uma obra no separador Cálculo —</option>')+'</select>'
+      +'<span style="flex:1"></span><button class="btn primary" onclick="rpImprimirRelatorio()"'+(comCfg.length?'':' disabled')+'><i class="ti ti-printer"></i> Imprimir relatório oficial</button></div>';
+    if(!comCfg.length){ h+='<div class="an7-sub" style="padding:12px">Nenhuma obra tem revisão configurada. Vá a "Cálculo por obra", escolha a fórmula e o mês base.</div></div>'; host.innerHTML=h; return; }
+    var r=rpCalcObra(rpObraSel);
+    if(r){
+      h+='<div class="an7-grid" style="grid-template-columns:1fr 1fr"><div class="an7-card"><div class="an7-title">Coeficiente Ct por mês</div><div class="an7-wrap" style="height:240px"><canvas id="rp-graf-ct"></canvas></div></div>'
+        +'<div class="an7-card"><div class="an7-title">Revisão acumulada (€)</div><div class="an7-wrap" style="height:240px"><canvas id="rp-graf-acc"></canvas></div></div></div>';
+    }
+    h+='</div><div id="rp-rel-preview"></div>';
+    host.innerHTML=h;
+    if(r){ _rpDesenharGraficos(r); g('rp-rel-preview').innerHTML='<div class="card" style="margin-top:12px">'+_rpRelatorioHTML(r,true)+'</div>'; }
+  }
+  var _rpCharts={};
+  function _rpDesenharGraficos(r){
+    try{
+      var labels=r.linhas.map(function(l){return mesRot(l.mes);});
+      ['rp-graf-ct','rp-graf-acc'].forEach(function(id){try{if(_rpCharts[id]){_rpCharts[id].destroy();delete _rpCharts[id];}}catch(e){}});
+      var el1=g('rp-graf-ct');
+      if(el1)_rpCharts['rp-graf-ct']=new Chart(el1,{type:'line',data:{labels:labels,datasets:[{label:'Ct',data:r.linhas.map(function(l){return +l.ctAj.toFixed(5);}),borderColor:'#1B4D8F',backgroundColor:'rgba(27,77,143,.1)',tension:.2,pointRadius:2.5,fill:true},{label:'1,00',data:labels.map(function(){return 1;}),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:function(v){return v.toFixed(3);},font:{size:10}}},x:{ticks:{font:{size:9}}}}}});
+      var el2=g('rp-graf-acc'); var acc=0;
+      if(el2)_rpCharts['rp-graf-acc']=new Chart(el2,{type:'bar',data:{labels:labels,datasets:[{label:'Revisão acumulada',data:r.linhas.map(function(l){acc+=l.revisao;return +acc.toFixed(2);}),backgroundColor:'rgba(46,155,94,.75)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:function(v){var a=Math.abs(v);return a>=1000?Math.round(v/1000)+' k€':v+' €';},font:{size:10}}},x:{ticks:{font:{size:9}}}}}});
+    }catch(e){}
+  }
+  function _rpRelatorioHTML(r,ecra){
+    var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(rpObraSel);})||{};
+    var f=r.formula;
+    var termosStr='Ct = '+(f.termos||[]).map(function(t){return t.coef+'·('+t.cod+'t/'+t.cod+'o)';}).join(' + ')+' + '+(f.constante||0)+'  (constante)';
+    var h='';
+    h+='<div class="section-title" style="font-size:14px">Revisão de Preços — '+esc(o.num||'')+' '+esc(o.nome||'')+'</div>';
+    h+='<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Fórmula: <b>'+esc(f.nome)+'</b> · Mês base: <b>'+mesRot(r.cfg.mesBase)+'</b> · Regime: DL 6/2004 (banda-morta '+((r.cfg.banda==0)?'0%':'±1%')+(r.cfg.extraordinaria?', extraordinária ×1,1':'')+')</div>';
+    h+='<div style="font-family:monospace;font-size:11px;background:#f5f8fb;border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:12px">'+esc(termosStr)+'</div>';
+    /* composição da fórmula */
+    h+='<table class="an7-tbl" style="margin-bottom:12px"><thead><tr><th>Componente</th><th style="text-align:right">Coeficiente</th></tr></thead><tbody>';
+    (f.termos||[]).forEach(function(t){h+='<tr><td>'+esc(t.cod)+' — '+esc(famNome(t.cod))+'</td><td class="num">'+(+t.coef).toFixed(3)+'</td></tr>';});
+    h+='<tr><td>Constante (d)</td><td class="num">'+(+f.constante||0).toFixed(3)+'</td></tr>';
+    h+='<tr style="font-weight:700"><td>Total</td><td class="num">'+rpSomaCoef(f).toFixed(3)+'</td></tr></tbody></table>';
+    /* cálculo por mês */
+    h+='<table class="an7-tbl"><thead><tr><th>Mês</th><th style="text-align:right">Produção (s/IVA)</th><th style="text-align:right">Ct</th><th style="text-align:right">Ct−1</th><th style="text-align:right">Revisão (€)</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>';
+    var acc=0;
+    r.linhas.forEach(function(l){acc+=l.revisao;
+      h+='<tr><td>'+esc(l.rot||mesRot(l.mes))+'</td><td class="num">'+eur(l.valor)+'</td><td class="num">'+(l.ctAj?l.ctAj.toFixed(5):'—')+'</td><td class="num">'+((l.ctAj-1>=0?'+':'')+((l.ctAj-1)*100).toFixed(3)+'%')+'</td><td class="num">'+eur(l.revisao)+'</td><td class="num">'+eur(acc)+'</td></tr>';
+    });
+    h+='<tr style="font-weight:800;border-top:2px solid var(--border)"><td>TOTAL</td><td class="num">'+eur(r.totVal)+'</td><td></td><td class="num">'+fmtPct(r.pct)+'</td><td class="num">'+eur(r.totRev)+'</td><td class="num">'+eur(r.totRev)+'</td></tr>';
+    h+='</tbody></table>';
+    return h;
+  }
+  window.rpImprimirRelatorio=function(){
+    var r=rpCalcObra(rpObraSel); if(!r){alert('Configure a revisão desta obra primeiro.');return;}
+    var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(rpObraSel);})||{};
+    /* imagens dos gráficos */
+    var img1='',img2='';
+    try{var c1=g('rp-graf-ct');if(c1){var t=document.createElement('canvas');t.width=c1.width;t.height=c1.height;var cx=t.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,t.width,t.height);cx.drawImage(c1,0,0);img1=t.toDataURL('image/png');}}catch(e){}
+    try{var c2=g('rp-graf-acc');if(c2){var t2=document.createElement('canvas');t2.width=c2.width;t2.height=c2.height;var cx2=t2.getContext('2d');cx2.fillStyle='#fff';cx2.fillRect(0,0,t2.width,t2.height);cx2.drawImage(c2,0,0);img2=t2.toDataURL('image/png');}}catch(e){}
+    var corpo=_rpRelatorioHTML(r,false);
+    if(img1||img2){corpo+='<div style="display:flex;gap:12px;margin-top:14px;page-break-inside:avoid">'+(img1?'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#11365E">Coeficiente Ct por mês</div><img src="'+img1+'" style="width:100%"></div>':'')+(img2?'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#11365E">Revisão acumulada</div><img src="'+img2+'" style="width:100%"></div>':'')+'</div>';}
+    if(typeof _abrirImpressao==='function'){
+      _abrirImpressao('Revisão de Preços — '+(o.num||''),'Obra: '+(o.nome||'')+' · Fórmula '+r.formula.nome+' · Mês base '+mesRot(r.cfg.mesBase),corpo);
+    } else {
+      var w=window.open('','_blank'); if(w){w.document.write('<html><head><meta charset="utf-8"><title>Revisão</title></head><body>'+corpo+'</body></html>');w.document.close();setTimeout(function(){w.print();},400);}
+    }
+  };
+
+  /* ═══════════ arranque / hook showTab ═══════════ */
+  try{
+    if(typeof window.showTab==='function'){
+      var _st=window.showTab;
+      window.showTab=function(id,btn){var rr;try{rr=_st.apply(this,arguments);}catch(e){} try{if(id==='revisao')setTimeout(rpRender,60);}catch(e){} return rr;};
+    }
+  }catch(e){}
+})();
+</script>
+
+
+
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   [v249] FOLHA DE CAIXA — registo de despesas pagas em caixa com
+   leitura automática de recibos/facturas por foto (Google Gemini).
+   • Dados em localStorage 'caixa_v1' (sincronizados na cloud como
+     os restantes separadores); fotos em IndexedDB (AnexosDB),
+     locais a cada computador mas incluídas no backup completo.
+   • Ligação a Obras e a Custos apenas por acção explícita do
+     utilizador (caso a caso), nunca automática.
+   ═══════════════════════════════════════════════════════════════ */
+var caixaMov=[];   try{caixaMov=JSON.parse(localStorage.getItem('caixa_v1')||'[]')||[];}catch(e){caixaMov=[];}
+var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')||'{}')||{};}catch(e){caixaCfg={};}
+(function(){
+  'use strict';
+  var MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var METODOS={dinheiro:'Dinheiro',multibanco:'Multibanco',transferencia:'Transferência',mbway:'MB Way',outro:'Outro'};
+  var GEM_MODELOS=['gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash'];
+  var _editId=null;        // id do movimento em edição (null = novo)
+  var _fotoPend=null;      // dataURL da foto pendente (novo movimento)
+  var _fotoRemover=false;  // em edição: utilizador removeu a foto?
+  var _cxInit=false;
+
+  function esc(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function g(id){return document.getElementById(id);}
+  function eur(v){return (typeof fmt==='function'?fmt(v,2):(+v||0).toFixed(2))+' €';}
+  function quem(){try{var s=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'null');return (s&&(s.nome||s.user))||'';}catch(e){return '';}}
+  function aud(a,t){try{if(window.regAudit)window.regAudit(a,t);}catch(e){}}
+  function temPermCustos(){return !window._ccPermitido || window._ccPermitido.indexOf('custos')>=0;}
+
+  function gravarCaixa(){
+    try{window._ccUltimaEdicaoLocal=Date.now();}catch(e){}
+    try{localStorage.setItem('caixa_v1',JSON.stringify(caixaMov));}catch(e){alert('Não foi possível guardar (armazenamento do navegador cheio).');}
+    try{if(window._syncAgendar)window._syncAgendar();}catch(e){}
+  }
+  function gravarCfg(){
+    try{window._ccUltimaEdicaoLocal=Date.now();}catch(e){}
+    try{localStorage.setItem('caixa_cfg_v1',JSON.stringify(caixaCfg));}catch(e){}
+    try{if(window._syncAgendar)window._syncAgendar();}catch(e){}
+  }
+
+  /* ───────── filtros / render ───────── */
+  function _initFiltros(){
+    if(_cxInit)return; _cxInit=true;
+    var hoje=new Date();
+    var sm=g('cx-f-mes'), sa=g('cx-f-ano');
+    sm.innerHTML='<option value="">Todos os meses</option>'+MESES.map(function(m,i){return '<option value="'+(i+1)+'">'+m+'</option>';}).join('');
+    sm.value=String(hoje.getMonth()+1);
+    var anos={}; caixaMov.forEach(function(m){var a=parseInt(String(m.data||'').slice(0,4),10);if(a)anos[a]=1;});
+    anos[hoje.getFullYear()]=1;
+    var lista=Object.keys(anos).map(Number).sort(function(a,b){return b-a;});
+    sa.innerHTML='<option value="">Todos os anos</option>'+lista.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
+    sa.value=String(hoje.getFullYear());
+  }
+  function _fillObraFiltro(){
+    var so=g('cx-f-obra'); if(!so)return;
+    var atual=so.value;
+    var lst=(typeof obras!=='undefined'&&Array.isArray(obras))?obras.slice():[];
+    lst.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''),'pt',{numeric:true});});
+    so.innerHTML='<option value="">Todas as obras</option><option value="__sem__">Sem obra</option>'+
+      lst.map(function(o){return '<option value="'+esc(o.num)+'">'+esc(o.num)+' — '+esc(o.nome)+'</option>';}).join('');
+    so.value=atual||'';
+  }
+  function _visiveis(){
+    var mes=g('cx-f-mes')?g('cx-f-mes').value:'', ano=g('cx-f-ano')?g('cx-f-ano').value:'';
+    var obraF=g('cx-f-obra')?g('cx-f-obra').value:'';
+    var q=(g('cx-search')?g('cx-search').value:'').toLowerCase().trim();
+    return caixaMov.filter(function(m){
+      var d=String(m.data||'');
+      if(ano && d.slice(0,4)!==ano)return false;
+      if(mes && String(parseInt(d.slice(5,7),10))!==mes)return false;
+      if(obraF==='__sem__'){ if(m.obraNum)return false; }
+      else if(obraF && m.obraNum!==obraF)return false;
+      if(q){var t=((m.fornecedor||'')+' '+(m.documento||'')+' '+(m.desc||'')+' '+(m.nif||'')+' '+(m.obs||'')).toLowerCase();if(t.indexOf(q)<0)return false;}
+      return true;
+    }).sort(function(a,b){return String(b.data||'').localeCompare(String(a.data||''))||((b.criadoEm||0)-(a.criadoEm||0));});
+  }
+  window.renderCaixa=function(){
+    var tb=g('cx-tbody'); if(!tb)return;
+    _initFiltros(); _fillObraFiltro();
+    try{g('cx-aviso-key').style.display=(caixaCfg.gkey?'none':'');}catch(e){}
+    var rows=_visiveis();
+    var entr=0,sai=0;
+    rows.forEach(function(m){ if(m.tipo==='entrada')entr+=(+m.total||0); else sai+=(+m.total||0); });
+    var saldoTotal=caixaMov.reduce(function(s,m){return s+(m.tipo==='entrada'?(+m.total||0):-(+m.total||0));},0);
+    g('cx-metrics').innerHTML=
+      '<div class="metric"><div class="metric-label">Entradas (filtro)</div><div class="metric-value" style="color:var(--green,#15803d)">'+eur(entr)+'</div></div>'+
+      '<div class="metric"><div class="metric-label">Saídas (filtro)</div><div class="metric-value" style="color:var(--red,#b91c1c)">'+eur(sai)+'</div></div>'+
+      '<div class="metric"><div class="metric-label">Saldo (filtro)</div><div class="metric-value">'+eur(entr-sai)+'</div></div>'+
+      '<div class="metric"><div class="metric-label">Saldo de caixa (total)</div><div class="metric-value" style="color:'+(saldoTotal<0?'var(--red,#b91c1c)':'var(--navy,#11365e)')+'">'+eur(saldoTotal)+'</div></div>'+
+      '<div class="metric"><div class="metric-label">Movimentos (filtro)</div><div class="metric-value">'+rows.length+'</div></div>';
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:18px">Sem movimentos para este filtro. Use <b>Ler recibo (foto)</b> ou <b>Novo movimento</b>.</td></tr>'; return; }
+    var podeCustos=temPermCustos();
+    tb.innerHTML=rows.map(function(m){
+      var dt='—'; try{if(m.data){var p=m.data.split('-');dt=p[2]+'/'+p[1]+'/'+p[0];}}catch(e){}
+      var tipo=(m.tipo==='entrada')
+        ? '<span style="font-size:10.5px;font-weight:700;background:#ecfdf5;color:#047857;padding:2px 8px;border-radius:999px">Entrada</span>'
+        : '<span style="font-size:10.5px;font-weight:700;background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:999px">Saída</span>';
+      var foto=m.foto
+        ? '<button class="btn sm" title="Ver foto do recibo" onclick="verFotoCaixa('+m.id+')" style="padding:2px 7px"><i class="ti ti-photo"></i></button>'
+        : '<span style="color:var(--muted)">—</span>';
+      var cust='—';
+      if(m.tipo!=='entrada'){
+        if(m.custoId){
+          cust='<span title="Já lançado nos Custos" style="font-size:10.5px;font-weight:700;background:var(--blue-lt,#e8f0fb);color:var(--blue,#1b4d8f);padding:2px 8px;border-radius:999px;white-space:nowrap"><i class="ti ti-check"></i> Nos Custos</span>'+
+               (podeCustos?' <button class="btn sm" title="Retirar dos Custos" onclick="retirarCaixaDosCustos('+m.id+')" style="padding:2px 6px"><i class="ti ti-arrow-back-up"></i></button>':'');
+        } else if(podeCustos){
+          cust='<button class="btn sm" onclick="lancarCaixaEmCustos('+m.id+')" title="Lançar este movimento nos Custos (pede confirmação)" style="padding:2px 7px;white-space:nowrap"><i class="ti ti-arrow-right"></i> Lançar</button>';
+        }
+      }
+      return '<tr>'+
+        '<td style="white-space:nowrap">'+dt+'</td>'+
+        '<td>'+tipo+(m.ia?' <i class="ti ti-sparkles" title="Lido por IA a partir da foto" style="color:#0e9f6e;font-size:12px"></i>':'')+'</td>'+
+        '<td>'+esc(m.fornecedor||'—')+'</td>'+
+        '<td>'+esc(m.documento||'—')+'</td>'+
+        '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(m.desc||'')+'">'+esc(m.desc||'—')+'</td>'+
+        '<td style="white-space:nowrap">'+esc(m.obraNum||'—')+'</td>'+
+        '<td style="text-align:right">'+eur(m.base)+'</td>'+
+        '<td style="text-align:right">'+eur(m.ivaVal)+'</td>'+
+        '<td style="text-align:right;font-weight:700">'+eur(m.total)+'</td>'+
+        '<td style="text-align:center">'+foto+'</td>'+
+        '<td style="text-align:center">'+cust+'</td>'+
+        '<td style="white-space:nowrap;text-align:right">'+
+          '<button class="btn sm" title="Editar" onclick="abrirModalCaixa('+m.id+',null)" style="padding:2px 7px"><i class="ti ti-pencil"></i></button> '+
+          '<button class="btn sm" title="Eliminar" onclick="removeCaixaMov('+m.id+')" style="padding:2px 7px;color:var(--red,#b91c1c)"><i class="ti ti-trash"></i></button>'+
+        '</td></tr>';
+    }).join('');
+  };
+
+  /* ───────── modal ───────── */
+  function _fillObraModal(sel){
+    var lst=(typeof obras!=='undefined'&&Array.isArray(obras))?obras.slice():[];
+    lst.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''),'pt',{numeric:true});});
+    var so=g('cx-obra');
+    so.innerHTML='<option value="">— Sem obra (só caixa) —</option>'+
+      lst.map(function(o){return '<option value="'+esc(o.num)+'">'+esc(o.num)+' — '+esc(o.nome)+'</option>';}).join('');
+    so.value=sel||'';
+  }
+  function _setFotoUI(temFoto,origem){
+    var img=g('cx-foto-prev'), st=g('cx-foto-estado'), bt=g('cx-foto-btn-txt');
+    if(temFoto){ img.style.display=''; bt.textContent='Substituir foto'; st.innerHTML=origem||''; }
+    else { img.style.display='none'; img.src=''; bt.textContent='Anexar foto do recibo'; st.textContent=''; }
+  }
+  window.abrirModalCaixa=function(id,ia){
+    _editId=id||null; _fotoPend=null; _fotoRemover=false;
+    g('cx-ia-badge').style.display=ia?'':'none';
+    var m=null;
+    if(id){ m=caixaMov.find(function(x){return x.id===id;}); if(!m)return; }
+    g('modal-caixa-title').innerHTML='<i class="ti ti-wallet"></i> '+(id?'Editar movimento de caixa':(ia?'Confirmar dados do recibo':'Novo movimento de caixa'));
+    g('cx-tipo').value      = m?(m.tipo||'saida'):'saida';
+    g('cx-data').value      = m?(m.data||''):(ia&&ia.data?ia.data:new Date().toISOString().slice(0,10));
+    g('cx-fornecedor').value= m?(m.fornecedor||''):(ia&&ia.fornecedor?ia.fornecedor:'');
+    g('cx-nif').value       = m?(m.nif||''):(ia&&ia.nif?ia.nif:'');
+    g('cx-documento').value = m?(m.documento||''):(ia&&ia.documento?ia.documento:'');
+    g('cx-metodo').value    = m?(m.metodo||'dinheiro'):(ia&&ia.metodo&&METODOS[ia.metodo]?ia.metodo:'dinheiro');
+    g('cx-desc').value      = m?(m.desc||''):(ia&&ia.descricao?ia.descricao:'');
+    g('cx-base').value      = m?(m.base!=null?m.base:''):(ia&&ia.base!=null?ia.base:'');
+    g('cx-ivaval').value    = m?(m.ivaVal!=null?m.ivaVal:''):(ia&&ia.iva!=null?ia.iva:'');
+    g('cx-total').value     = m?(m.total!=null?m.total:''):(ia&&ia.total!=null?ia.total:'');
+    g('cx-obs').value       = m?(m.obs||''):'';
+    _fillObraModal(m?m.obraNum:'');
+    if(!g('cx-total').value)cxCalcTotal();
+    _setFotoUI(false);
+    if(ia&&ia._fotoDataURL){ _fotoPend=ia._fotoDataURL; g('cx-foto-prev').src=_fotoPend; _setFotoUI(true,'Foto lida — será guardada com o movimento.'); }
+    else if(m&&m.foto){
+      _setFotoUI(true,'A carregar foto...');
+      if(window.AnexosDB&&AnexosDB.disponivel()){
+        AnexosDB.get('caixa::'+m.id).then(function(a){
+          if(_editId!==m.id)return;
+          if(a&&a.dataURL){ g('cx-foto-prev').src=a.dataURL; _setFotoUI(true,'Foto guardada neste computador.'); }
+          else { g('cx-foto-prev').style.display='none'; g('cx-foto-estado').textContent='A foto está guardada no computador onde o recibo foi registado.'; }
+        }).catch(function(){ _setFotoUI(false); });
+      }
+    }
+    openModal('modal-caixa');
+  };
+  window.cxCalcTotal=function(){
+    var b=parseFloat(g('cx-base').value)||0, i=parseFloat(g('cx-ivaval').value)||0;
+    if(b||i)g('cx-total').value=(Math.round((b+i)*100)/100);
+  };
+  window.cxTotalManual=function(){
+    // total escrito à mão sem base: assume base=total e IVA=0
+    var t=parseFloat(g('cx-total').value)||0;
+    if(t&&!parseFloat(g('cx-base').value)&&!parseFloat(g('cx-ivaval').value)){ g('cx-base').value=t; g('cx-ivaval').value=0; }
+  };
+  window.cxAnexarFotoModal=function(file){
+    if(!file)return;
+    _comprimir(file,1200,0.72).then(function(dURL){
+      _fotoPend=dURL; _fotoRemover=false;
+      g('cx-foto-prev').src=dURL;
+      _setFotoUI(true,'Nova foto — será guardada com o movimento.');
+    }).catch(function(){alert('Não foi possível ler a imagem.');});
+  };
+  window.cxAmpliarPrev=function(){var s=g('cx-foto-prev').src;if(s)_overlayFoto(s);};
+
+  window.saveCaixaMov=function(){
+    var total=parseFloat(g('cx-total').value)||0;
+    var base=parseFloat(g('cx-base').value)||0;
+    var iva=parseFloat(g('cx-ivaval').value)||0;
+    if(!total&&!base){alert('Introduza o valor.');return;}
+    if(!total)total=Math.round((base+iva)*100)/100;
+    if(!base){base=Math.round((total-iva)*100)/100;}
+    if(!g('cx-data').value){alert('Introduza a data.');return;}
+    var dados={
+      tipo:g('cx-tipo').value==='entrada'?'entrada':'saida',
+      data:g('cx-data').value,
+      fornecedor:g('cx-fornecedor').value.trim(),
+      nif:g('cx-nif').value.trim(),
+      documento:g('cx-documento').value.trim(),
+      metodo:g('cx-metodo').value,
+      desc:g('cx-desc').value.trim(),
+      base:base, ivaVal:iva, total:total,
+      obraNum:g('cx-obra').value||'',
+      obs:g('cx-obs').value.trim()
+    };
+    var m;
+    if(_editId){
+      m=caixaMov.find(function(x){return x.id===_editId;}); if(!m)return;
+      var tinhaCusto=!!m.custoId, obraAntes=m.obraNum;
+      Object.assign(m,dados);
+      // Se já estava lançado nos Custos, actualizar o custo correspondente (mesmos dados)
+      if(tinhaCusto && typeof custos!=='undefined'){
+        var c=custos.find(function(x){return String(x.id)===String(m.custoId);});
+        if(c){
+          if(m.tipo==='entrada'||!m.obraNum){
+            if(confirm('Este movimento estava lançado nos Custos, mas deixou de ter obra (ou passou a entrada).\n\nRetirar também dos Custos?')){_removerCusto(m);}
+          } else {
+            c.obraNum=m.obraNum;c.data=m.data;c.fornecedor=m.fornecedor;c.documento=m.documento;
+            c.desc='[Caixa] '+(m.desc||m.fornecedor||'Despesa de caixa');
+            c.valor=m.base; c.iva=(m.base>0?Math.round((m.ivaVal/m.base)*10000)/10000:0);
+            var p=(m.data||'').split('-');c.ano=parseInt(p[0],10)||c.ano;c.mesNum=parseInt(p[1],10)||c.mesNum;
+            try{aplicarCustos();}catch(e){}
+          }
+        }
+      }
+      aud('Folha de Caixa','Editou movimento: '+(m.fornecedor||'')+' '+eur(m.total));
+    } else {
+      m=Object.assign({id:Date.now()+Math.floor(Math.random()*1000),foto:false,custoId:null,ia:false,criadoPor:quem(),criadoEm:Date.now()},dados);
+      if(g('cx-ia-badge').style.display!=='none')m.ia=true;
+      caixaMov.push(m);
+      aud('Folha de Caixa','Novo movimento: '+(m.tipo==='entrada'?'entrada':'saída')+' '+(m.fornecedor||'')+' '+eur(m.total));
+    }
+    // foto
+    if(_fotoPend && window.AnexosDB && AnexosDB.disponivel()){
+      var chave='caixa::'+m.id, dURL=_fotoPend;
+      AnexosDB.set(chave,{nome:'recibo_'+m.id+'.jpg',tipo:'image/jpeg',size:dURL.length,dataURL:dURL}).then(function(){}).catch(function(){});
+      m.foto=true;
+    } else if(_fotoRemover && m.foto){
+      try{if(window.AnexosDB)AnexosDB.del('caixa::'+m.id);}catch(e){}
+      m.foto=false;
+    }
+    gravarCaixa();
+    closeModal('modal-caixa');
+    renderCaixa();
+  };
+
+  window.removeCaixaMov=function(id){
+    var m=caixaMov.find(function(x){return x.id===id;}); if(!m)return;
+    var msg='Eliminar este movimento de caixa?';
+    if(m.custoId)msg+='\n\nAtenção: também será retirado dos Custos da obra.';
+    if(!confirm(msg))return;
+    if(m.custoId)_removerCusto(m);
+    var i=caixaMov.findIndex(function(x){return x.id===id;});
+    if(i>=0)caixaMov.splice(i,1);
+    try{if(window.AnexosDB&&AnexosDB.disponivel())AnexosDB.del('caixa::'+id);}catch(e){}
+    aud('Folha de Caixa','Eliminou movimento: '+(m.fornecedor||'')+' '+eur(m.total));
+    gravarCaixa(); renderCaixa();
+  };
+
+  /* ───────── ligação a Custos (sempre com confirmação, caso a caso) ───────── */
+  window.lancarCaixaEmCustos=function(id){
+    var m=caixaMov.find(function(x){return x.id===id;}); if(!m)return;
+    if(m.tipo==='entrada'){alert('Só as saídas (despesas) podem ser lançadas nos Custos.');return;}
+    if(typeof custos==='undefined'){alert('Módulo de Custos indisponível.');return;}
+    if(!m.obraNum){
+      alert('Este movimento não tem obra associada.\n\nEdite o movimento (lápis) e escolha a obra primeiro.');
+      return;
+    }
+    var o=(typeof obras!=='undefined'?obras.find(function(x){return x.num===m.obraNum;}):null);
+    if(!confirm('Lançar nos CUSTOS da obra '+m.obraNum+(o?' — '+o.nome:'')+'?\n\n'+
+        (m.fornecedor||'(sem fornecedor)')+'\n'+(m.desc||'')+'\nValor s/ IVA: '+eur(m.base)+'  |  Total: '+eur(m.total)))return;
+    var p=(m.data||'').split('-');
+    var c={
+      id:Date.now()+Math.floor(Math.random()*1000),
+      obraNum:m.obraNum,
+      mesNum:parseInt(p[1],10)||1, ano:parseInt(p[0],10)||new Date().getFullYear(),
+      data:m.data, familiaId:'', categoria:'direto', tipoCusto:'direto',
+      fornecedor:m.fornecedor||'', documento:m.documento||'',
+      desc:'[Caixa] '+(m.desc||m.fornecedor||'Despesa de caixa'),
+      valor:m.base, iva:(m.base>0?Math.round(((m.ivaVal||0)/m.base)*10000)/10000:0),
+      obs:'Origem: Folha de Caixa ('+(METODOS[m.metodo]||'')+')'+(m.obs?' — '+m.obs:''),
+      pagamentos:[], origemCaixa:true
+    };
+    custos.push(c);
+    m.custoId=c.id;
+    try{aplicarCustos();}catch(e){}
+    aud('Folha de Caixa','Lançou nos Custos da obra '+m.obraNum+': '+(m.fornecedor||'')+' '+eur(m.total));
+    gravarCaixa(); renderCaixa();
+  };
+  function _removerCusto(m){
+    if(typeof custos==='undefined'||!m.custoId)return;
+    var i=custos.findIndex(function(x){return String(x.id)===String(m.custoId);});
+    if(i>=0){custos.splice(i,1);try{aplicarCustos();}catch(e){}}
+    m.custoId=null;
+  }
+  window.retirarCaixaDosCustos=function(id){
+    var m=caixaMov.find(function(x){return x.id===id;}); if(!m||!m.custoId)return;
+    if(!confirm('Retirar este movimento dos Custos da obra '+(m.obraNum||'')+'?\n\nO movimento continua na Folha de Caixa.'))return;
+    _removerCusto(m);
+    aud('Folha de Caixa','Retirou dos Custos: '+(m.fornecedor||'')+' '+eur(m.total));
+    gravarCaixa(); renderCaixa();
+  };
+
+  /* ───────── fotos ───────── */
+  function _comprimir(file,maxLado,qualidade){
+    return new Promise(function(res,rej){
+      var fr=new FileReader();
+      fr.onload=function(){
+        var img=new Image();
+        img.onload=function(){
+          var w=img.width,h=img.height,esc2=Math.min(1,maxLado/Math.max(w,h));
+          var cv=document.createElement('canvas');cv.width=Math.round(w*esc2);cv.height=Math.round(h*esc2);
+          cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+          res(cv.toDataURL('image/jpeg',qualidade));
+        };
+        img.onerror=rej; img.src=fr.result;
+      };
+      fr.onerror=rej; fr.readAsDataURL(file);
+    });
+  }
+  function _overlayFoto(src){
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(10,20,35,.82);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px';
+    ov.innerHTML='<img src="'+src+'" style="max-width:94vw;max-height:92vh;border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.5)">';
+    ov.onclick=function(){ov.remove();};
+    document.body.appendChild(ov);
+  }
+  window.verFotoCaixa=function(id){
+    if(!(window.AnexosDB&&AnexosDB.disponivel())){alert('Armazenamento de fotos indisponível neste navegador.');return;}
+    AnexosDB.get('caixa::'+id).then(function(a){
+      if(a&&a.dataURL)_overlayFoto(a.dataURL);
+      else alert('A foto deste recibo está guardada no computador onde foi registada (as fotos não são sincronizadas entre computadores, mas entram no backup completo).');
+    }).catch(function(){alert('Não foi possível abrir a foto.');});
+  };
+
+  /* ───────── leitura por IA (Google Gemini) ───────── */
+  window.cxLerReciboClick=function(){
+    if(!caixaCfg.gkey){
+      alert('Falta a chave da IA para ler recibos.\n\nVá a Definições → "Folha de Caixa — Leitura de recibos", siga as instruções (chave gratuita do Google AI Studio) e cole-a lá.\n\nEntretanto pode registar o movimento manualmente com "Novo movimento".');
+      return;
+    }
+    g('cx-foto-input').click();
+  };
+  window.cxFotoEscolhida=function(file){
+    if(!file)return;
+    var aviso=document.createElement('div');
+    aviso.id='cx-a-ler';
+    aviso.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--navy,#11365e);color:#fff;padding:10px 18px;border-radius:10px;z-index:99998;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.3)';
+    aviso.innerHTML='<i class="ti ti-loader-2"></i> A ler o recibo com IA... aguarde uns segundos.';
+    document.body.appendChild(aviso);
+    _comprimir(file,1600,0.85).then(function(dURL){
+      return _gemini(dURL).then(function(dados){
+        aviso.remove();
+        dados._fotoDataURL=dURL;
+        abrirModalCaixa(null,dados);
+      });
+    }).catch(function(err){
+      aviso.remove();
+      var msg=String(err&&err.message||err||'');
+      alert('Não foi possível ler o recibo automaticamente.\n\n'+msg+'\n\nPode registar manualmente: vai abrir o formulário com a foto anexada.');
+      _comprimir(file,1200,0.72).then(function(dURL){abrirModalCaixa(null,{_fotoDataURL:dURL});}).catch(function(){abrirModalCaixa(null,null);});
+    });
+  };
+  function _gemini(dataURL,mi){
+    mi=mi||0;
+    if(mi>=GEM_MODELOS.length)return Promise.reject(new Error('Nenhum modelo Gemini disponível para esta chave.'));
+    var modelo=GEM_MODELOS[mi];
+    var b64=dataURL.split(',')[1];
+    var corpo={
+      contents:[{parts:[
+        {text:'Esta é a foto de uma factura ou recibo português/angolano. Extrai os dados e responde APENAS com JSON válido neste formato exacto: '+
+              '{"data":"AAAA-MM-DD","fornecedor":"nome da empresa emitente","nif":"NIF do emitente ou vazio","documento":"número da factura/recibo ou vazio",'+
+              '"descricao":"resumo curto do que foi comprado (máx 80 caracteres)","base":0.00,"iva":0.00,"total":0.00,'+
+              '"metodo":"dinheiro|multibanco|transferencia|mbway|outro"}. '+
+              '"base" é o valor sem IVA, "iva" é o valor do IVA em euros (não a percentagem), "total" é o valor final pago. '+
+              'Se não conseguires ler um campo, deixa-o vazio ou 0. Usa ponto como separador decimal.'},
+        {inline_data:{mime_type:'image/jpeg',data:b64}}
+      ]}],
+      generationConfig:{temperature:0,responseMimeType:'application/json'}
+    };
+    return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelo+':generateContent?key='+encodeURIComponent(caixaCfg.gkey),{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)
+    }).then(function(r){
+      if(r.status===404||r.status===429)return _gemini(dataURL,mi+1); // modelo indisponível/limite -> tenta o seguinte
+      if(!r.ok)return r.json().catch(function(){return {};}).then(function(j){
+        var em=(j&&j.error&&j.error.message)||('Erro '+r.status);
+        if(r.status===400&&/api key/i.test(em))em='Chave API inválida. Verifique-a nas Definições.';
+        if(r.status===403)em='Chave sem permissão. Confirme que foi criada no Google AI Studio (aistudio.google.com/apikey).';
+        throw new Error(em);
+      });
+      return r.json().then(function(j){
+        var txt='';
+        try{txt=j.candidates[0].content.parts.map(function(p){return p.text||'';}).join('');}catch(e){}
+        if(!txt)throw new Error('A IA não devolveu dados. Tente uma foto mais nítida.');
+        var d;
+        try{d=JSON.parse(txt);}catch(e){
+          var mm=txt.match(/\{[\s\S]*\}/); if(mm){try{d=JSON.parse(mm[0]);}catch(e2){}}
+        }
+        if(!d||typeof d!=='object')throw new Error('Resposta da IA ilegível. Tente novamente.');
+        ['base','iva','total'].forEach(function(k){d[k]=parseFloat(String(d[k]==null?'':d[k]).replace(',','.'))||0;});
+        if(!d.total&&(d.base||d.iva))d.total=Math.round((d.base+d.iva)*100)/100;
+        if(!d.base&&d.total)d.base=Math.round((d.total-(d.iva||0))*100)/100;
+        if(d.data&&!/^\d{4}-\d{2}-\d{2}$/.test(String(d.data)))d.data='';
+        return d;
+      });
+    });
+  }
+
+  /* ───────── configuração (Definições) ───────── */
+  window.renderCaixaCfg=function(){
+    var i=g('cx-cfg-gkey'); if(!i)return;
+    i.value=caixaCfg.gkey||'';
+    var r=g('cx-cfg-res'); if(r)r.innerHTML=caixaCfg.gkey?'<span style="color:var(--green,#15803d)"><i class="ti ti-check"></i> Chave configurada. A leitura de recibos por foto está activa em todos os computadores sincronizados.</span>':'';
+  };
+  window.saveCaixaCfg=function(){
+    var v=(g('cx-cfg-gkey').value||'').trim();
+    caixaCfg.gkey=v; gravarCfg();
+    g('cx-cfg-res').innerHTML=v?'<span style="color:var(--green,#15803d)"><i class="ti ti-check"></i> Chave guardada.</span>':'<span style="color:var(--muted)">Chave removida — a leitura por foto fica desactivada.</span>';
+    aud('Folha de Caixa',v?'Configurou a chave de leitura IA':'Removeu a chave de leitura IA');
+  };
+  window.cxTestarChave=function(){
+    var v=(g('cx-cfg-gkey').value||'').trim();
+    var r=g('cx-cfg-res');
+    if(!v){r.innerHTML='<span style="color:var(--red,#b91c1c)">Cole primeiro a chave.</span>';return;}
+    r.innerHTML='A testar...';
+    fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(v))
+      .then(function(x){return x.ok?x.json():x.json().then(function(j){throw new Error((j.error&&j.error.message)||('Erro '+x.status));});})
+      .then(function(){r.innerHTML='<span style="color:var(--green,#15803d)"><i class="ti ti-check"></i> Chave válida! Clique em Guardar.</span>';})
+      .catch(function(e){r.innerHTML='<span style="color:var(--red,#b91c1c)"><i class="ti ti-x"></i> Chave inválida: '+esc(String(e.message||e))+'</span>';});
+  };
+
+  /* ───────── exportação Excel ───────── */
+  window.exportarCaixaExcel=function(){
+    var rows=_visiveis().slice().reverse(); // cronológica
+    var aoa=[['Data','Tipo','Fornecedor','NIF','Documento','Descrição','Obra','Método','S/IVA (€)','IVA (€)','Total (€)','Nos Custos','Observações']];
+    var ent=0,sai=0;
+    rows.forEach(function(m){
+      if(m.tipo==='entrada')ent+=(+m.total||0);else sai+=(+m.total||0);
+      aoa.push([m.data||'',m.tipo==='entrada'?'Entrada':'Saída',m.fornecedor||'',m.nif||'',m.documento||'',m.desc||'',m.obraNum||'',METODOS[m.metodo]||'',
+        +(m.base||0).toFixed(2),+(m.ivaVal||0).toFixed(2),+(m.total||0).toFixed(2),m.custoId?'Sim':'',m.obs||'']);
+    });
+    aoa.push([]);
+    aoa.push(['','','','','','','','Entradas:','','',+ent.toFixed(2),'','']);
+    aoa.push(['','','','','','','','Saídas:','','',+sai.toFixed(2),'','']);
+    aoa.push(['','','','','','','','Saldo:','','',+(ent-sai).toFixed(2),'','']);
+    if(typeof _xls==='function')_xls(aoa,'folha_caixa','Folha de Caixa');
+    else alert('Exportação Excel indisponível.');
+  };
+})();
+</script>
+
+<script>(function(){try{var _st=window.showTab;window.showTab=function(id,btn){var r;try{r=_st.apply(this,arguments);}catch(e){}try{if(id==='caixa'&&window.renderCaixa)window.renderCaixa();}catch(e){}try{if(id==='definicoes'&&window.renderCaixaCfg)setTimeout(window.renderCaixaCfg,50);}catch(e){}return r;};}catch(e){}})();</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v265] ATUALIZAÇÃO AUTOMÁTICA DOS ÍNDICES OFICIAIS (IMPIC)
+   Lê os ficheiros Excel oficiais do IMPIC (mão-de-obra global, materiais,
+   equipamentos de apoio) através de uma "ponte" (Supabase Edge Function
+   'proxy-indices') — necessária porque o navegador bloqueia o acesso direto
+   ao site do IMPIC (CORS). Preenche a grelha de índices da Revisão de Preços
+   e grava (sincroniza para todos os computadores).
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  var RP_KEY='revisao_precos_v1';
+  var MESN={JAN:'01',FEV:'02',MAR:'03',ABR:'04',MAI:'05',JUN:'06',JUL:'07',AGO:'08',SET:'09',OUT:'10',NOV:'11',DEZ:'12'};
+  var BASE_IMPIC='https://www.impic.pt/impic/assets/misc/indicesCIFE/';
+
+  function _sbUrl(){ try{return (localStorage.getItem('cc_sb_url')||'').trim()||'https://wlmtjcnyjhajqoheovqx.supabase.co';}catch(e){return 'https://wlmtjcnyjhajqoheovqx.supabase.co';} }
+  function _proxy(u){ return _sbUrl().replace(/\/+$/,'')+'/functions/v1/proxy-indices?u='+encodeURIComponent(u); }
+
+  /* ---------- leitura de um Excel CIFE ---------- */
+  function _cabecalho(aoa){
+    for(var r=0;r<aoa.length;r++){ var row=aoa[r]||[]; var cols={};
+      for(var c=0;c<row.length;c++){ var v=String(row[c]==null?'':row[c]).trim().toUpperCase(); if(MESN[v]!=null)cols[v]=c; }
+      if(cols.JAN!=null&&cols.FEV!=null)return {headerRow:r,cols:cols};
+    } return null;
+  }
+  function _ano(aoa,sheetName){
+    for(var i=0;i<aoa.length;i++){ var row=aoa[i]||[]; for(var j=0;j<row.length;j++){ var m=String(row[j]==null?'':row[j]).match(/ANO\s+DE\s+(\d{4})/i); if(m)return +m[1]; } }
+    var s=(sheetName||'').match(/(20\d{2})/); return s?+s[1]:null;
+  }
+  function _linha(row,cols,ano,cod,out){
+    for(var mes in cols){ var v=row[cols[mes]]; if(v!=null&&v!==''&&typeof v==='number'&&isFinite(v)) out.push({mes:ano+'-'+MESN[mes],cod:cod,valor:v}); }
+  }
+  function _parse(ab,tipo){
+    var wb=XLSX.read(new Uint8Array(ab),{type:'array'}); var out=[];
+    (wb.SheetNames||[]).forEach(function(sn){
+      var aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
+      var hb=_cabecalho(aoa); if(!hb)return; var ano=_ano(aoa,sn); if(!ano)return;
+      for(var r=hb.headerRow+1;r<aoa.length;r++){ var row=aoa[r]||[]; var c0=String(row[0]==null?'':row[0]).trim(); var u=c0.toUpperCase();
+        if(tipo==='MAT'){ if(/^M\d{1,2}$/i.test(c0))_linha(row,hb.cols,ano,u,out); }
+        else if(tipo==='MO'){ if(u==='GLOBAL')_linha(row,hb.cols,ano,'S',out); }
+        else if(tipo==='EQ'){ if(u.indexOf('EQUIP')===0)_linha(row,hb.cols,ano,'E',out); }
+      }
+    });
+    return out;
+  }
+
+  async function _fetchXls(url){
+    var r=await fetch(_proxy(url),{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return await r.arrayBuffer();
+  }
+
+  /* ---------- atualização ---------- */
+  window._rpAtualizarIndicesOnline=async function(silencioso){
+    var anoAtual=(new Date()).getFullYear();
+    var anos=[anoAtual, anoAtual-1]; // ano corrente + anterior (viragem de ano)
+    var ficheiros=[['MO_GLOBAL','MO'],['MATERIAIS','MAT'],['EQUIPAPOIO','EQ']];
+    var linhas=[], erros=0, okFich=0;
+    var btn=document.getElementById('rp-btn-online'); var txtOrig=btn?btn.innerHTML:null;
+    if(btn){ btn.disabled=true; btn.innerHTML='<i class="ti ti-loader"></i> A obter do IMPIC…'; }
+    for(var a=0;a<anos.length;a++){
+      for(var f=0;f<ficheiros.length;f++){
+        var url=BASE_IMPIC+'cife'+anos[a]+'_'+ficheiros[f][0]+'.xls';
+        try{ var ab=await _fetchXls(url); var res=_parse(ab,ficheiros[f][1]); if(res.length){ linhas=linhas.concat(res); okFich++; } }
+        catch(e){ erros++; }
+      }
+    }
+    if(btn){ btn.disabled=false; btn.innerHTML=txtOrig; }
+    if(!linhas.length){
+      try{ localStorage.setItem('rp_auto_idx_ts', String(Date.now())); }catch(e){}
+      if(!silencioso){
+        alert('Não foi possível obter os índices do IMPIC automaticamente.\n\nProvável causa: a "ponte" (função proxy-indices) ainda não está criada na cloud, ou o site do IMPIC está indisponível.\n\nPode sempre usar "Colar do Excel" com o ficheiro do IMPIC. Consulte o guia de instalação da ponte.');
+      }
+      return {ok:false, meses:0, indices:0};
+    }
+    // fundir na grelha de índices (o ficheiro mais recente ganha)
+    var d; try{ d=JSON.parse(localStorage.getItem(RP_KEY)||'{}'); if(!d||typeof d!=='object')d={}; }catch(e){ d={}; }
+    if(!d.indices||typeof d.indices!=='object')d.indices={};
+    var meses={}, nIdx=0;
+    linhas.forEach(function(x){ if(!d.indices[x.mes])d.indices[x.mes]={}; d.indices[x.mes][x.cod]=x.valor; meses[x.mes]=1; nIdx++; });
+    try{ localStorage.setItem(RP_KEY,JSON.stringify(d)); }catch(e){ alert('Sem espaço para gravar os índices.'); return {ok:false}; }
+    try{ localStorage.setItem('rp_auto_idx_mes', _mesAtual()); localStorage.setItem('rp_auto_idx_ts', String(Date.now())); }catch(e){}
+    try{ if(window._syncAgendar)window._syncAgendar(); }catch(e){}
+    try{ if(window.renderRevisao)window.renderRevisao(); }catch(e){}
+    var listaMeses=Object.keys(meses).sort();
+    if(!silencioso){
+      alert('Índices oficiais do IMPIC atualizados com sucesso.\n\n'+listaMeses.length+' mês(es): '+listaMeses.join(', ')+'\n'+nIdx+' valores de índice atualizados.\n\nJá sincronizado para todos os computadores.');
+    }
+    return {ok:true, meses:listaMeses.length, indices:nIdx, ultimo:listaMeses[listaMeses.length-1]};
+  };
+
+  function _mesAtual(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
+
+  /* ---------- automático: uma vez por mês, após entrar ---------- */
+  window._rpAutoIndicesArranque=function(){
+    try{
+      var ultimo=localStorage.getItem('rp_auto_idx_mes')||'';
+      if(ultimo===_mesAtual())return;           // já corrido este mês
+      // só tenta se houver ponte configurada (SB_URL existe sempre por defeito)
+      setTimeout(function(){ try{ window._rpAtualizarIndicesOnline(true); }catch(e){} }, 8000);
+    }catch(e){}
+  };
+  // arranca quando a app já está pronta (após login) — engancha no showTab e num timer de segurança
+  try{
+    var _disparado=false;
+    function _tentarArranque(){ if(_disparado)return; if(document.getElementById('login-gate')&&getComputedStyle(document.getElementById('login-gate')).display!=='none')return; _disparado=true; window._rpAutoIndicesArranque(); }
+    var _stI=window.showTab;
+    if(typeof _stI==='function'){ window.showTab=function(){ var r; try{r=_stI.apply(this,arguments);}catch(e){} try{_tentarArranque();}catch(e){} return r; }; }
+    setTimeout(_tentarArranque, 15000);
+  }catch(e){}
 })();
 </script>
 </body>
