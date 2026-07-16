@@ -383,7 +383,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v271</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v273</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -5093,11 +5093,13 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <button class="tab-inner-btn" id="rp-btn-form" onclick="rpSub('form')">Fórmulas</button>
     <button class="tab-inner-btn" id="rp-btn-idx" onclick="rpSub('idx')">Índices oficiais</button>
     <button class="tab-inner-btn" id="rp-btn-rel" onclick="rpSub('rel')">Relatório</button>
+    <button class="tab-inner-btn" id="rp-btn-reg" onclick="rpSub('reg')">Registo / Pedidos</button>
   </div>
   <div id="rp-sub-calc"></div>
   <div id="rp-sub-form" style="display:none"></div>
   <div id="rp-sub-idx" style="display:none"></div>
   <div id="rp-sub-rel" style="display:none"></div>
+  <div id="rp-sub-reg" style="display:none"></div>
 </div>
 
 <!-- ═══════════════════════════════ [v249] FOLHA DE CAIXA ═══════════════════════════════ -->
@@ -20806,22 +20808,20 @@ try{
 
   /* revisão da obra: por mês, aplicando a fórmula. modo 'real' usa a produção real;
      'plano' usa o plano de pagamentos inicial (datas planeadas). */
-  function rpCalcObra(numObra){
+  /* motor genérico: calcula a revisão para uma config (contrato). permiteFat=usar a facturação da obra. */
+  function _rpCalcCfg(cfg, numObra, permiteFat){
     var d=rpDados();
-    var cfg=d.obras[numObra];
     if(!cfg||!cfg.formulaId||!cfg.mesBase)return null;
     var formula=(d.formulas||[]).find(function(f){return f.id===cfg.formulaId;});
     if(!formula)return null;
-    var banda=(cfg.banda!=null)?+cfg.banda:0.01; // ±1% por defeito (art. 9.º)
-    var extra=cfg.extraordinaria?1.1:1; // DL 36/2022 (opcional)
+    var banda=(cfg.banda!=null)?+cfg.banda:0.01;
+    var extra=cfg.extraordinaria?1.1:1;
     var base;
     if(cfg.modo==='plano' && Array.isArray(cfg.plano) && cfg.plano.length){
       base=cfg.plano.filter(function(x){return x.mes;}).map(function(x){return {mes:x.mes,rot:mesRot(x.mes),valor:+x.valor||0};});
-    } else if(cfg.modo==='manual' && cfg.manual){
-      base=Object.keys(cfg.manual).sort().map(function(mk){return {mes:mk,rot:mesRot(mk),valor:+cfg.manual[mk]||0};});
     } else {
-      var _auto=rpProducaoObra(numObra); var _map={};
-      _auto.forEach(function(pp){_map[pp.mes]=pp.valor;});
+      var _map={};
+      if(permiteFat && cfg.modo!=='manual'){ var _auto=rpProducaoObra(numObra); _auto.forEach(function(pp){_map[pp.mes]=pp.valor;}); }
       var _man=(cfg.manual&&typeof cfg.manual==='object')?cfg.manual:{};
       Object.keys(_man).forEach(function(mk){ if(/^\d{4}-\d{2}$/.test(mk))_map[mk]=+_man[mk]||0; });
       base=Object.keys(_map).sort().map(function(mk){return {mes:mk,rot:mesRot(mk),valor:_map[mk]};});
@@ -20839,13 +20839,37 @@ try{
     });
     return {cfg:cfg,formula:formula,linhas:linhas,totVal:totVal,totRev:totRev,algumFalta:algumFalta,pct:totVal>0?totRev/totVal:0};
   }
+  function rpCalcObra(numObra){ var d=rpDados(); return _rpCalcCfg(d.obras[numObra], numObra, true); }
   window._rpCalcObra=rpCalcObra;
-
+  function rpAdicionais(num){ var d=rpDados(); var o=d.obras[num]; return (o&&Array.isArray(o.adicionais))?o.adicionais:[]; }
+  function _rpContratos(num){
+    var d=rpDados(); var arr=[]; var ini=d.obras[num]||{};
+    arr.push({id:'inicial', nome:(ini.nomeContrato||'Contrato Inicial'), cfg:ini, permiteFat:true});
+    rpAdicionais(num).forEach(function(a){ arr.push({id:a.id, nome:a.nome||'Contrato Adicional', cfg:a, permiteFat:false}); });
+    return arr;
+  }
+  window._rpContratos=_rpContratos; window._rpCalcCfg=_rpCalcCfg;
+  window._rpCalcTotal=function(num){
+    var tr=0,tv=0,algum=false,n=0;
+    _rpContratos(num).forEach(function(ct){ var c=_rpCalcCfg(ct.cfg,num,ct.permiteFat); if(c){tr+=c.totRev;tv+=c.totVal;if(c.algumFalta)algum=true;n++;} });
+    return {totRev:tr, totVal:tv, algumFalta:algum, pct:tv>0?tr/tv:0, nContratos:n};
+  };
+  /* contrato selecionado no ecrã de cálculo */
+  var rpContSel='inicial';
+  function _rpTgt(d){
+    var o=d.obras[rpObraSel]=d.obras[rpObraSel]||{};
+    if(rpContSel==='inicial')return o;
+    o.adicionais=o.adicionais||[];
+    var a=o.adicionais.find(function(x){return x.id===rpContSel;});
+    if(!a){a={id:rpContSel,nome:'Contrato Adicional'};o.adicionais.push(a);}
+    return a;
+  }
+  function _rpTgtPermiteFat(){ return rpContSel==='inicial'; }
   /* ═══════════ NAVEGAÇÃO ═══════════ */
   var subAtual='calc';
   window.rpSub=function(s){
     subAtual=s;
-    ['calc','form','idx','rel'].forEach(function(x){
+    ['calc','form','idx','rel','reg'].forEach(function(x){
       var b=g('rp-btn-'+x); if(b)b.classList.toggle('active',x===s);
       var dv=g('rp-sub-'+x); if(dv)dv.style.display=(x===s)?'':'none';
     });
@@ -20857,6 +20881,7 @@ try{
       else if(subAtual==='form')rpRenderForm();
       else if(subAtual==='idx')rpRenderIdx();
       else if(subAtual==='rel')rpRenderRel();
+      else if(subAtual==='reg'){try{if(window.rpRenderRegisto)window.rpRenderRegisto();}catch(e){}}
     }catch(e){try{console.warn('rp render',e);}catch(_){}}
   }
   window.renderRevisao=function(){ rpRender(); };
@@ -20879,7 +20904,7 @@ try{
     var d=rpDados();
     var obrasL=rpListaObras();
     if(!rpObraSel && obrasL.length)rpObraSel=obrasL[0].num;
-    var cfg=d.obras[rpObraSel]||{};
+    var cfg=_rpTgt(d);
     var formOpts='<option value="">— escolher fórmula —</option>'+(d.formulas||[]).map(function(f){return '<option value="'+esc(f.id)+'"'+(cfg.formulaId===f.id?' selected':'')+'>'+esc(f.nome)+'</option>';}).join('');
     var obraOpts=obrasL.map(function(o){return '<option value="'+esc(o.num)+'"'+(String(o.num)===String(rpObraSel)?' selected':'')+'>'+esc(o.num)+' — '+esc((o.nome||'').substring(0,40))+'</option>';}).join('');
     var h='';
@@ -20890,6 +20915,15 @@ try{
       +'<button class="btn sm" onclick="rpSub(\'rel\')"><i class="ti ti-report"></i> Relatório</button>'
       +'</div>';
     if(!rpObraSel){ h+='<div class="an7-sub" style="padding:12px">Sem obras. Crie uma obra primeiro.</div></div>'; host.innerHTML=h; return; }
+    var _conts=_rpContratos(rpObraSel);
+    if(!_conts.some(function(ct){return ct.id===rpContSel;}))rpContSel='inicial';
+    var _cOpts=_conts.map(function(ct){return '<option value="'+esc(ct.id)+'"'+(ct.id===rpContSel?' selected':'')+'>'+esc(ct.nome)+'</option>';}).join('');
+    h+='<div class="an7-head" style="margin:0 0 10px 0;padding:8px 10px;background:#f5f8fb;border:1px solid var(--border);border-radius:8px"><label style="font-size:12px;color:var(--muted)">Contrato</label>'
+      +'<select id="rp-cont" onchange="_rpSetCont(this.value)" style="min-width:220px">'+_cOpts+'</select>'
+      +'<button class="btn sm primary" onclick="_rpNovoAdic()"><i class="ti ti-plus"></i> Novo contrato adicional</button>'
+      +(rpContSel!=='inicial'?'<button class="btn sm" onclick="_rpRenomearCont()"><i class="ti ti-pencil"></i> Renomear</button><button class="btn sm danger" onclick="_rpApagarCont()"><i class="ti ti-trash"></i> Apagar</button>':'')
+      +'<span style="flex:1"></span><span style="font-size:11px;color:var(--muted)">'+_conts.length+' contrato(s) · revisão total da obra: '+eur(window._rpCalcTotal(rpObraSel).totRev)+'</span></div>';
+    if(rpContSel!=='inicial')h+='<div class="alert warn" style="margin-bottom:8px;font-size:11.5px"><i class="ti ti-info-circle"></i> Nos contratos adicionais a produção é <b>manual</b> (a facturação automática aplica-se ao Contrato Inicial).</div>';
     h+='<div class="metric-grid" style="margin-bottom:6px">'
       +'<div class="form-group"><label>Fórmula de revisão</label><select id="rp-formula" onchange="_rpCfg(\'formulaId\',this.value)">'+formOpts+'</select></div>'
       +'<div class="form-group"><label>Mês base (proposta)</label><div style="display:flex;gap:6px">'+_rpMesBaseSelects(cfg.mesBase||'')+'</div></div>'
@@ -20915,21 +20949,24 @@ try{
     host.innerHTML=h;
     _rpRenderPlano(); _rpRenderResultado();
   }
-  window._rpSetObra=function(v){rpObraSel=v;rpRenderCalc();};
+  window._rpSetObra=function(v){rpObraSel=v;rpContSel='inicial';rpRenderCalc();};
+  window._rpSetCont=function(v){rpContSel=v;rpRenderCalc();};
+  window._rpNovoAdic=function(){var d=rpDados();var o=d.obras[rpObraSel]=d.obras[rpObraSel]||{};o.adicionais=o.adicionais||[];var nome=prompt('Nome do contrato adicional:','Contrato Adicional '+(o.adicionais.length+1));if(nome===null)return;var id='ad'+(Date.now());o.adicionais.push({id:id,nome:(nome.trim()||('Contrato Adicional '+(o.adicionais.length+1))),modo:'manual'});rpGravar(d);rpContSel=id;rpRenderCalc();};
+  window._rpRenomearCont=function(){if(rpContSel==='inicial')return;var d=rpDados();var t=_rpTgt(d);var nome=prompt('Nome do contrato:',t.nome||'Contrato Adicional');if(nome===null)return;t.nome=nome.trim()||t.nome;rpGravar(d);rpRenderCalc();};
+  window._rpApagarCont=function(){if(rpContSel==='inicial')return;if(!confirm('Apagar este contrato adicional e os seus dados de revisão?'))return;var d=rpDados();var o=d.obras[rpObraSel]||{};o.adicionais=(o.adicionais||[]).filter(function(a){return a.id!==rpContSel;});rpGravar(d);rpContSel='inicial';rpRenderCalc();};
   window._rpCfg=function(campo,val){
-    var d=rpDados(); if(!d.obras[rpObraSel])d.obras[rpObraSel]={};
-    d.obras[rpObraSel][campo]=val; rpGravar(d);
+    var d=rpDados(); var _t=_rpTgt(d); _t[campo]=val; rpGravar(d);
     if(campo==='modo')rpRenderCalc(); else {_rpRenderResultado();_rpRenderPlano();}
   };
   window._rpAddLinhaPlano=function(){
-    var d=rpDados(); var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};
+    var d=rpDados(); var c=_rpTgt(d);
     if(c.modo==='manual'){ c.manual=c.manual||{}; var mk='novo'+(Object.keys(c.manual).length+1)+'-'+Math.floor((window.performance&&performance.now?performance.now():0)); c.manual[mk]=0; }
     else { c.plano=c.plano||[]; c.plano.push({mes:'',valor:0}); }
     rpGravar(d); _rpRenderPlano(); _rpRenderResultado();
   };
   function _rpRenderPlano(){
     var body=g('rp-plano-body'); if(!body)return;
-    var d=rpDados(); var c=d.obras[rpObraSel]||{};
+    var d=rpDados(); var c=_rpTgt(d);
     var linhas=[];
     if(c.modo==='manual'){ linhas=Object.keys(c.manual||{}).sort().map(function(mk){return {mes:mk,valor:c.manual[mk],manual:true};}); }
     else { linhas=(c.plano||[]).map(function(x,i){return {mes:x.mes,valor:x.valor,i:i};}); }
@@ -20941,22 +20978,22 @@ try{
     }).join('');
   }
   window._rpPlanoSet=function(i,campo,val,mesAntigo){
-    var d=rpDados(); var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};
+    var d=rpDados(); var c=_rpTgt(d);
     if(i==='m'){ c.manual=c.manual||{}; if(campo==='valor'){c.manual[mesAntigo]=+val||0;} else { var v=c.manual[mesAntigo]; delete c.manual[mesAntigo]; c.manual[val]=v; } }
     else { c.plano=c.plano||[]; if(c.plano[i]){c.plano[i][campo]=(campo==='valor')?(+val||0):val;} }
     rpGravar(d); _rpRenderResultado();
   };
   window._rpPlanoDel=function(i,mk){
-    var d=rpDados(); var c=d.obras[rpObraSel]||{};
+    var d=rpDados(); var c=_rpTgt(d);
     if(i==='m'){ if(c.manual)delete c.manual[mk]; } else { if(c.plano)c.plano.splice(i,1); }
     rpGravar(d); _rpRenderPlano(); _rpRenderResultado();
   };
-  window._rpSetProd=function(mes,val){var d=rpDados();var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};c.manual=c.manual||{};c.manual[mes]=+val||0;rpGravar(d);_rpRenderResultado();};
-  window._rpAddProd=function(){var m=g('rp-addmes'),v=g('rp-addval');if(!m||!m.value){alert('Escolha o mês a acrescentar.');return;}var d=rpDados();var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};c.manual=c.manual||{};c.manual[m.value]=+((v&&v.value)||0);rpGravar(d);_rpRenderResultado();};
+  window._rpSetProd=function(mes,val){var d=rpDados();var c=_rpTgt(d);c.manual=c.manual||{};c.manual[mes]=+val||0;rpGravar(d);_rpRenderResultado();};
+  window._rpAddProd=function(){var m=g('rp-addmes'),v=g('rp-addval');if(!m||!m.value){alert('Escolha o mês a acrescentar.');return;}var d=rpDados();var c=_rpTgt(d);c.manual=c.manual||{};c.manual[m.value]=+((v&&v.value)||0);rpGravar(d);_rpRenderResultado();};
   function _rpRenderResultado(){
     var box=g('rp-calc-resultado'); if(!box)return;
-    var _cfg=rpDados().obras[rpObraSel]||{}; var _modoReal=(_cfg.modo||'real')==='real';
-    var r=rpCalcObra(rpObraSel);
+    var _cfg=_rpTgt(rpDados()); var _modoReal=(_cfg.modo||'real')==='real';
+    var r=_rpCalcCfg(_rpTgt(rpDados()),rpObraSel,_rpTgtPermiteFat());
     if(!r){box.innerHTML='<div class="alert warn" style="margin-top:10px"><i class="ti ti-alert-triangle"></i> Escolha a fórmula e o mês base para calcular.</div>';return;}
     var somaC=rpSomaCoef(r.formula);
     var avisoSoma=(Math.abs(somaC-1)>0.0001)?'<span style="color:var(--red)"> (Σ coeficientes = '+somaC.toFixed(3)+' ≠ 1,000!)</span>':'';
@@ -21119,7 +21156,7 @@ try{
     }
     h+='</div><div id="rp-rel-preview"></div>';
     host.innerHTML=h;
-    if(r){ _rpDesenharGraficos(r); g('rp-rel-preview').innerHTML='<div class="card" style="margin-top:12px">'+_rpRelatorioHTML(r,true)+'</div>'; }
+    if(r){ _rpDesenharGraficos(r); g('rp-rel-preview').innerHTML='<div class="card" style="margin-top:12px">'+_rpRelatorioObraHTML(rpObraSel)+'</div>'; }
   }
   var _rpCharts={};
   function _rpDesenharGraficos(r){
@@ -21155,22 +21192,24 @@ try{
     }
     return out;
   }
-  function _rpRelatorioHTML(r,ecra){
+  function _rpRelatorioHTML(r,ecra,ctNome,soSeccao){
     var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(rpObraSel);})||{};
     var f=r.formula, c=r.cfg||{}; var oi=_rpObraInfo(rpObraSel);
     var termosStr='Ct = '+(f.termos||[]).map(function(t){return t.coef+'·('+t.cod+'t/'+t.cod+'o)';}).join(' + ')+' + '+(f.constante||0);
     var h='';
-    /* ---- capa ---- */
-    h+='<div style="text-align:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:#11365E">Relatório de Revisão de Preços</div></div>';
-    h+='<div style="font-size:12px;line-height:1.6;margin-bottom:8px">'
-      +'<div><b>Nome da Obra:</b> '+esc((o.num||'')+' — '+(o.nome||'')+(oi.localidade?(' ('+oi.localidade+')'):''))+'</div>'
-      +'<div><b>Dono da Obra:</b> '+esc(c.dono||oi.dono||o.dono||'—')+'</div>'
-      +'<div><b>Emitido por:</b> '+esc(c.emitidoPor||oi.emitidoPor||'—')+'</div></div>';
-    /* ---- resumo ---- */
-    h+='<div class="section-title">Resumo dos Resultados</div>';
-    h+='<table class="an7-tbl" style="margin-bottom:12px"><thead><tr><th>Fórmula / Contrato</th><th style="text-align:right">Resultado da Revisão</th></tr></thead><tbody>';
-    h+='<tr><td>'+esc(f.nome)+'</td><td class="num" style="color:#1B4D8F;font-weight:700">'+eur(r.totRev)+'</td></tr>';
-    h+='<tr style="font-weight:800;border-top:2px solid var(--border)"><td>TOTAL</td><td class="num">'+eur(r.totRev)+'</td></tr></tbody></table>';
+    if(soSeccao){
+      h+='<div class="section-title" style="margin-top:16px;color:#1B4D8F;border-top:2px solid #1B4D8F22;padding-top:8px">Contrato: '+esc(ctNome||f.nome)+'</div>';
+    } else {
+      h+='<div style="text-align:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:#11365E">Relatório de Revisão de Preços</div></div>';
+      h+='<div style="font-size:12px;line-height:1.6;margin-bottom:8px">'
+        +'<div><b>Nome da Obra:</b> '+esc((o.num||'')+' — '+(o.nome||'')+(oi.localidade?(' ('+oi.localidade+')'):''))+'</div>'
+        +'<div><b>Dono da Obra:</b> '+esc(c.dono||oi.dono||o.dono||'—')+'</div>'
+        +'<div><b>Emitido por:</b> '+esc(c.emitidoPor||oi.emitidoPor||'—')+'</div></div>';
+      h+='<div class="section-title">Resumo dos Resultados</div>';
+      h+='<table class="an7-tbl" style="margin-bottom:12px"><thead><tr><th>Fórmula / Contrato</th><th style="text-align:right">Resultado da Revisão</th></tr></thead><tbody>';
+      h+='<tr><td>'+esc(f.nome)+'</td><td class="num" style="color:#1B4D8F;font-weight:700">'+eur(r.totRev)+'</td></tr>';
+      h+='<tr style="font-weight:800;border-top:2px solid var(--border)"><td>TOTAL</td><td class="num">'+eur(r.totRev)+'</td></tr></tbody></table>';
+    }
     /* ---- informações ---- */
     h+='<div class="section-title">Informações</div>';
     h+='<div style="font-size:12px;margin-bottom:6px">Fórmula: <b>'+esc(f.nome)+'</b> · Mês base: <b>'+mesRot(c.mesBase)+'</b> · Regime: DL 6/2004 (banda-morta '+((c.banda==0)?'0%':'±1%')+(c.extraordinaria?', extraordinária ×1,1':'')+')</div>';
@@ -21202,14 +21241,35 @@ try{
     h+='<div class="section-title" style="margin-top:14px">Coeficientes de Atualização</div>';
     h+=_rpCoefTabelas(r);
     return h;
-  }  window.rpImprimirRelatorio=function(){
+  }
+  function _rpRelatorioObraHTML(num){
+    var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(num);})||{};
+    var oi=_rpObraInfo(num); var conts=_rpContratos(num);
+    var calcs=conts.map(function(ct){return {ct:ct, calc:_rpCalcCfg(ct.cfg,num,ct.permiteFat)};}).filter(function(x){return x.calc;});
+    var c0=(conts[0]&&conts[0].cfg)||{};
+    var totRev=0; calcs.forEach(function(x){totRev+=x.calc.totRev;});
+    var h='';
+    h+='<div style="text-align:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:#11365E">Relatório de Revisão de Preços</div></div>';
+    h+='<div style="font-size:12px;line-height:1.6;margin-bottom:8px">'
+      +'<div><b>Nome da Obra:</b> '+esc((o.num||'')+' — '+(o.nome||'')+(oi.localidade?(' ('+oi.localidade+')'):''))+'</div>'
+      +'<div><b>Dono da Obra:</b> '+esc(c0.dono||oi.dono||o.dono||'—')+'</div>'
+      +'<div><b>Emitido por:</b> '+esc(c0.emitidoPor||oi.emitidoPor||'—')+'</div></div>';
+    h+='<div class="section-title">Resumo dos Resultados</div>';
+    h+='<table class="an7-tbl" style="margin-bottom:12px"><thead><tr><th>Contrato</th><th>Fórmula</th><th style="text-align:right">Resultado da Revisão</th></tr></thead><tbody>';
+    calcs.forEach(function(x){ h+='<tr><td>'+esc(x.ct.nome)+'</td><td>'+esc(x.calc.formula.nome)+'</td><td class="num" style="color:#1B4D8F;font-weight:700">'+eur(x.calc.totRev)+'</td></tr>'; });
+    h+='<tr style="font-weight:800;border-top:2px solid var(--border)"><td colspan="2">TOTAL</td><td class="num">'+eur(totRev)+'</td></tr></tbody></table>';
+    if(!calcs.length)h+='<div class="an7-sub" style="padding:10px">Configure a fórmula e o mês base no separador "Cálculo por obra".</div>';
+    calcs.forEach(function(x){ h+=_rpRelatorioHTML(x.calc,true,x.ct.nome,true); });
+    return h;
+  }
+  window.rpImprimirRelatorio=function(){
     var r=rpCalcObra(rpObraSel); if(!r){alert('Configure a revisão desta obra primeiro.');return;}
     var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(rpObraSel);})||{};
     /* imagens dos gráficos */
     var img1='',img2='';
     try{var c1=g('rp-graf-ct');if(c1){var t=document.createElement('canvas');t.width=c1.width;t.height=c1.height;var cx=t.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,t.width,t.height);cx.drawImage(c1,0,0);img1=t.toDataURL('image/png');}}catch(e){}
     try{var c2=g('rp-graf-acc');if(c2){var t2=document.createElement('canvas');t2.width=c2.width;t2.height=c2.height;var cx2=t2.getContext('2d');cx2.fillStyle='#fff';cx2.fillRect(0,0,t2.width,t2.height);cx2.drawImage(c2,0,0);img2=t2.toDataURL('image/png');}}catch(e){}
-    var corpo=_rpRelatorioHTML(r,false);
+    var corpo=_rpRelatorioObraHTML(rpObraSel);
     if(img1||img2){corpo+='<div style="display:flex;gap:12px;margin-top:14px;page-break-inside:avoid">'+(img1?'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#11365E">Coeficiente Ct por mês</div><img src="'+img1+'" style="width:100%"></div>':'')+(img2?'<div style="flex:1"><div style="font-size:10px;font-weight:700;color:#11365E">Revisão acumulada</div><img src="'+img2+'" style="width:100%"></div>':'')+'</div>';}
     if(typeof _abrirImpressao==='function'){
       _abrirImpressao('Revisão de Preços — '+(o.num||''),'Obra: '+(o.nome||'')+' · Fórmula '+r.formula.nome+' · Mês base '+mesRot(r.cfg.mesBase),corpo);
@@ -21811,5 +21871,159 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
     if(t.id==='panel-gerir-users'){ try{if(window.fecharGerirUsers)window.fecharGerirUsers();}catch(_){} return; }
   },true);
 })();</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   [v272] REGISTO / PEDIDOS de Revisão de Preços (baseado no Excel de registo SMLda)
+   Uma linha por obra: valor proposta (obra), valor revisto, % executado,
+   valor da revisão (ordinária = calculada; extraordinária), % revisão,
+   por pedir / por facturar / por pagar, e até N pedidos
+   (valor pedido, data, aprovado D.O., factura, valor pago, data).
+   Sincroniza com: Revisão (valor calculado), Obras (proposta/estado/tipo),
+   Facturação (produção do mês -> % executado).
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  var RP_KEY='revisao_precos_v1';
+  function g(id){return document.getElementById(id);}
+  function esc(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function escA(x){return esc(x).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function eur(v){return (typeof fmt==='function'?fmt(+v||0,2):(+v||0).toFixed(2))+'€';}
+  function nnum(x){ if(x==null||x==='')return 0; var v=parseFloat(String(x).replace(/[^\d,.\-]/g,'').replace(/\./g,'').replace(',','.')); return isNaN(v)?(+x||0):(isFinite(+x)?+x:v); }
+  function pct(v){return ((+v||0)*100).toFixed(1)+'%';}
+
+  function rgLer(){try{var o=JSON.parse(localStorage.getItem(RP_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
+  function rgGravar(d){try{localStorage.setItem(RP_KEY,JSON.stringify(d));}catch(e){alert('Sem espaço para gravar o registo.');}try{if(window._syncAgendar)window._syncAgendar();}catch(e){}}
+  function rgObra(d,num){ d.registo=d.registo||{}; if(!d.registo[num])d.registo[num]={estados:'',valorRevisto:'',extra:'',dataActualiz:'',pedidos:[]}; if(!Array.isArray(d.registo[num].pedidos))d.registo[num].pedidos=[]; return d.registo[num]; }
+
+  function obrasLista(){ return (typeof obras!=='undefined'?obras:[]).filter(function(o){return o&&!o.arquivada;}).sort(function(a,b){return String(a.num).localeCompare(String(b.num),'pt',{numeric:true});}); }
+
+  /* calcula os agregados de uma obra */
+  function rgCalc(num){
+    var d=rgLer(); var r=rgObra(d,num);
+    var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(num);})||{};
+    var proposta=+o.adj||0;
+    var calc=null; try{ if(window._rpCalcTotal)calc=window._rpCalcTotal(num); else if(window._rpCalcObra)calc=window._rpCalcObra(num); }catch(e){}
+    var revOrd=calc?(+calc.totRev||0):0;           // revisão ordinária = soma de todos os contratos
+    var producao=calc?(+calc.totVal||0):0;
+    var extra=nnum(r.extra);
+    var revisto=r.valorRevisto!==''&&r.valorRevisto!=null?nnum(r.valorRevisto):(proposta+revOrd+extra);
+    var execPct=proposta>0?(producao/proposta):0;
+    var peds=r.pedidos||[];
+    var totPedido=0,totAprov=0,totFat=0,totPago=0;
+    peds.forEach(function(pd){
+      totPedido+=nnum(pd.valor);
+      var ap=nnum(pd.aprov); totAprov+=ap;
+      if(pd.factura&&String(pd.factura).trim())totFat+=ap;   // faturado = aprovado com factura
+      totPago+=nnum(pd.pago);
+    });
+    var revTotal=revOrd+extra;
+    return {o:o,r:r,proposta:proposta,revOrd:revOrd,extra:extra,revTotal:revTotal,producao:producao,execPct:execPct,revisto:revisto,
+      totPedido:totPedido,totAprov:totAprov,totFat:totFat,totPago:totPago,
+      porPedir:Math.max(0,revTotal-totPedido), porFaturar:Math.max(0,totAprov-totFat), porPagar:Math.max(0,totFat-totPago),
+      pctPedido:revTotal>0?totPedido/revTotal:0, pctFat:revTotal>0?totFat/revTotal:0, pctPago:revTotal>0?totPago/revTotal:0 };
+  }
+
+  window.rpRenderRegisto=function(){
+    var host=g('rp-sub-reg'); if(!host)return;
+    var lista=obrasLista();
+    var h='<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Registo de revisão por obra: <b>proposta</b> e <b>estado</b> vêm das Obras, o <b>valor da revisão (ordinária)</b> e o <b>% executado</b> vêm do cálculo/facturação. Preencha os <b>pedidos</b>, <b>facturas</b> e <b>pagamentos</b>. Tudo sincroniza automaticamente.</div>';
+    h+='<div class="toolbar" style="margin-bottom:8px"><input type="search" id="rg-busca" placeholder="Pesquisar obra…" oninput="rpRenderRegisto()" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px"><span style="flex:1"></span><button class="btn" onclick="_rgExcel()"><i class="ti ti-file-spreadsheet"></i> Excel</button></div>';
+    var q=(g('rg-busca')?g('rg-busca').value:'').toLowerCase();
+    var tot={proposta:0,revOrd:0,extra:0,pedido:0,fat:0,pago:0,porPedir:0,porFat:0,porPagar:0};
+    var rows='';
+    lista.forEach(function(o){
+      if(q){var t=((o.num||'')+' '+(o.nome||'')).toLowerCase(); if(t.indexOf(q)<0)return;}
+      var c=rgCalc(o.num);
+      tot.proposta+=c.proposta;tot.revOrd+=c.revOrd;tot.extra+=c.extra;tot.pedido+=c.totPedido;tot.fat+=c.totFat;tot.pago+=c.totPago;tot.porPedir+=c.porPedir;tot.porFat+=c.porFaturar;tot.porPagar+=c.porPagar;
+      var np=(c.r.pedidos||[]).filter(function(p){return p&&(p.valor||p.data||p.factura);}).length;
+      rows+='<tr>'
+        +'<td style="white-space:nowrap">'+esc(o.num||'')+'</td>'
+        +'<td style="min-width:160px">'+esc((o.nome||'').substring(0,40))+'</td>'
+        +'<td style="white-space:nowrap">'+esc(o.estado||'')+'</td>'
+        +'<td class="num">'+eur(c.proposta)+'</td>'
+        +'<td class="num"><input value="'+escA(c.r.valorRevisto!=null?c.r.valorRevisto:'')+'" placeholder="'+eur(c.revisto)+'" onchange="_rgSet(\''+escA(o.num)+'\',\'valorRevisto\',this.value)" style="width:100px;text-align:right;padding:2px 4px;border:1px solid var(--border);border-radius:5px;font-size:11px"></td>'
+        +'<td class="num">'+pct(c.execPct)+'</td>'
+        +'<td class="num" style="font-weight:700;color:#1B4D8F">'+eur(c.revOrd)+'</td>'
+        +'<td class="num"><input value="'+escA(c.r.extra!=null?c.r.extra:'')+'" placeholder="0" onchange="_rgSet(\''+escA(o.num)+'\',\'extra\',this.value)" style="width:80px;text-align:right;padding:2px 4px;border:1px solid var(--border);border-radius:5px;font-size:11px"></td>'
+        +'<td class="num">'+eur(c.revTotal)+'</td>'
+        +'<td class="num" style="color:#C77A2E">'+eur(c.porPedir)+'</td>'
+        +'<td class="num" style="color:#C77A2E">'+eur(c.porFaturar)+'</td>'
+        +'<td class="num" style="color:#c0392b">'+eur(c.porPagar)+'</td>'
+        +'<td class="num">'+eur(c.totPedido)+'</td>'
+        +'<td class="num">'+eur(c.totFat)+'</td>'
+        +'<td class="num" style="color:var(--green)">'+eur(c.totPago)+'</td>'
+        +'<td style="white-space:nowrap"><button class="btn sm primary" onclick="_rgAbrirPedidos(\''+escA(o.num)+'\')"><i class="ti ti-list-details"></i> Pedidos'+(np?(' ('+np+')'):'')+'</button></td>'
+        +'</tr>';
+    });
+    h+='<div class="card" style="padding:0"><div class="table-wrap" style="overflow:auto;max-height:66vh"><table class="an7-tbl" style="font-size:11.5px;min-width:1500px"><thead><tr>'
+      +'<th>Cód.</th><th>Obra</th><th>Estado</th><th style="text-align:right">Proposta</th><th style="text-align:right">Revisto</th><th style="text-align:right">% Exec.</th>'
+      +'<th style="text-align:right">Revisão</th><th style="text-align:right">Extraord.</th><th style="text-align:right">Rev. Total</th>'
+      +'<th style="text-align:right">Por pedir</th><th style="text-align:right">Por facturar</th><th style="text-align:right">Por pagar</th>'
+      +'<th style="text-align:right">T. Pedido</th><th style="text-align:right">T. Facturado</th><th style="text-align:right">T. Pago</th><th></th></tr></thead><tbody>'
+      +(rows||'<tr><td colspan="16" style="text-align:center;color:var(--muted);padding:14px">Sem obras.</td></tr>')
+      +'<tr style="font-weight:800;border-top:2px solid var(--border);background:#f1f4f8"><td colspan="3">TOTAIS</td><td class="num">'+eur(tot.proposta)+'</td><td></td><td></td><td class="num">'+eur(tot.revOrd)+'</td><td class="num">'+eur(tot.extra)+'</td><td class="num">'+eur(tot.revOrd+tot.extra)+'</td><td class="num">'+eur(tot.porPedir)+'</td><td class="num">'+eur(tot.porFat)+'</td><td class="num">'+eur(tot.porPagar)+'</td><td class="num">'+eur(tot.pedido)+'</td><td class="num">'+eur(tot.fat)+'</td><td class="num">'+eur(tot.pago)+'</td><td></td></tr>'
+      +'</tbody></table></div></div>';
+    host.innerHTML=h;
+  };
+
+  window._rgSet=function(num,campo,val){ var d=rgLer(); var r=rgObra(d,num); r[campo]=val; rgGravar(d); rpRenderRegisto(); };
+
+  /* editor de pedidos (overlay) */
+  window._rgAbrirPedidos=function(num){
+    var d=rgLer(); var r=rgObra(d,num);
+    var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(num);})||{};
+    var c=rgCalc(num);
+    var ov=document.createElement('div'); ov.className='modal-backdrop open'; ov.id='rg-ov';
+    ov.style.cssText='position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto';
+    function linhas(){
+      var peds=r.pedidos||[]; var L='';
+      peds.forEach(function(pd,i){
+        L+='<tr>'
+          +'<td style="text-align:center">'+(i+1)+'</td>'
+          +'<td><input type="number" step="0.01" value="'+escA(pd.valor!=null?pd.valor:'')+'" onchange="_rgPed(\''+escA(num)+'\','+i+',\'valor\',this.value)" style="width:100px;text-align:right;padding:3px 5px;border:1px solid var(--border);border-radius:5px"></td>'
+          +'<td><input type="date" value="'+escA(pd.data||'')+'" onchange="_rgPed(\''+escA(num)+'\','+i+',\'data\',this.value)" style="padding:3px 5px;border:1px solid var(--border);border-radius:5px"></td>'
+          +'<td><input value="'+escA(pd.aprov!=null?pd.aprov:'')+'" placeholder="valor ou nota" onchange="_rgPed(\''+escA(num)+'\','+i+',\'aprov\',this.value)" style="width:120px;padding:3px 5px;border:1px solid var(--border);border-radius:5px"></td>'
+          +'<td><input value="'+escA(pd.factura||'')+'" placeholder="N.º factura" onchange="_rgPed(\''+escA(num)+'\','+i+',\'factura\',this.value)" style="width:150px;padding:3px 5px;border:1px solid var(--border);border-radius:5px"></td>'
+          +'<td><input type="number" step="0.01" value="'+escA(pd.pago!=null?pd.pago:'')+'" onchange="_rgPed(\''+escA(num)+'\','+i+',\'pago\',this.value)" style="width:100px;text-align:right;padding:3px 5px;border:1px solid var(--border);border-radius:5px"></td>'
+          +'<td><input type="date" value="'+escA(pd.dataPago||'')+'" onchange="_rgPed(\''+escA(num)+'\','+i+',\'dataPago\',this.value)" style="padding:3px 5px;border:1px solid var(--border);border-radius:5px"></td>'
+          +'<td><button class="btn sm danger" onclick="_rgDelPed(\''+escA(num)+'\','+i+')"><i class="ti ti-x"></i></button></td></tr>';
+      });
+      return L||'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:10px">Sem pedidos. Clique em "Novo pedido".</td></tr>';
+    }
+    ov.innerHTML='<div class="modal" style="background:#fff;border-radius:12px;max-width:1000px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0;font-size:16px"><i class="ti ti-list-details"></i> Pedidos — '+esc(o.num||'')+' '+esc(o.nome||'')+'</h3><button class="btn" onclick="document.getElementById(\'rg-ov\').remove()">✕ Fechar</button></div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Revisão a considerar: <b>'+eur(c.revTotal)+'</b> · Já pedido: <b>'+eur(c.totPedido)+'</b> · Por pedir: <b style="color:#C77A2E">'+eur(c.porPedir)+'</b> · Por facturar: <b style="color:#C77A2E">'+eur(c.porFaturar)+'</b> · Por pagar: <b style="color:#c0392b">'+eur(c.porPagar)+'</b></div>'
+      +'<div class="table-wrap"><table class="an7-tbl"><thead><tr><th>#</th><th>Valor pedido</th><th>Data</th><th>Aprovado D.O.</th><th>Factura</th><th>Valor pago</th><th>Data pag.</th><th></th></tr></thead><tbody id="rg-ped-body">'+linhas()+'</tbody></table></div>'
+      +'<div style="margin-top:10px"><button class="btn primary" onclick="_rgAddPed(\''+escA(num)+'\')"><i class="ti ti-plus"></i> Novo pedido</button></div>'
+      +'</div>';
+    ov.addEventListener('mousedown',function(e){ if(e.target===ov)ov.remove(); });
+    document.body.appendChild(ov);
+    ov._num=num;
+  };
+  function _rgRefreshOv(num){ var ov=g('rg-ov'); if(!ov||ov._num!==num)return; var body=g('rg-ped-body'); if(body){ ov.remove(); _rgAbrirPedidos(num); } }
+  window._rgPed=function(num,i,campo,val){ var d=rgLer(); var r=rgObra(d,num); if(!r.pedidos[i])r.pedidos[i]={}; r.pedidos[i][campo]=val; rgGravar(d); var b=g('rg-ped-body'); rpRenderRegisto(); /* atualiza resumo do overlay */ var ov=g('rg-ov'); if(ov&&ov._num===num){ov.remove();_rgAbrirPedidos(num);} };
+  window._rgAddPed=function(num){ var d=rgLer(); var r=rgObra(d,num); r.pedidos.push({valor:'',data:'',aprov:'',factura:'',pago:'',dataPago:''}); rgGravar(d); var ov=g('rg-ov'); if(ov){ov.remove();} _rgAbrirPedidos(num); rpRenderRegisto(); };
+  window._rgDelPed=function(num,i){ var d=rgLer(); var r=rgObra(d,num); r.pedidos.splice(i,1); rgGravar(d); var ov=g('rg-ov'); if(ov){ov.remove();} _rgAbrirPedidos(num); rpRenderRegisto(); };
+
+  /* exportação Excel (layout do registo) */
+  window._rgExcel=function(){
+    var lista=obrasLista();
+    var MAXP=10;
+    var head1=['Cód.','Tipo','Estado','Obra','Estados','Valor Proposta','Valor Revisto','% Executado','Revisão Ordinária','Extraordinária','Rev. Total','% Revisão','Data Actualiz.','Por Pedir','Por Facturar','Por Pagar'];
+    for(var k=1;k<=MAXP;k++){ head1.push('P'+k+' Valor Pedido','P'+k+' Data','P'+k+' Aprovado D.O.','P'+k+' Factura','P'+k+' Valor Pago','P'+k+' Data'); }
+    head1.push('Total Pedido','% Pedido','Total Facturado','% Facturado','Total Pago','% Pago');
+    var aoa=[head1];
+    lista.forEach(function(o){
+      var c=rgCalc(o.num);
+      var row=[o.num||'',o.tipoCliente||'',o.estado||'',o.nome||'',c.r.estados||'',+c.proposta.toFixed(2),+c.revisto.toFixed(2),+(c.execPct).toFixed(4),+c.revOrd.toFixed(2),+c.extra.toFixed(2),+c.revTotal.toFixed(2),+(c.revTotal&&c.proposta?c.revTotal/c.proposta:0).toFixed(4),c.r.dataActualiz||'',+c.porPedir.toFixed(2),+c.porFaturar.toFixed(2),+c.porPagar.toFixed(2)];
+      for(var k=0;k<MAXP;k++){ var pd=(c.r.pedidos||[])[k]||{}; row.push(pd.valor!=null&&pd.valor!==''?nnum(pd.valor):'', pd.data||'', pd.aprov||'', pd.factura||'', pd.pago!=null&&pd.pago!==''?nnum(pd.pago):'', pd.dataPago||''); }
+      row.push(+c.totPedido.toFixed(2),+c.pctPedido.toFixed(4),+c.totFat.toFixed(2),+c.pctFat.toFixed(4),+c.totPago.toFixed(2),+c.pctPago.toFixed(4));
+      aoa.push(row);
+    });
+    if(typeof _xls==='function')_xls(aoa,'registo_revisao','Registo Revisão');
+    else alert('Exportação Excel indisponível.');
+  };
+})();
+</script>
 </body>
 </html>
