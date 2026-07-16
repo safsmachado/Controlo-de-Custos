@@ -383,7 +383,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v266</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v267</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -9790,7 +9790,7 @@ function aplicarOrdemNav(){
   if(org)nav.appendChild(org);
 }
 function showTab(id,btn){
-  if(id==='rh'){try{var s=JSON.parse(sessionStorage.getItem('crm_sessao_v1')||'null');var pr=s&&s.perfil;window._rhFull=['admin','financeiro','dep_financeiro'].indexOf(pr)>=0;var _bc=document.getElementById('rh-tab-btn-colab');if(_bc)_bc.style.display=window._rhFull?'':'none';}catch(e){window._rhFull=false;}}
+  if(id==='rh'){try{window._rhFull=(window._ccPermitido&&window._ccPermitido.indexOf)?(window._ccPermitido.indexOf('rh')>=0):true;var _bc=document.getElementById('rh-tab-btn-colab');if(_bc)_bc.style.display=window._rhFull?'':'none';}catch(e){window._rhFull=true;}}
   if(window._ccPermitido && id!=='inicio' && window._ccPermitido.indexOf(id)<0 && ['obras','facturacao','autosmed','custos','dashboard','relatorios','rh','compras','pagamentos','caucoes','precos','definicoes'].indexOf(id)>=0){ id='inicio'; btn=document.querySelector('.nav-btn'); }
   var _tabTrocou=(tabAtual!==id); // [fix] só reset de sub-separador em navegação real, não em redesenhos (cloud sync)
   tabAtual=id;
@@ -18331,7 +18331,7 @@ function confirmarLancamento(){
     try{aplicarPermissoesUI(m.perfil);}catch(e){}
   }
   // RH visível só para Administrador, Dir. Financeiro e Dep. Financeiro
-  var PERFIS_RH=['admin','financeiro','dep_financeiro'];
+  var PERFIS_RH=['admin','financeiro','dep_financeiro','dep_rh'];
   var MODULOS=[
     {v:'obras',t:'Obras'},{v:'facturacao',t:'Facturação'},{v:'autosmed',t:'Autos de Medição'},
     {v:'custos',t:'Custos'},{v:'dashboard',t:'Dashboard'},{v:'relatorios',t:'Relatórios'},
@@ -18348,9 +18348,12 @@ function confirmarLancamento(){
   }
   function permsDe(u){
     if(!u)return [];
-    if(u.perfil==='admin')return permsTodos();
-    if(Array.isArray(u.perms))return u.perms.filter(function(v){return permsTodos().indexOf(v)>=0;});
-    return permsPadrao(u.perfil);
+    var base;
+    if(u.perfil==='admin')base=permsTodos();
+    else if(Array.isArray(u.perms))base=u.perms.filter(function(v){return permsTodos().indexOf(v)>=0;});
+    else base=permsPadrao(u.perfil);
+    if(String(u.user||'').toLowerCase()==='mamorim' && base.indexOf('rh')<0){ base=base.concat(['rh']); }
+    return base;
   }
   window.permsDe=permsDe; window.permsPadrao=permsPadrao;
   function userDaSessao(){try{var s=sessao();if(!s)return null;var us=lerUsers();for(var i=0;i<us.length;i++){if((us[i].user||'').toLowerCase()===(s.user||'').toLowerCase())return us[i];}}catch(e){}return null;}
@@ -18382,7 +18385,7 @@ function confirmarLancamento(){
     var users=lerUsers(),i=findIdx(users,user); if(i<0)return; var u=users[i];
     var atual=permsDe(u), admin=(u.perfil==='admin');
     var ov=document.createElement('div');
-    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial,Helvetica,sans-serif';
+    ov.style.cssText='position:fixed;inset:0;z-index:100005;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial,Helvetica,sans-serif';
     var linhas=MODULOS.map(function(m){
       var on=atual.indexOf(m.v)>=0;
       return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;cursor:'+(admin?'not-allowed':'pointer')+';background:'+(on?'#eff6ff':'#fff')+'">'+
@@ -20772,11 +20775,15 @@ try{
     return out;
   }
   function _mesToISO(mesStr){
-    if(!mesStr)return null;
-    if(/^\d{4}-\d{2}$/.test(mesStr))return mesStr;
-    var meses={'janeiro':1,'fevereiro':2,'março':3,'marco':3,'abril':4,'maio':5,'junho':6,'julho':7,'agosto':8,'setembro':9,'outubro':10,'novembro':11,'dezembro':12};
-    var m=String(mesStr).toLowerCase().match(/([a-zç]+)\D+(\d{4})/);
-    if(m&&meses[m[1]])return m[2]+'-'+('0'+meses[m[1]]).slice(-2);
+    if(mesStr==null)return null; var s=String(mesStr).trim(); if(!s)return null;
+    var m;
+    if((m=s.match(/^(\d{4})[-\/.](\d{1,2})$/))){var a=+m[2];if(a>=1&&a<=12)return m[1]+'-'+('0'+a).slice(-2);}
+    if((m=s.match(/^(\d{1,2})[-\/.](\d{4})$/))){var b=+m[1];if(b>=1&&b<=12)return m[2]+'-'+('0'+b).slice(-2);}
+    if((m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/))){var d2=+m[2];if(d2>=1&&d2<=12)return m[3]+'-'+('0'+d2).slice(-2);}
+    if((m=s.match(/^(\d{1,2})[-\/.](\d{2})$/))){var e=+m[1];if(e>=1&&e<=12)return '20'+m[2]+'-'+('0'+e).slice(-2);}
+    var meses={jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12,janeiro:1,fevereiro:2,'março':3,marco:3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+    var low=s.toLowerCase();
+    if((m=low.match(/([a-zç]{3,})\D*(\d{2,4})/))){var k=meses[m[1]]||meses[m[1].slice(0,3)];if(k){var ano=m[2].length===2?('20'+m[2]):m[2];return ano+'-'+('0'+k).slice(-2);}}
     return null;
   }
 
@@ -20882,7 +20889,7 @@ try{
   };
   window._rpAddLinhaPlano=function(){
     var d=rpDados(); var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};
-    if(c.modo==='manual'){ c.manual=c.manual||{}; var mk=prompt('Mês (AAAA-MM):',''); if(!mk)return; c.manual[mk]=0; }
+    if(c.modo==='manual'){ c.manual=c.manual||{}; var mk='novo'+(Object.keys(c.manual).length+1)+'-'+Math.floor((window.performance&&performance.now?performance.now():0)); c.manual[mk]=0; }
     else { c.plano=c.plano||[]; c.plano.push({mes:'',valor:0}); }
     rpGravar(d); _rpRenderPlano(); _rpRenderResultado();
   };
