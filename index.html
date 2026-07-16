@@ -383,7 +383,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v267</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v270</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -20759,20 +20759,22 @@ try{
 
   /* produção mensal da obra (base da revisão): dos meses de faturação/autos da app */
   function rpProducaoObra(numObra){
-    var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(numObra);});
-    var out=[];
-    if(!o)return out;
+    /* produção mensal = faturação da obra (a mesma fonte do separador Facturação):
+       mesesMensais -> mesesCalc; produção do mês s/IVA = autos + trabalhos a mais (sem revisão) */
+    var acc={};
     try{
-      if(typeof ensureFin==='function')ensureFin(o);
-      var linhas=(typeof mesesCalc==='function')?mesesCalc(o):[];
-      linhas.forEach(function(mc){
-        var val=(+mc.autos||0)+(+mc.trabMais||0); // valor de trabalho executado no mês (s/ IVA)
-        var mk=_mesToISO(mc.mes);
-        if(mk)out.push({mes:mk,rot:mc.mes,valor:val});
-      });
+      var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(numObra);});
+      if(o){
+        if(typeof ensureFin==='function')ensureFin(o);
+        var linhas=(typeof mesesCalc==='function')?mesesCalc(o):(o.mesesMensais||[]);
+        linhas.forEach(function(mc){
+          var mk=_mesToISO(mc.mes)||(mc.mes?String(mc.mes):null); if(!mk)return;
+          var v=(+mc.autos||0)+(+mc.trabMais||0);
+          acc[mk]=(acc[mk]||0)+v;
+        });
+      }
     }catch(e){}
-    out.sort(function(a,b){return a.mes<b.mes?-1:1;});
-    return out;
+    return Object.keys(acc).sort().map(function(mk){return {mes:mk,rot:mesRot(mk),valor:acc[mk]};});
   }
   function _mesToISO(mesStr){
     if(mesStr==null)return null; var s=String(mesStr).trim(); if(!s)return null;
@@ -20803,7 +20805,11 @@ try{
     } else if(cfg.modo==='manual' && cfg.manual){
       base=Object.keys(cfg.manual).sort().map(function(mk){return {mes:mk,rot:mesRot(mk),valor:+cfg.manual[mk]||0};});
     } else {
-      base=rpProducaoObra(numObra); // 'real' (auto)
+      var _auto=rpProducaoObra(numObra); var _map={};
+      _auto.forEach(function(pp){_map[pp.mes]=pp.valor;});
+      var _man=(cfg.manual&&typeof cfg.manual==='object')?cfg.manual:{};
+      Object.keys(_man).forEach(function(mk){ if(/^\d{4}-\d{2}$/.test(mk))_map[mk]=+_man[mk]||0; });
+      base=Object.keys(_map).sort().map(function(mk){return {mes:mk,rot:mesRot(mk),valor:_map[mk]};});
     }
     var linhas=[],totVal=0,totRev=0,algumFalta=false;
     base.forEach(function(p){
@@ -20843,6 +20849,16 @@ try{
   /* ═══════════ SUB: CÁLCULO POR OBRA ═══════════ */
   var rpObraSel='';
   function rpListaObras(){return (typeof obras!=='undefined'?obras:[]).filter(function(o){return o&&!o.arquivada;}).sort(function(a,b){return String(a.num).localeCompare(String(b.num),'pt',{numeric:true});});}
+  var _RP_MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  function _rpMesBaseSelects(mb){
+    var a=(mb||'').split('-')[0]||'', m=(mb||'').split('-')[1]||'';
+    var mo='<option value="">— mês —</option>'+_RP_MN.map(function(n,i){var mm=('0'+(i+1)).slice(-2);return '<option value="'+mm+'"'+(mm===m?' selected':'')+'>'+n+'</option>';}).join('');
+    var anoNow=(new Date()).getFullYear(); var ao='<option value="">— ano —</option>';
+    for(var y=anoNow+1;y>=2004;y--){ao+='<option value="'+y+'"'+(String(y)===a?' selected':'')+'>'+y+'</option>';}
+    return '<select id="rp-mesbase-m" onchange="_rpSetMesBase()" style="flex:1;min-width:90px">'+mo+'</select>'
+         +'<select id="rp-mesbase-a" onchange="_rpSetMesBase()" style="flex:1;min-width:80px">'+ao+'</select>';
+  }
+  window._rpSetMesBase=function(){var m=g('rp-mesbase-m'),a=g('rp-mesbase-a');var v=(a&&a.value&&m&&m.value)?(a.value+'-'+m.value):'';_rpCfg('mesBase',v);};
   function rpRenderCalc(){
     var host=g('rp-sub-calc'); if(!host)return;
     var d=rpDados();
@@ -20861,19 +20877,20 @@ try{
     if(!rpObraSel){ h+='<div class="an7-sub" style="padding:12px">Sem obras. Crie uma obra primeiro.</div></div>'; host.innerHTML=h; return; }
     h+='<div class="metric-grid" style="margin-bottom:6px">'
       +'<div class="form-group"><label>Fórmula de revisão</label><select id="rp-formula" onchange="_rpCfg(\'formulaId\',this.value)">'+formOpts+'</select></div>'
-      +'<div class="form-group"><label>Mês base (proposta)</label><input type="month" id="rp-mesbase" value="'+esc(cfg.mesBase||'')+'" onchange="_rpCfg(\'mesBase\',this.value)"></div>'
+      +'<div class="form-group"><label>Mês base (proposta)</label><div style="display:flex;gap:6px">'+_rpMesBaseSelects(cfg.mesBase||'')+'</div></div>'
       +'<div class="form-group"><label>Base do cálculo</label><select id="rp-modo" onchange="_rpCfg(\'modo\',this.value)">'
         +'<option value="real"'+((cfg.modo||'real')==='real'?' selected':'')+'>Produção real (autos/facturação)</option>'
         +'<option value="plano"'+(cfg.modo==='plano'?' selected':'')+'>Plano de pagamentos inicial</option>'
-        +'<option value="manual"'+(cfg.modo==='manual'?' selected':'')+'>Valores manuais</option></select></div>'
+        +'</select></div>'
       +'<div class="form-group"><label>Banda-morta (art. 9.º)</label><select id="rp-banda" onchange="_rpCfg(\'banda\',this.value)">'
         +'<option value="0.01"'+((cfg.banda==null||cfg.banda==0.01)?' selected':'')+'>±1% (legal)</option>'
         +'<option value="0"'+(cfg.banda==0?' selected':'')+'>Sem banda (todos os meses)</option></select>'
         +'<label style="font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0"><input type="checkbox" id="rp-extra" '+(cfg.extraordinaria?'checked':'')+' onchange="_rpCfg(\'extraordinaria\',this.checked)" style="width:auto"> Revisão extraordinária ×1,1 (DL 36/2022)</label></div>'
       +'</div>';
+    h+='<div class="card" style="background:#fbfcfe;margin-top:4px"><div class="section-title">Dados do contrato (para o relatório)</div><div class="metric-grid">'      +'<div class="form-group"><label>Dono da obra</label><input value="'+esc(cfg.dono||'')+'" onchange="_rpCfg(\'dono\',this.value)"></div>'      +'<div class="form-group"><label>Emitido por</label><input value="'+esc(cfg.emitidoPor||'')+'" onchange="_rpCfg(\'emitidoPor\',this.value)"></div>'      +'<div class="form-group"><label>Valor contratado (€)</label><input type="number" step="0.01" value="'+esc(cfg.valorContratado!=null?cfg.valorContratado:'')+'" onchange="_rpCfg(\'valorContratado\',this.value)"></div>'      +'<div class="form-group"><label>Data limite do orçamento</label><input type="date" value="'+esc(cfg.dataLimiteOrc||'')+'" onchange="_rpCfg(\'dataLimiteOrc\',this.value)"></div>'      +'<div class="form-group"><label>Auto consignação / PSS</label><input type="date" value="'+esc(cfg.dataConsig||'')+'" onchange="_rpCfg(\'dataConsig\',this.value)"></div>'      +'<div class="form-group"><label>Prazo (dias)</label><input type="number" value="'+esc(cfg.prazoDias!=null?cfg.prazoDias:'')+'" onchange="_rpCfg(\'prazoDias\',this.value)"></div>'      +'<div class="form-group"><label>Prorrogações (dias)</label><input type="number" value="'+esc(cfg.prorrogDias!=null?cfg.prorrogDias:'')+'" onchange="_rpCfg(\'prorrogDias\',this.value)"></div>'      +'<div class="form-group"><label>Data prevista de conclusão</label><input type="date" value="'+esc(cfg.dataConclusao||'')+'" onchange="_rpCfg(\'dataConclusao\',this.value)"></div>'      +'</div></div>';
     /* plano de pagamentos / manual */
-    if(cfg.modo==='plano'||cfg.modo==='manual'){
-      h+='<div class="card" style="background:#fbfcfe"><div class="section-title">'+(cfg.modo==='plano'?'Plano de pagamentos inicial':'Valores manuais por mês')+' <button class="btn sm" onclick="_rpAddLinhaPlano()"><i class="ti ti-plus"></i> Linha</button></div>';
+    if(cfg.modo==='plano'){
+      h+='<div class="card" style="background:#fbfcfe"><div class="section-title">Plano de pagamentos inicial <button class="btn sm" onclick="_rpAddLinhaPlano()"><i class="ti ti-plus"></i> Linha</button></div>';
       h+='<div class="table-wrap"><table class="an7-tbl"><thead><tr><th>Mês</th><th style="text-align:right">Valor previsto (s/IVA)</th><th></th></tr></thead><tbody id="rp-plano-body"></tbody></table></div></div>';
     }
     h+='<div id="rp-calc-resultado"></div>';
@@ -20917,8 +20934,11 @@ try{
     if(i==='m'){ if(c.manual)delete c.manual[mk]; } else { if(c.plano)c.plano.splice(i,1); }
     rpGravar(d); _rpRenderPlano(); _rpRenderResultado();
   };
+  window._rpSetProd=function(mes,val){var d=rpDados();var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};c.manual=c.manual||{};c.manual[mes]=+val||0;rpGravar(d);_rpRenderResultado();};
+  window._rpAddProd=function(){var m=g('rp-addmes'),v=g('rp-addval');if(!m||!m.value){alert('Escolha o mês a acrescentar.');return;}var d=rpDados();var c=d.obras[rpObraSel]=d.obras[rpObraSel]||{};c.manual=c.manual||{};c.manual[m.value]=+((v&&v.value)||0);rpGravar(d);_rpRenderResultado();};
   function _rpRenderResultado(){
     var box=g('rp-calc-resultado'); if(!box)return;
+    var _cfg=rpDados().obras[rpObraSel]||{}; var _modoReal=(_cfg.modo||'real')==='real';
     var r=rpCalcObra(rpObraSel);
     if(!r){box.innerHTML='<div class="alert warn" style="margin-top:10px"><i class="ti ti-alert-triangle"></i> Escolha a fórmula e o mês base para calcular.</div>';return;}
     var somaC=rpSomaCoef(r.formula);
@@ -20931,13 +20951,15 @@ try{
       +'<div class="metric"><div class="metric-label">Fórmula (Σ coef.)</div><div class="metric-value" style="font-size:14px">'+somaC.toFixed(3)+avisoSoma+'</div></div>'
       +'</div>';
     if(r.algumFalta)h+='<div class="alert warn"><i class="ti ti-alert-triangle"></i> Faltam índices em alguns meses (ver coluna). Preencha-os no separador <b>Índices oficiais</b> para o cálculo ficar completo.</div>';
+    if(_modoReal){ h+='<div class="alert ok" style="margin-top:6px"><i class="ti ti-wand"></i> A produção é preenchida automaticamente pela facturação (autos). Pode <b>corrigir</b> qualquer valor na tabela ou <b>acrescentar</b> um mês em falta.</div>'
+      +'<div style="display:flex;gap:8px;align-items:flex-end;margin:6px 0 2px;flex-wrap:wrap"><div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Acrescentar mês</label><input type="month" id="rp-addmes" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px"></div><div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Produção (s/IVA)</label><input type="number" step="0.01" id="rp-addval" style="width:120px;padding:4px 6px;border:1px solid var(--border);border-radius:6px"></div><button class="btn sm primary" onclick="_rpAddProd()"><i class="ti ti-plus"></i> Adicionar</button></div>'; }
     h+='<div class="card" style="padding:0"><div class="table-wrap"><table class="an7-tbl"><thead><tr>'
       +'<th>Mês</th><th style="text-align:right">Produção (s/IVA)</th><th style="text-align:right">Coef. Ct</th><th style="text-align:center">Revisável?</th><th style="text-align:right">Revisão (€)</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>';
     var acc=0;
     r.linhas.forEach(function(l){
       acc+=l.revisao;
       h+='<tr'+(!l.completo?' style="background:#fff7ed"':'')+'><td>'+esc(l.rot||mesRot(l.mes))+(l.completo?'':' <i class="ti ti-alert-triangle" style="color:var(--orange)" title="Faltam índices: '+esc((l.faltam||[]).join(', '))+'"></i>')+'</td>'
-        +'<td class="num">'+eur(l.valor)+'</td>'
+        +'<td class="num">'+(_modoReal?('<input type="number" step="0.01" value="'+(l.valor||0)+'" onchange="_rpSetProd(\''+l.mes+'\',this.value)" style="width:120px;text-align:right;padding:3px 6px;border:1px solid var(--border);border-radius:6px">'):eur(l.valor))+'</td>'
         +'<td class="num">'+ (l.ct?l.ct.toFixed(5):'—') +'</td>'
         +'<td class="num" style="text-align:center">'+(l.revisavel?'<span style="color:var(--green)">Sim</span>':'<span style="color:var(--muted)">Não (&lt;1%)</span>')+'</td>'
         +'<td class="num" style="color:'+(l.revisao<0?'var(--red)':'var(--green)')+'">'+eur(l.revisao)+'</td>'
@@ -21093,30 +21115,77 @@ try{
       if(el2)_rpCharts['rp-graf-acc']=new Chart(el2,{type:'bar',data:{labels:labels,datasets:[{label:'Revisão acumulada',data:r.linhas.map(function(l){acc+=l.revisao;return +acc.toFixed(2);}),backgroundColor:'rgba(46,155,94,.75)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:function(v){var a=Math.abs(v);return a>=1000?Math.round(v/1000)+' k€':v+' €';},font:{size:10}}},x:{ticks:{font:{size:9}}}}}});
     }catch(e){}
   }
+  function _rpCoefTabelas(r){
+    var f=r.formula; var codes=(f.termos||[]).map(function(t){return t.cod;});
+    var meses=r.linhas.filter(function(l){return l.completo && (l.termos&&l.termos.length);});
+    if(!meses.length)return '<div class="an7-sub" style="padding:8px;color:var(--muted)">Sem meses com índices completos para mostrar os coeficientes. Preencha os índices no separador Índices oficiais.</div>';
+    var out='', CH=6;
+    for(var st=0;st<meses.length;st+=CH){
+      var grp=meses.slice(st,st+CH);
+      out+='<table class="an7-tbl" style="margin-bottom:10px;font-size:10px;width:100%"><thead><tr><th>Cód.</th><th>Família</th>'
+        + grp.map(function(l){return '<th colspan="2" style="text-align:center">'+esc(mesRot(l.mes))+'</th>';}).join('')
+        +'</tr><tr><th></th><th></th>'+grp.map(function(){return '<th style="text-align:right">Índice</th><th style="text-align:right">Coef.</th>';}).join('')+'</tr></thead><tbody>';
+      codes.forEach(function(cod){
+        out+='<tr><td>'+esc(cod)+'</td><td>'+esc(famNome(cod))+'</td>';
+        grp.forEach(function(l){ var t=(l.termos||[]).find(function(x){return x.cod===cod;});
+          out+='<td class="num">'+(t?(+t.it).toFixed(2):'—')+'</td><td class="num">'+(t?(+t.contrib).toFixed(6):'—')+'</td>';
+        });
+        out+='</tr>';
+      });
+      out+='<tr><td>-</td><td>Valor Não Revisível</td>'+grp.map(function(){return '<td></td><td class="num">'+(+f.constante||0).toFixed(6)+'</td>';}).join('')+'</tr>';
+      out+='<tr style="font-weight:700;color:#1B4D8F"><td></td><td>Ct</td>'+grp.map(function(l){return '<td></td><td class="num">'+(+l.ct).toFixed(6)+'</td>';}).join('')+'</tr>';
+      out+='</tbody></table>';
+    }
+    return out;
+  }
   function _rpRelatorioHTML(r,ecra){
     var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(rpObraSel);})||{};
-    var f=r.formula;
-    var termosStr='Ct = '+(f.termos||[]).map(function(t){return t.coef+'·('+t.cod+'t/'+t.cod+'o)';}).join(' + ')+' + '+(f.constante||0)+'  (constante)';
+    var f=r.formula, c=r.cfg||{};
+    var termosStr='Ct = '+(f.termos||[]).map(function(t){return t.coef+'·('+t.cod+'t/'+t.cod+'o)';}).join(' + ')+' + '+(f.constante||0);
     var h='';
-    h+='<div class="section-title" style="font-size:14px">Revisão de Preços — '+esc(o.num||'')+' '+esc(o.nome||'')+'</div>';
-    h+='<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Fórmula: <b>'+esc(f.nome)+'</b> · Mês base: <b>'+mesRot(r.cfg.mesBase)+'</b> · Regime: DL 6/2004 (banda-morta '+((r.cfg.banda==0)?'0%':'±1%')+(r.cfg.extraordinaria?', extraordinária ×1,1':'')+')</div>';
-    h+='<div style="font-family:monospace;font-size:11px;background:#f5f8fb;border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:12px">'+esc(termosStr)+'</div>';
+    /* ---- capa ---- */
+    h+='<div style="text-align:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:#11365E">Relatório de Revisão de Preços</div></div>';
+    h+='<div style="font-size:12px;line-height:1.6;margin-bottom:8px">'
+      +'<div><b>Nome da Obra:</b> '+esc((o.num||'')+' — '+(o.nome||''))+'</div>'
+      +'<div><b>Dono da Obra:</b> '+esc(c.dono||o.dono||'—')+'</div>'
+      +'<div><b>Emitido por:</b> '+esc(c.emitidoPor||'—')+'</div></div>';
+    /* ---- resumo ---- */
+    h+='<div class="section-title">Resumo dos Resultados</div>';
+    h+='<table class="an7-tbl" style="margin-bottom:12px"><thead><tr><th>Fórmula / Contrato</th><th style="text-align:right">Resultado da Revisão</th></tr></thead><tbody>';
+    h+='<tr><td>'+esc(f.nome)+'</td><td class="num" style="color:#1B4D8F;font-weight:700">'+eur(r.totRev)+'</td></tr>';
+    h+='<tr style="font-weight:800;border-top:2px solid var(--border)"><td>TOTAL</td><td class="num">'+eur(r.totRev)+'</td></tr></tbody></table>';
+    /* ---- informações ---- */
+    h+='<div class="section-title">Informações</div>';
+    h+='<div style="font-size:12px;margin-bottom:6px">Fórmula: <b>'+esc(f.nome)+'</b> · Mês base: <b>'+mesRot(c.mesBase)+'</b> · Regime: DL 6/2004 (banda-morta '+((c.banda==0)?'0%':'±1%')+(c.extraordinaria?', extraordinária ×1,1':'')+')</div>';
+    var dl=[];
+    if(c.valorContratado)dl.push('<b>Valor contratado:</b> '+eur(c.valorContratado));
+    if(c.dataLimiteOrc)dl.push('<b>Data limite do orçamento:</b> '+esc(c.dataLimiteOrc));
+    if(c.dataConsig)dl.push('<b>Auto de consignação/PSS:</b> '+esc(c.dataConsig));
+    if(c.prazoDias)dl.push('<b>Prazo:</b> '+esc(c.prazoDias)+' dias');
+    if(c.prorrogDias)dl.push('<b>Prorrogações:</b> '+esc(c.prorrogDias)+' dias');
+    if(c.dataConclusao)dl.push('<b>Data prevista de conclusão:</b> '+esc(c.dataConclusao));
+    if(dl.length)h+='<div style="font-size:11px;color:#333;margin-bottom:10px">'+dl.join(' &nbsp;·&nbsp; ')+'</div>';
+    h+='<div style="font-family:monospace;font-size:11px;background:#f5f8fb;border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:10px">'+esc(termosStr)+'</div>';
     /* composição da fórmula */
     h+='<table class="an7-tbl" style="margin-bottom:12px"><thead><tr><th>Componente</th><th style="text-align:right">Coeficiente</th></tr></thead><tbody>';
     (f.termos||[]).forEach(function(t){h+='<tr><td>'+esc(t.cod)+' — '+esc(famNome(t.cod))+'</td><td class="num">'+(+t.coef).toFixed(3)+'</td></tr>';});
-    h+='<tr><td>Constante (d)</td><td class="num">'+(+f.constante||0).toFixed(3)+'</td></tr>';
+    h+='<tr><td>Valor Não Revisível (d)</td><td class="num">'+(+f.constante||0).toFixed(3)+'</td></tr>';
     h+='<tr style="font-weight:700"><td>Total</td><td class="num">'+rpSomaCoef(f).toFixed(3)+'</td></tr></tbody></table>';
-    /* cálculo por mês */
-    h+='<table class="an7-tbl"><thead><tr><th>Mês</th><th style="text-align:right">Produção (s/IVA)</th><th style="text-align:right">Ct</th><th style="text-align:right">Ct−1</th><th style="text-align:right">Revisão (€)</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>';
+    /* ---- cálculo da revisão ---- */
+    h+='<div class="section-title">Cálculo da Revisão</div>';
+    h+='<table class="an7-tbl"><thead><tr><th>Mês dos Trabalhos</th><th style="text-align:right">Produção (s/IVA)</th><th style="text-align:right">Ct</th><th style="text-align:right">Ct−1</th><th style="text-align:right">Revisão (€)</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>';
     var acc=0;
     r.linhas.forEach(function(l){acc+=l.revisao;
-      h+='<tr><td>'+esc(l.rot||mesRot(l.mes))+'</td><td class="num">'+eur(l.valor)+'</td><td class="num">'+(l.ctAj?l.ctAj.toFixed(5):'—')+'</td><td class="num">'+((l.ctAj-1>=0?'+':'')+((l.ctAj-1)*100).toFixed(3)+'%')+'</td><td class="num">'+eur(l.revisao)+'</td><td class="num">'+eur(acc)+'</td></tr>';
+      h+='<tr'+(!l.completo?' style="background:#fff7ed"':'')+'><td>'+esc(l.rot||mesRot(l.mes))+(l.completo?'':' *')+'</td><td class="num">'+eur(l.valor)+'</td><td class="num">'+(l.ctAj?l.ctAj.toFixed(5):'—')+'</td><td class="num">'+((l.ctAj-1>=0?'+':'')+((l.ctAj-1)*100).toFixed(3)+'%')+'</td><td class="num">'+eur(l.revisao)+'</td><td class="num">'+eur(acc)+'</td></tr>';
     });
     h+='<tr style="font-weight:800;border-top:2px solid var(--border)"><td>TOTAL</td><td class="num">'+eur(r.totVal)+'</td><td></td><td class="num">'+fmtPct(r.pct)+'</td><td class="num">'+eur(r.totRev)+'</td><td class="num">'+eur(r.totRev)+'</td></tr>';
     h+='</tbody></table>';
+    if(r.algumFalta)h+='<div style="font-size:10px;color:#9a3412;margin-top:4px">* Mês com índices em falta (revisão incompleta até publicação).</div>';
+    /* ---- coeficientes de atualização ---- */
+    h+='<div class="section-title" style="margin-top:14px">Coeficientes de Atualização</div>';
+    h+=_rpCoefTabelas(r);
     return h;
-  }
-  window.rpImprimirRelatorio=function(){
+  }  window.rpImprimirRelatorio=function(){
     var r=rpCalcObra(rpObraSel); if(!r){alert('Configure a revisão desta obra primeiro.');return;}
     var o=(typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(rpObraSel);})||{};
     /* imagens dos gráficos */
@@ -21718,5 +21787,12 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
   }catch(e){}
 })();
 </script>
+<script>(function(){
+  document.addEventListener('mousedown',function(e){
+    var t=e.target; if(!t||!t.classList)return;
+    if(t.classList.contains('modal-backdrop')&&t.classList.contains('open')){ t.classList.remove('open'); try{document.body.style.overflow='';}catch(_){} return; }
+    if(t.id==='panel-gerir-users'){ try{if(window.fecharGerirUsers)window.fecharGerirUsers();}catch(_){} return; }
+  },true);
+})();</script>
 </body>
 </html>
