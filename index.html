@@ -309,27 +309,25 @@ table td{vertical-align:middle}
 <meta name="apple-mobile-web-app-title" content="Controlo Custos">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <script>
-/* Auto-limpa unico: mata service worker antigo + caches presas (corre 1x por dispositivo) */
+/* [v280] A app é um ficheiro único e completo (funciona offline sem service worker).
+   O service worker antigo guardava o HTML em cache e servia sempre a versão anterior — por isso
+   a versão "não atualizava". Agora, em cada abertura, remove qualquer service worker e cache presos,
+   e NUNCA volta a registar um — assim a versão nova é sempre a que aparece. */
 (function(){
   try{
-    if(('serviceWorker' in navigator) && !localStorage.getItem('_limpezaSW_v94')){
-      localStorage.setItem('_limpezaSW_v94','1');
-      var _lim=[];
-      _lim.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){}));
-      if(window.caches){_lim.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).catch(function(){}));}
-      Promise.all(_lim).then(function(){ setTimeout(function(){ location.reload(); },300); });
-      return;
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistrations().then(function(rs){
+        var tinha=!!(rs&&rs.length);
+        Promise.all((rs||[]).map(function(r){return r.unregister();})).then(function(){
+          if(window.caches){ caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){return caches.delete(k);})); }).catch(function(){}); }
+          /* se ainda havia um SW a controlar esta página, recarregar UMA vez (sem ciclos) para servir já o HTML novo */
+          if(tinha && navigator.serviceWorker.controller){
+            try{ if(!sessionStorage.getItem('_swLimpo')){ sessionStorage.setItem('_swLimpo','1'); setTimeout(function(){ location.reload(); },250); } }catch(e){}
+          }
+        }).catch(function(){});
+      }).catch(function(){});
     }
   }catch(e){}
-  if(('serviceWorker' in navigator)&&(location.protocol==='https:'||location.protocol==='http:')){
-    window.addEventListener('load',function(){
-      navigator.serviceWorker.register('./sw.js').then(function(reg){ try{reg.update();}catch(_){} }).catch(function(){});
-      var _swRefrescou=false;
-      navigator.serviceWorker.addEventListener('controllerchange',function(){
-        if(_swRefrescou)return; _swRefrescou=true; window.location.reload();
-      });
-    });
-  }
 })();
 </script>
 </head>
@@ -383,7 +381,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v279</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v281</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -438,26 +436,22 @@ table td{vertical-align:middle}
   </div>
   <div id="ini-atalhos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px"></div>
   <style id="sm-logo-css">
-    #ini-logo-card{grid-column:1/-1;display:flex;align-items:center;justify-content:center;padding:48px 16px;min-height:180px;overflow:hidden;background:radial-gradient(120% 160% at 50% 0%,#ffffff 0%,#eef1f5 70%,#e6eaef 100%);border-radius:14px}
-    .sm-logo-wrap{position:relative;display:inline-block;line-height:1;opacity:0;transform:translateY(26px) scale(.94);animation:smRise 1s cubic-bezier(.16,.8,.3,1) .15s forwards}
-    .sm-logo{position:relative;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:800;letter-spacing:.05em;font-size:clamp(36px,6.2vw,66px);color:#5b6166;white-space:nowrap;text-shadow:0 6px 10px rgba(17,54,94,.22),0 1px 0 rgba(255,255,255,.6)}
-    .sm-logo .sm-reg{font-size:.34em;font-weight:700;vertical-align:super;margin-left:.05em}
-    /* brilho: cópia sobreposta, clip:text; se o browser não suportar fica invisível e a base sólida garante o logo */
-    .sm-shine{position:absolute;inset:0;font-family:inherit;font-weight:800;letter-spacing:.05em;font-size:inherit;white-space:nowrap;pointer-events:none;
-      background:linear-gradient(105deg,rgba(255,255,255,0) 38%,rgba(255,255,255,.95) 50%,rgba(255,255,255,0) 62%);
-      background-size:250% 100%;background-repeat:no-repeat;background-position:180% 0;
-      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
-      animation:smSweep 4.5s ease-in-out 1.3s infinite}
-    @keyframes smRise{to{opacity:1;transform:translateY(0) scale(1)}}
-    @keyframes smSweep{0%{background-position:180% 0}55%,100%{background-position:-80% 0}}
-    @media (prefers-reduced-motion:reduce){.sm-logo-wrap{animation:none;opacity:1;transform:none}.sm-shine{animation:none;display:none}}
+    #ini-logo-card{grid-column:1 / -1;position:relative;display:flex;align-items:center;justify-content:center;padding:0;min-height:300px;overflow:hidden;border-radius:16px;cursor:pointer;
+      background:radial-gradient(130% 150% at 50% -10%,#ffffff 0%,#eef2f7 55%,#e3e8ef 100%)}
+    #ini-logo-card::after{content:"";position:absolute;inset:0;pointer-events:none;
+      background:radial-gradient(60% 80% at var(--mx,50%) var(--my,40%),rgba(46,111,192,.10),transparent 60%);transition:opacity .3s;opacity:.9}
+    #sm-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+    #sm-logo-fallback{position:relative;z-index:1;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:800;letter-spacing:.05em;font-size:clamp(34px,6vw,64px);color:#5b6166;text-shadow:0 6px 10px rgba(17,54,94,.22);display:none}
+    #sm-logo-fallback .sm-reg{font-size:.34em;vertical-align:super;margin-left:.05em}
+    #sm-hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:11px;color:#94a3b8;letter-spacing:.04em;z-index:2;pointer-events:none;opacity:0;animation:smHint .6s 2.4s forwards}
+    @keyframes smHint{to{opacity:1}}
+    @media (prefers-reduced-motion:reduce){#sm-canvas{display:none}#sm-logo-fallback{display:block}#sm-hint{display:none}}
   </style>
   <div class="two-col" id="ini-livre">
-    <div class="card pl-item" id="ini-logo-card" data-pl="ini-logo">
-      <div class="sm-logo-wrap" id="sm-logo-wrap">
-        <div class="sm-logo" id="sm-logo" aria-label="Sá Machado">SÁ MACHADO<span class="sm-reg">®</span></div>
-        <div class="sm-shine" aria-hidden="true">SÁ MACHADO<span class="sm-reg">®</span></div>
-      </div>
+    <div class="card pl-item pl-full" id="ini-logo-card" data-pl="ini-logo" style="grid-column:1 / -1;width:100%" onclick="try{smLogoReplay()}catch(e){}" title="Clique para repetir a animação">
+      <canvas id="sm-canvas" role="img" aria-label="Sá Machado"></canvas>
+      <div id="sm-logo-fallback" aria-hidden="true">SÁ MACHADO<span class="sm-reg">®</span></div>
+      <div id="sm-hint">mova o rato sobre o logótipo · clique para repetir</div>
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -6088,12 +6082,12 @@ try{ window.AutosNat.validar = validar; }catch(e){}
   <div class="modal modal-lg">
     <div class="modal-header"><h3 id="modal-compra-title">Novo processo de compra</h3><button class="modal-close" onclick="closeModal('modal-compra')">&times;</button></div>
     <div class="form-grid">
-      <div class="form-group"><label>Código de obra</label><input type="text" id="cp-obra" placeholder="ex: 0285" autocomplete="off" oninput="_cpObraCodigoInput()"></div>
+      <div class="form-group"><label>Código de obra</label><input type="text" id="cp-obra" placeholder="ex: 0285" autocomplete="off" oninput="_cpObraCodigoInput();_cpGerarRef();"></div>
       <div class="form-group"><label>Descrição da obra</label><input type="text" id="cp-obra-desc" readonly tabindex="-1" placeholder="preenche ao escrever o código" style="background:#f1f5f9;color:var(--muted)"></div>
       <div class="form-group"><label>Nome do processo</label><input type="text" id="cp-nome" placeholder="ex: Betão, Tubagens..."></div>
-      <div class="form-group"><label>Referência do contrato</label><input type="text" id="cp-ctref" placeholder="ex: Subempreitada — Cofragens (igual à referência nos Autos)" title="Referência que identifica o contrato. Ao exportar este processo para os Autos, o contrato é criado com esta referência."></div>
+      <div class="form-group"><label>Referência do contrato <span style="font-weight:400;color:var(--muted);font-size:10px">(automática)</span></label><input type="text" id="cp-ctref" readonly tabindex="-1" style="background:#f1f5f9;color:var(--navy,#11365e);font-family:monospace;font-weight:700" placeholder="PREFIXO-OBRA-AA-NNN" title="Gerada automaticamente: tipo + código de obra + ano + nº sequencial por obra. Ex.: SUB-0285-26-001"></div>
       <div class="form-group"><label>Tipo</label>
-        <select id="cp-tipo"><option>FORNECIMENTO</option><option>SUBEMPREITADA</option><option>SERVIÇO</option><option>ALUGUER</option></select>
+        <select id="cp-tipo" onchange="_cpGerarRef()"><option>FORNECIMENTO</option><option>SUBEMPREITADA</option><option>SERVIÇO</option><option>ALUGUER</option></select>
       </div>
       <div class="form-group"><label>Responsável</label><input type="text" id="cp-resp" list="dl-cp-resp" placeholder="ex: MP"><datalist id="dl-cp-resp"></datalist></div>
       <div class="form-group"><label>Empresa (quem faz o contrato)</label><select id="cp-empresa"></select></div>
@@ -8564,6 +8558,61 @@ function _cpPopularObraSelect(valorAtual){ // [v175] agora preenche os campos Co
   inp.value=valorAtual||'';
   _cpObraCodigoInput();
 }
+/* [v281] Referência de contrato padrão: PREFIXO-OBRA-AA-NNN
+   PREFIXO conforme o tipo (SUB=subempreitada, FORN=fornecimento, SERV=serviços, ALU=aluguer),
+   OBRA = código da obra (4 díg.), AA = ano atual (2 díg.), NNN = nº sequencial POR OBRA. */
+function _cpTipoPrefixo(t){
+  var u=String(t||'').toUpperCase();
+  if(u.indexOf('SUB')>=0)return 'SUB';
+  if(u.indexOf('SERV')>=0)return 'SERV';
+  if(u.indexOf('ALU')>=0)return 'ALU';
+  if(u.indexOf('FORN')>=0)return 'FORN';
+  return 'FORN';
+}
+function _cpObraCod4(v){ v=String(v||'').trim(); return /^\d+$/.test(v)?('0000'+v).slice(-4):v; }
+function _cpProxSeqObra(obraCod, exceptId){
+  var alvo=String(obraCod||'').trim().toUpperCase(), max=0;
+  (compras||[]).forEach(function(c){
+    if(!c)return; if(exceptId!=null&&String(c.id)===String(exceptId))return;
+    if(String(c.obra||'').trim().toUpperCase()!==alvo)return;
+    var n=+c.ctSeq||0; if(n>max)max=n;
+  });
+  return max+1;
+}
+function _cpFmtRef(prefix,obraCod,seq){
+  var aa=('0'+(new Date().getFullYear()%100)).slice(-2);
+  return prefix+'-'+(_cpObraCod4(obraCod)||'0000')+'-'+aa+'-'+('000'+(+seq||0)).slice(-3);
+}
+window._cpGerarRef=function(){
+  var obraEl=document.getElementById('cp-obra'), tipoEl=document.getElementById('cp-tipo'), refEl=document.getElementById('cp-ctref');
+  if(!refEl)return;
+  var obraCod=(obraEl?obraEl.value:'').trim();
+  var prefix=_cpTipoPrefixo(tipoEl?tipoEl.value:'');
+  var seq;
+  var cur=(typeof editCompraId!=='undefined'&&editCompraId)?(compras||[]).find(function(c){return String(c.id)===String(editCompraId);}):null;
+  if(cur && +cur.ctSeq>0 && String(cur.obra||'').trim().toUpperCase()===obraCod.toUpperCase()){
+    seq=+cur.ctSeq; /* a editar a mesma obra: mantém o nº */
+  } else {
+    seq=_cpProxSeqObra(obraCod, editCompraId);
+  }
+  window._cpSeqAtual=seq;
+  refEl.value=_cpFmtRef(prefix,obraCod,seq);
+};
+/* migração única: dá nº sequencial às compras antigas sem ctSeq, por obra e por ordem de criação */
+function _cpMigrarSeq(){
+  try{
+    var porObra={};
+    (compras||[]).forEach(function(c){ var k=String(c.obra||'').trim().toUpperCase(); (porObra[k]=porObra[k]||[]).push(c); });
+    var mudou=false;
+    Object.keys(porObra).forEach(function(k){
+      var arr=porObra[k].slice().sort(function(a,b){return (+a.id||0)-(+b.id||0);});
+      var max=0; arr.forEach(function(c){ if(+c.ctSeq>max)max=+c.ctSeq; });
+      arr.forEach(function(c){ if(!(+c.ctSeq>0)){ max++; c.ctSeq=max; mudou=true; } });
+    });
+    if(mudou&&typeof guardarCompras==='function')guardarCompras();
+  }catch(e){}
+}
+try{ document.addEventListener('DOMContentLoaded',function(){ setTimeout(_cpMigrarSeq,900); }); }catch(e){}
 function _cpObraCodigoInput(){ // [v175] ao escrever o codigo, sincroniza a descricao com o separador Obras
   var inp=document.getElementById('cp-obra'), out=document.getElementById('cp-obra-desc');
   if(!inp||!out)return;
@@ -9064,8 +9113,8 @@ function abrirModalCompra(id){
   if(id){const c=compras.find(x=>String(x.id)===String(id));if(c){
     document.getElementById('modal-compra-title').textContent='Editar processo de compra';
     _cpPopularObraSelect(c.obra||'');_cpPopularEmpresaSelect(c.empresaId||'');document.getElementById('cp-nome').value=c.nome||'';
-    {const _r=document.getElementById('cp-ctref');if(_r)_r.value=c.ctRef||'';} /* [v259] */
     document.getElementById('cp-tipo').value=c.tipo||'';document.getElementById('cp-resp').value=c.resp||'';
+    try{_cpGerarRef();}catch(e){var _r=document.getElementById('cp-ctref');if(_r)_r.value=c.ctRef||'';} /* [v281] ref padrão */
     document.getElementById('cp-situacao').value=c.situacao||'Adjudicado';document.getElementById('cp-dataAdj').value=c.dataAdj||'';
     document.getElementById('cp-custo').value=c.custo||'';document.getElementById('cp-adjud').value=c.adjud||'';
     document.getElementById('cp-obs').value=c.obs||'';
@@ -9087,7 +9136,8 @@ function abrirModalCompra(id){
     _cpArtigos=[];cpRenderArtigos();
     _cpPropostas=[];cpRenderPropostas();
     _cpAnexos={contrato:null,lista:null};cpRenderAnexos();
-    document.getElementById('cp-tipo').value='FORNECIMENTO';document.getElementById('cp-situacao').value='Adjudicado';document.getElementById('cp-desvio').value='';}
+    document.getElementById('cp-tipo').value='FORNECIMENTO';document.getElementById('cp-situacao').value='Adjudicado';document.getElementById('cp-desvio').value='';
+    try{_cpGerarRef();}catch(e){} /* [v281] */}
   openModal('modal-compra');
 }
 async function saveCompra(){
@@ -9097,8 +9147,10 @@ async function saveCompra(){
   let adjud=parseNum(document.getElementById('cp-adjud').value);
   const artigos=cpLerArtigos();
   if(artigos.length){adjud=+artigos.reduce((s,a)=>s+(a.qt||0)*(a.precoUnit||0),0).toFixed(2);}
+  try{_cpGerarRef();}catch(e){} /* [v281] garantir ref atual antes de guardar */
   const data={obra,nome:document.getElementById('cp-nome').value.trim(),
     ctRef:(document.getElementById('cp-ctref')?document.getElementById('cp-ctref').value.trim():''), /* [v259] referência do contrato */
+    ctSeq:(+window._cpSeqAtual||_cpProxSeqObra(obra, editCompraId)), /* [v281] nº sequencial por obra */
     tipo:cpNormTipo(document.getElementById('cp-tipo').value),
     resp:document.getElementById('cp-resp').value.trim(),situacao:document.getElementById('cp-situacao').value,
     fornecedor:(document.getElementById('cp-fornecedor')?document.getElementById('cp-fornecedor').value.trim():''),
@@ -9902,7 +9954,7 @@ function showTab(id,btn){
     if(id==='rh'&&_tabTrocou){window._rhAbrirFresco=true;switchRHTab(window._rhFull===false?'centros':'colab');}
     if(id==='compras'&&_tabTrocou)switchComprasTab('lista');
     if(id==='pagamentos')renderPagamentos();
-    if(id==='inicio'){try{var _w=document.getElementById('sm-logo-wrap');var _sh=document.querySelector('.sm-shine');[_w,_sh].forEach(function(el){if(el){el.style.animation='none';void el.offsetWidth;el.style.animation='';}});}catch(e){}} /* [v279] logo volta a animar */
+    if(id==='inicio'){try{smLogoReplay();}catch(e){}} /* [v281] logo interativo volta a animar */
     if(id==='precos')renderPrecos();
   }catch(_showErr){
     try{console.warn('Falha a desenhar o separador '+id+':',_showErr);}catch(_){}
@@ -13101,6 +13153,7 @@ function montarControlosGraficos(){
   if(typeof _dashCSS==='function')_dashCSS();
   var conts=[];
   document.querySelectorAll('canvas').forEach(function(cv){
+    if(cv.id==='sm-canvas')return; /* [v281] o logótipo não é um gráfico — não entra no redimensionador */
     var card=cv.closest('.card, .chart-card');if(!card)return;
     if(card.closest('.pl-on'))return;
     if(card.closest("[id^='modal-']")||card.closest('.modal'))return;
@@ -19760,12 +19813,7 @@ function imprimirMapaObra(numObra){
 
 <datalist id="dl-cp-obras"></datalist><datalist id="dl-rh-deps"></datalist>
 <script>
-/* [v246] PWA: registo do service worker (ignorado quando o ficheiro é aberto localmente) */
-try{
-  if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
-    navigator.serviceWorker.register('./sw.js').catch(function(){});
-  }
-}catch(e){}
+/* [v280] Já não se regista service worker — evita servir versões antigas em cache. */
 </script>
 
 <script>
@@ -22436,5 +22484,125 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
 })();
 </script>
 
+<script>
+/* [v281] Logótipo Sá Machado — animação interativa por partículas (assemblagem + brilho + repulsão ao rato) */
+(function(){
+  var canvas, ctx, W=0, H=0, dpr=1, parts=[], targets=[], raf=null, running=false, startT=0, phase='in';
+  var mouse={x:-9999,y:-9999,on:false};
+  function el(id){return document.getElementById(id);}
+  function now(){ try{return performance.now();}catch(e){return Date.now();} }
+  function amostrar(){
+    var card=el('ini-logo-card'); if(!card)return false;
+    var cw=card.clientWidth||900, ch=card.clientHeight||300;
+    dpr=Math.min(2, window.devicePixelRatio||1);
+    W=cw; H=ch;
+    canvas.width=Math.round(cw*dpr); canvas.height=Math.round(ch*dpr);
+    canvas.style.width=cw+'px'; canvas.style.height=ch+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    // desenhar o texto num canvas oculto e ler os pixels
+    var off=document.createElement('canvas'); off.width=cw; off.height=ch;
+    var o=off.getContext('2d');
+    var fs=Math.min(cw/8.2, ch*0.42); if(fs<20)fs=20;
+    o.fillStyle='#000'; o.textAlign='center'; o.textBaseline='middle';
+    o.font='800 '+fs+"px 'Helvetica Neue',Helvetica,Arial,sans-serif";
+    o.fillText('SÁ MACHADO', cw/2, ch/2);
+    o.font='800 '+(fs*0.34)+"px 'Helvetica Neue',Helvetica,Arial,sans-serif";
+    var wTxt=o.measureText('SÁ MACHADO').width;
+    o.fillText('®', cw/2 + wTxt/2*0.0 + (wTxt/2)+fs*0.10, ch/2 - fs*0.30);
+    var data;
+    try{ data=o.getImageData(0,0,cw,ch).data; }catch(e){ return false; }
+    var step=Math.max(3, Math.round(fs/34)); // densidade [v281] mais denso
+    targets=[];
+    for(var y=0;y<ch;y+=step){ for(var x=0;x<cw;x+=step){
+      var a=data[(y*cw+x)*4+3];
+      if(a>128) targets.push({x:x,y:y});
+    }}
+    // ajustar nº de partículas
+    var n=targets.length;
+    if(parts.length<n){ while(parts.length<n) parts.push(criarParticula()); }
+    else parts.length=n;
+    for(var i=0;i<n;i++){ parts[i].tx=targets[i].x; parts[i].ty=targets[i].y; }
+    return n>0;
+  }
+  function criarParticula(){
+    return {x:Math.random()*W, y:Math.random()*H, tx:0, ty:0,
+      vx:0, vy:0, sp:0.055+Math.random()*0.06, sz:1.5+Math.random()*1.6};
+  }
+  function espalhar(){ // scatter para replay
+    for(var i=0;i<parts.length;i++){ var p=parts[i];
+      var ang=Math.random()*Math.PI*2, r=Math.max(W,H)*(0.3+Math.random()*0.5);
+      p.x=W/2+Math.cos(ang)*r; p.y=H/2+Math.sin(ang)*r; p.vx=0; p.vy=0;
+    }
+  }
+  function corDe(x,t){
+    // cinza metálico escuro com brilho azulado a varrer
+    var sweep=(Math.sin((x/W*3.2) - t*0.0016)+1)/2; // 0..1
+    var g=Math.round(64 + 150*Math.pow(sweep,2.0));
+    return 'rgb('+Math.round(g*0.92)+','+Math.round(g*0.97)+','+Math.min(255,Math.round(g+18))+')';
+  }
+  function frame(){
+    if(!running){return;}
+    var t=now()-startT;
+    ctx.clearRect(0,0,W,H);
+    var assembling=(t<1500);
+    for(var i=0;i<parts.length;i++){
+      var p=parts[i];
+      // atração ao alvo
+      var dx=p.tx-p.x, dy=p.ty-p.y;
+      p.vx=(p.vx+dx*p.sp)*0.72;
+      p.vy=(p.vy+dy*p.sp)*0.72;
+      // repulsão ao rato (interatividade)
+      if(mouse.on){
+        var mdx=p.x-mouse.x, mdy=p.y-mouse.y, d2=mdx*mdx+mdy*mdy;
+        if(d2<6400){ var d=Math.sqrt(d2)||1, f=(80-d)/80*6; p.vx+=mdx/d*f; p.vy+=mdy/d*f; }
+      }
+      p.x+=p.vx; p.y+=p.vy;
+      ctx.fillStyle=corDe(p.x,now());
+      var sz=p.sz*(assembling?(0.5+0.5*Math.min(1,t/900)):1);
+      ctx.fillRect(p.x-sz/2, p.y-sz/2, sz, sz);
+    }
+    raf=requestAnimationFrame(frame);
+  }
+  function start(){
+    if(!canvas){ canvas=el('sm-canvas'); if(!canvas){return;} ctx=canvas.getContext('2d'); }
+    if(!ctx){ var fb=el('sm-logo-fallback'); if(fb)fb.style.display='block'; return; }
+    if(!amostrar()){ var fb2=el('sm-logo-fallback'); if(fb2)fb2.style.display='block'; return; }
+    startT=now(); running=true;
+    if(raf)cancelAnimationFrame(raf); raf=requestAnimationFrame(frame);
+  }
+  function stop(){ running=false; if(raf){cancelAnimationFrame(raf); raf=null;} }
+  window.smLogoReplay=function(){
+    var card=el('ini-logo-card'); if(!card)return;
+    if(!canvas){ start(); return; }
+    if(!amostrar())return;
+    espalhar(); startT=now(); running=true;
+    if(raf)cancelAnimationFrame(raf); raf=requestAnimationFrame(frame);
+  };
+  function ligarEventos(){
+    var card=el('ini-logo-card'); if(!card||card._smEvt)return; card._smEvt=1;
+    card.addEventListener('mousemove',function(e){
+      var r=card.getBoundingClientRect();
+      mouse.x=e.clientX-r.left; mouse.y=e.clientY-r.top; mouse.on=true;
+      card.style.setProperty('--mx',(mouse.x/r.width*100)+'%');
+      card.style.setProperty('--my',(mouse.y/r.height*100)+'%');
+    });
+    card.addEventListener('mouseleave',function(){ mouse.on=false; mouse.x=mouse.y=-9999; });
+  }
+  function init(){
+    if(!el('sm-canvas'))return;
+    ligarEventos();
+    // só anima quando o separador Início está visível
+    var tab=el('tab-inicio');
+    if(tab && getComputedStyle(tab).display!=='none') start(); 
+  }
+  // pausar quando a página fica escondida
+  try{ document.addEventListener('visibilitychange',function(){ if(document.hidden)stop(); else if(el('tab-inicio')&&getComputedStyle(el('tab-inicio')).display!=='none')start(); }); }catch(e){}
+  try{ window.addEventListener('resize',function(){ if(running)amostrar(); }); }catch(e){}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,300); });
+  else setTimeout(init,300);
+  window.__smLogoStop=stop;
+})();
+</script>
 </body>
+
 </html>
