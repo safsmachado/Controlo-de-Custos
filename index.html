@@ -381,7 +381,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v282</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v283</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -622,12 +622,14 @@ table td{vertical-align:middle}
   box-shadow:0 8px 30px rgba(0,0,0,.35);pointer-events:none;white-space:normal;word-break:break-word}#autosmed-native .desc-cell:hover .desc-full, #autosmed-native .desc-cell.open .desc-full{display:block}#autosmed-native .cap-row.lvl1 td{background:#1a1a2e!important;color:#fff}#autosmed-native .q-input{width:90px;padding:4px 6px;font-size:11px;text-align:right;border:1px solid var(--border);border-radius:6px}#autosmed-native .q-input:focus{outline:2px solid var(--blue);border-color:var(--blue)}#autosmed-native /* remover setas (spinners) de todos os inputs numéricos */
 input[type=number]::-webkit-inner-spin-button, #autosmed-native input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}#autosmed-native input[type=number]{-moz-appearance:textfield;appearance:textfield}@media print{#autosmed-native .topbar, #autosmed-native .nav, #autosmed-native .toolbar, #autosmed-native .btn, #autosmed-native .modal-backdrop, #autosmed-native .demo-banner, #autosmed-native .no-print, #autosmed-native button{display:none!important}#autosmed-native .tab{display:none!important}#autosmed-native /* durante a impressão esconde toda a app e mostra só o print-zone */
   body.printing .app{display:none!important}#autosmed-native.printing #print-zone{display:block!important;padding:0;margin:0;width:100%}#autosmed-native .print-hide{display:none!important}#autosmed-native .card{border:none;padding:0;margin:0}#autosmed-native @page{
-    margin:1.3cm 1.2cm;size:A4 landscape;
+    margin:1.2cm 0.8cm 1.2cm 2.2cm;size:A4 landscape;
     @top-left{content:""}@top-center{content:""}@top-right{content:""}
     @bottom-center{content:""}@bottom-right{content:""}
     @bottom-left{content:"Pág. " counter(page);font-size:9px;color:#555}
   }}#autosmed-native /* ============ Folha de impressão do auto — aspeto profissional ============ */
-#print-zone{-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#1a1a2e}#autosmed-native #print-zone .pz-doc{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:8.2px;line-height:1.25}#autosmed-native #print-zone .pz-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #0C447C;padding-bottom:7px;margin-bottom:10px}#autosmed-native #print-zone .pz-title{font-size:14.5px;font-weight:800;color:#0C447C;letter-spacing:.2px;line-height:1.1}#autosmed-native #print-zone .pz-sub{font-size:9.8px;font-weight:600;margin-top:3px}#autosmed-native #print-zone .pz-meta{font-size:8.4px;color:#555;margin-top:2px}#autosmed-native #print-zone .pz-head-right{text-align:right;white-space:nowrap}#autosmed-native #print-zone .pz-chip{display:inline-block;background:#dbeafe;color:#0C447C;font-weight:700;font-size:8.6px;padding:2px 9px;border-radius:20px}#autosmed-native #print-zone table.pz-tbl{width:100%;border-collapse:collapse;table-layout:fixed}#autosmed-native #print-zone table.pz-tbl thead{display:table-header-group}#autosmed-native #print-zone table.pz-tbl th{background:#0C447C;color:#fff;font-weight:700;font-size:7.6px;text-transform:uppercase;letter-spacing:.2px;padding:4px 5px;border:1px solid #0C447C;text-align:left}#autosmed-native #print-zone table.pz-tbl th.num{text-align:right}#autosmed-native #print-zone table.pz-tbl td{padding:3px 5px;border:1px solid #d4d8e0;vertical-align:top;word-wrap:break-word;overflow-wrap:anywhere}#autosmed-native #print-zone table.pz-tbl tr{page-break-inside:avoid}#autosmed-native #print-zone table.pz-tbl tbody tr:nth-child(even):not(.cap-row){background:#f5f7fb}#autosmed-native #print-zone .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}#autosmed-native #print-zone .col-item{font-weight:600;white-space:nowrap}#autosmed-native #print-zone .col-un{text-align:center}#autosmed-native #print-zone .cap-row td{background:#dbeafe;color:#0C447C;font-weight:700;font-size:8px}#autosmed-native #print-zone .cap-row.lvl1 td{background:#c3d9f2;text-transform:uppercase;letter-spacing:.4px}#autosmed-native #print-zone .pz-tot{display:flex;flex-wrap:wrap;justify-content:flex-end;border:1.5px solid #0C447C;border-radius:6px;overflow:hidden;margin-top:10px}#autosmed-native #print-zone .pz-tot-cell{padding:5px 11px;border-left:1px solid #cdd6e4;text-align:right;min-width:94px}#autosmed-native #print-zone .pz-tot-cell:first-child{border-left:none}#autosmed-native #print-zone .pz-tot-cell .lbl{display:block;font-size:8px;color:#666;text-transform:uppercase;letter-spacing:.4px}#autosmed-native #print-zone .pz-tot-cell .val{display:block;font-size:11px;font-weight:700;margin-top:2px}#autosmed-native #print-zone .pz-tot-cell.liq{background:#0C447C}#autosmed-native #print-zone .pz-tot-cell.liq .lbl{color:#bcd4ef}#autosmed-native #print-zone .pz-tot-cell.liq .val{color:#fff}#autosmed-native #print-zone .pz-valid{margin-top:14px;border:1px solid #cdd6e4;border-radius:7px;overflow:hidden;page-break-inside:avoid}#autosmed-native #print-zone .pz-valid-h{background:#eef2f8;color:#0C447C;font-weight:700;font-size:9px;letter-spacing:.4px;padding:6px 11px;border-bottom:1px solid #cdd6e4;text-transform:uppercase}#autosmed-native #print-zone .pz-valid-row{display:flex}#autosmed-native #print-zone .pz-valid-row>div{flex:1;padding:6px 9px;min-height:34px}#autosmed-native #print-zone .pz-valid-row>div+div{border-left:1px solid #e2e6ee}#autosmed-native #print-zone .pz-vt{font-size:8.4px;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:.3px}#autosmed-native #print-zone .pz-assin{display:flex;gap:60px;margin-top:30px;page-break-inside:avoid}#autosmed-native #print-zone .pz-assin>div{flex:1;text-align:center}#autosmed-native #print-zone .pz-assin .line{border-top:1px solid #1a1a2e;padding-top:5px;font-size:9px;font-weight:700}#autosmed-native #print-zone .pz-rodape{margin-top:16px;padding-top:6px;border-top:1px solid #e2e6ee;font-size:8px;color:#9aa0ab;display:flex;justify-content:space-between}#autosmed-native .print-show{display:none}#autosmed-native .drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:34px;text-align:center;cursor:pointer;background:#fafbfc;transition:border-color .2s}#autosmed-native .muted{color:var(--muted)}#autosmed-native .right{text-align:right}#autosmed-native .center{text-align:center}#autosmed-native .demo-banner{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:11px;padding:6px 12px;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:6px}</style>
+#print-zone{-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#1a1a2e}#autosmed-native #print-zone .pz-doc{position:relative;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:6.2px;line-height:1.25}#autosmed-native #print-zone .pz-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid #0C447C;padding-bottom:7px;margin-bottom:10px}#autosmed-native #print-zone .pz-title{font-size:10.9px;font-weight:800;color:#0C447C;letter-spacing:.2px;line-height:1.1}#autosmed-native #print-zone .pz-sub{font-size:7.4px;font-weight:600;margin-top:3px}#autosmed-native #print-zone .pz-meta{font-size:6.3px;color:#555;margin-top:2px}#autosmed-native #print-zone .pz-head-right{text-align:right;white-space:nowrap}#autosmed-native #print-zone .pz-chip{display:inline-block;background:#dbeafe;color:#0C447C;font-weight:700;font-size:6.5px;padding:2px 9px;border-radius:20px}#autosmed-native #print-zone table.pz-tbl{width:100%;border-collapse:collapse;table-layout:fixed}#autosmed-native #print-zone table.pz-tbl thead{display:table-header-group}#autosmed-native #print-zone table.pz-tbl th{background:#0C447C;color:#fff;font-weight:700;font-size:5.7px;text-transform:uppercase;letter-spacing:.2px;padding:4px 5px;border:1px solid #0C447C;text-align:left}#autosmed-native #print-zone table.pz-tbl th.num{text-align:right}#autosmed-native #print-zone table.pz-tbl td{padding:3px 5px;border:1px solid #d4d8e0;vertical-align:top;word-wrap:break-word;overflow-wrap:anywhere}#autosmed-native #print-zone table.pz-tbl tr{page-break-inside:avoid}#autosmed-native #print-zone table.pz-tbl tbody tr:nth-child(even):not(.cap-row){background:#f5f7fb}#autosmed-native #print-zone .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}#autosmed-native #print-zone .col-item{font-weight:600;white-space:nowrap}#autosmed-native #print-zone .col-un{text-align:center}#autosmed-native #print-zone .cap-row td{background:#dbeafe;color:#0C447C;font-weight:700;font-size:6px}#autosmed-native #print-zone .cap-row.lvl1 td{background:#c3d9f2;text-transform:uppercase;letter-spacing:.4px}#autosmed-native #print-zone .pz-tot{display:flex;flex-wrap:wrap;justify-content:flex-end;border:1.5px solid #0C447C;border-radius:6px;overflow:hidden;margin-top:10px}#autosmed-native #print-zone .pz-tot-cell{padding:5px 11px;border-left:1px solid #cdd6e4;text-align:right;min-width:94px}#autosmed-native #print-zone .pz-tot-cell:first-child{border-left:none}#autosmed-native #print-zone .pz-tot-cell .lbl{display:block;font-size:6px;color:#666;text-transform:uppercase;letter-spacing:.4px}#autosmed-native #print-zone .pz-tot-cell .val{display:block;font-size:8.3px;font-weight:700;margin-top:2px}#autosmed-native #print-zone .pz-tot-cell.liq{background:#0C447C}#autosmed-native #print-zone .pz-tot-cell.liq .lbl{color:#bcd4ef}#autosmed-native #print-zone .pz-tot-cell.liq .val{color:#fff}#autosmed-native #print-zone .pz-valid{margin-top:14px;border:1px solid #cdd6e4;border-radius:7px;overflow:hidden;page-break-inside:avoid}#autosmed-native #print-zone .pz-valid-h{background:#eef2f8;color:#0C447C;font-weight:700;font-size:6.8px;letter-spacing:.4px;padding:6px 11px;border-bottom:1px solid #cdd6e4;text-transform:uppercase}#autosmed-native #print-zone .pz-valid-row{display:flex}#autosmed-native #print-zone .pz-valid-row>div{flex:1;padding:6px 9px;min-height:34px}#autosmed-native #print-zone .pz-valid-row>div+div{border-left:1px solid #e2e6ee}#autosmed-native #print-zone .pz-vt{font-size:6.3px;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:.3px}#autosmed-native #print-zone .pz-assin{display:flex;gap:60px;margin-top:30px;page-break-inside:avoid}#autosmed-native #print-zone .pz-assin>div{flex:1;text-align:center}#autosmed-native #print-zone .pz-assin .line{border-top:1px solid #1a1a2e;padding-top:5px;font-size:6.8px;font-weight:700}#autosmed-native #print-zone .pz-rodape{margin-top:16px;padding-top:6px;border-top:1px solid #e2e6ee;font-size:6px;color:#9aa0ab;display:flex;justify-content:space-between}#autosmed-native /* [v283] cabeçalho que se repete em todas as páginas (thead da tabela envolvente) */
+#print-zone table.pz-running{width:100%;border-collapse:collapse}#autosmed-native #print-zone table.pz-running>thead{display:table-header-group}#autosmed-native #print-zone table.pz-running>thead>tr>td{padding:0 0 4px 0;border:none}#autosmed-native #print-zone table.pz-running>tbody>tr>td{padding:0;border:none}#autosmed-native /* [v283] marca de água NÃO APROVADO, na diagonal, em todas as páginas */
+#print-zone .pz-wm{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:9990;overflow:hidden}#autosmed-native #print-zone .pz-wm span{transform:rotate(-38deg);font-size:74px;font-weight:900;color:rgba(220,38,38,.16);border:7px solid rgba(220,38,38,.18);border-radius:14px;padding:10px 60px;letter-spacing:10px;white-space:nowrap;text-transform:uppercase}@media print{#autosmed-native #print-zone .pz-wm{position:fixed}}#autosmed-native .print-show{display:none}#autosmed-native .drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:34px;text-align:center;cursor:pointer;background:#fafbfc;transition:border-color .2s}#autosmed-native .muted{color:var(--muted)}#autosmed-native .right{text-align:right}#autosmed-native .center{text-align:center}#autosmed-native .demo-banner{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:11px;padding:6px 12px;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:6px}</style>
 <div id="autosmed-native">
 <div class="app">
 
@@ -1377,6 +1379,15 @@ function popularSelectContratos(selId){
   if(atual)sel.value=atual;
 }
 function renderTudo(){renderObras();renderContratos();popularSelectContratos('rosto-contrato');popularSelectContratos('autos-contrato');popularUserSelect();}
+/* [v283] Depois de importar/editar a lista de quantidades, o painel de Autos ficava desatualizado
+   ("Este contrato ainda não tem lista" e botão "Novo Auto" bloqueado) mesmo com a lista já gravada —
+   o utilizador pensava que não tinha gravado. Refresca o painel de Autos se estiver a mostrar este contrato. */
+function _refrescarAutosDeposLista(c){
+  try{
+    var sel=document.getElementById('autos-contrato');
+    if(sel && c && String(sel.value)===String(c.id)){ renderAutos(); }
+  }catch(e){}
+}
 
 function mudarUtilizador(id){utilizadorAtual=id;logAudit('Mudança de utilizador','Sessão como '+(utilizadores.find(u=>u.id===id)||{}).nome);guardar();
   // re-render do que estiver visível
@@ -1657,6 +1668,7 @@ function renderListaBody(c){
       <div class="alert ok" style="margin-top:10px"><i class="ti ti-circle-check"></i> ${arts.filter(a=>a.tipo==='ART').length} artigos · ${arts.filter(a=>a.tipo==='CAP').length} capítulos · total ${fmt(vc)}€</div>`;
   }
   document.getElementById('modal-lista-body').innerHTML=html;
+  _refrescarAutosDeposLista(c); /* [v283] mantém o painel de Autos em dia com a lista */
 }
 // v3: inserção na posição correcta por código de item
 function posInsercao(artigos, itemNovo){
@@ -3085,7 +3097,8 @@ function imprimirAuto(cid,aid,apenasComMedicao){
   const c=contratos.find(x=>String(x.id)===String(cid));const au=c.autos.find(a=>String(a.id)===String(aid));
   if(!c||!au)return;
   const pz=document.getElementById('print-zone');pz.innerHTML=autoPrintDoc(c,au,apenasComMedicao);
-  if(!valProducao(au)){ alert('Impressão / PDF bloqueada.\n\nO auto só pode ser impresso ou exportado para PDF depois de validado pela Direção de Produção (passo 2).\n\nPode visualizá-lo no ecrã e exportá-lo para Excel sem restrição.'); return; }
+  /* [v283] deixou de bloquear a impressão antes da validação da Direção de Produção — em vez disso
+     o documento sai com a marca de água "NÃO APROVADO" na diagonal em todas as páginas (ver autoPrintDoc). */
   if(autoExcedeContrato(c,au)&&!autoAdicionalAprovado(au)){ alert('Impressao bloqueada.\n\nEste auto inclui trabalho acima do contratado (adicional). Precisa de aprovacao de pelo menos 2 das 3 direcoes (Compras, Obra, Administracao) antes de imprimir.'); return; }
   pz.style.display='block';document.body.classList.add('printing');avisoImpressaoUmaVez();
   var _limpou=false; function _limpar(){ if(_limpou)return; _limpou=true; pz.innerHTML=''; pz.style.display='none'; document.body.classList.remove('printing'); }
@@ -3151,9 +3164,12 @@ function autoPrintDoc(c,au,apenasComMedicao){
   const empLinha=[emp.morada,emp.codPostal,emp.localidade].filter(Boolean).join(', ');
   const printHtml=`
   <div class="pz-doc">
+    ${!valProducao(au)?`<div class="pz-wm"><span>Não Aprovado</span></div>`:''}
+    <table class="pz-running">
+    <thead><tr><td>
     <div class="pz-head">
       <div style="display:flex;gap:12px;align-items:flex-start">
-        ${_logoSrc?`<img src="${_logoSrc}" style="max-height:56px;max-width:150px;object-fit:contain">`:''}
+        ${_logoSrc?`<img src="${_logoSrc}" style="max-height:42px;max-width:120px;object-fit:contain">`:''}
         <div>
           <div class="pz-title">AUTO DE MEDIÇÃO N.º ${au.numero}</div>
           <div class="pz-sub">${c.ref}${c.obra?' — '+c.obra:''}</div>
@@ -3166,6 +3182,8 @@ function autoPrintDoc(c,au,apenasComMedicao){
         <div class="pz-meta" style="margin-top:6px">Execução acumulada do contrato: <strong>${fmtPct(pExec)}</strong></div>
       </div>
     </div>
+    </td></tr></thead>
+    <tbody><tr><td>
     <table class="pz-tbl">
       <colgroup><col style="width:7%"><col style="width:41%"><col style="width:4%"><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:7%"><col style="width:12%"></colgroup>
       <thead><tr>
@@ -3223,6 +3241,8 @@ function autoPrintDoc(c,au,apenasComMedicao){
       <span>${c.ref} · Auto N.º ${au.numero} · ${au.periodo||dPT(au.data)}</span>
       <span>${escEmp(emp.nome)} — Módulo de Autos</span>
     </div>
+    </td></tr></tbody>
+    </table>
   </div>`;
   return printHtml;
 }
@@ -4578,7 +4598,7 @@ function previsualizarAuto(cid,aid,apenasComMedicao){
   const _meuPf=perfilAtual();
   const _podeAprovar=['admin','direcao','compras'].indexOf(_meuPf)>=0;
   const _jaAprovei=!!_aprovExcMap(au)[_meuPf];
-  const _podeImp=validado&&(!_exc||_apx);
+  const _podeImp=(!_exc||_apx); /* [v283] imprimir mesmo sem validação da Produção — sai com marca de água "NÃO APROVADO" */
   const pz=document.getElementById('print-zone'); if(!pz)return;
   pz.innerHTML=autoPrintDoc(c,au,apenasComMedicao);
   let bar=document.getElementById('previsao-bar');
@@ -4594,7 +4614,7 @@ function previsualizarAuto(cid,aid,apenasComMedicao){
   }
   if(!window.__pvEsc){ window.__pvEsc=true; document.addEventListener('keydown',function(e){ if((e.key==='Escape'||e.key==='Esc')&&document.body.classList.contains('previewing')){ try{fecharPrevisao();}catch(_){} } }); }
   const comAssin=(typeof utilizadores!=='undefined'?utilizadores:[]).filter(function(u){return u&&u.assinaturaImg;});
-  bar.innerHTML='<span><i class="ti ti-eye"></i> Pré-visualização do auto n.º '+(au.numero||'')+(validado?'':' — <span style="color:#fbbf24"><i class=\'ti ti-lock\'></i> impressão/PDF disponível após validação da Direção de Produção</span>')+(_exc?(_apx?' — <span style="color:#34d399"><i class=\'ti ti-circle-check\'></i> adicional aprovado ('+_apN+'/2: '+_apQuem+')</span>':' — <span style="color:#fbbf24"><i class=\'ti ti-alert-triangle\'></i> adicional acima do contrato: '+_apN+'/2 aprovações'+(_apN?' ('+_apQuem+')':'')+' — faltam para imprimir</span>'):'')+'</span>'
+  bar.innerHTML='<span><i class="ti ti-eye"></i> Pré-visualização do auto n.º '+(au.numero||'')+(validado?'':' — <span style="color:#fbbf24"><i class=\'ti ti-stamp\'></i> sai com marca de água "NÃO APROVADO" até a Direção de Produção validar</span>')+(_exc?(_apx?' — <span style="color:#34d399"><i class=\'ti ti-circle-check\'></i> adicional aprovado ('+_apN+'/2: '+_apQuem+')</span>':' — <span style="color:#fbbf24"><i class=\'ti ti-alert-triangle\'></i> adicional acima do contrato: '+_apN+'/2 aprovações'+(_apN?' ('+_apQuem+')':'')+' — faltam para imprimir</span>'):'')+'</span>'
     +'<span style="display:flex;gap:8px;align-items:center">'
     +(comAssin.length?('<label style="font-size:12px;display:flex;align-items:center;gap:5px"><i class="ti ti-signature"></i>Assinar como:<select style="font-size:12px;padding:3px 6px;border-radius:6px" onchange="assinaturaImpressaoUid=this.value;window.AutosNat.previsualizarAuto(\''+c.id+'\',\''+au.id+'\','+(apenasComMedicao!==false)+')"><option value="">— sem assinatura —</option>'+comAssin.map(function(u){return '<option value="'+u.id+'" '+(String(assinaturaImpressaoUid)===String(u.id)?'selected':'')+'>'+escEmp(u.nome)+'</option>';}).join('')+'</select></label>'):'<span style="font-size:11px;color:#9aa0ab"><i class="ti ti-info-circle"></i> Sem assinaturas carregadas (Definições → Utilizadores)</span>')
     +(comAssin.length&&String(assinaturaImpressaoUid)?controlosAssinatura('auto:'+c.id+':'+au.id+':'+(apenasComMedicao!==false)):'')
