@@ -381,7 +381,7 @@ table td{vertical-align:middle}
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v283</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v284</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -5636,7 +5636,7 @@ try{ window.AutosNat.validar = validar; }catch(e){}
           <th style="text-align:center">Salário base (mês)</th>
           <th style="text-align:center">Salário líquido (mês)</th>
           <th style="text-align:center">Líq. mês ant.</th>
-          <th style="text-align:center">% cresc.</th>
+          <th style="text-align:center" title="Crescimento do salário líquido nos últimos 12 meses">% cresc. (12m)</th>
 
           <th onclick="rhOrd.campo==='custo'?(rhOrd.dir=rhOrd.dir==='asc'?'desc':'asc'):(rhOrd.campo='custo',rhOrd.dir='desc');renderRHColab()" style="cursor:pointer;text-align:center">Custo total (mês) <i class="ti ti-arrows-sort" style="font-size:10px;opacity:.45"></i></th>
           <th>Distribuição</th><th></th>
@@ -7614,6 +7614,12 @@ function rhMesEfetivo(mesSel){ if(mesSel)return mesSel; const ms=rhMesesDisponiv
 function rhMesAnterior(mesAno){ if(!mesAno||mesAno.indexOf('/')<0)return ''; const p=mesAno.split('/'); let idx=RH_MESES.indexOf(p[0]), ano=parseInt(p[1]); if(idx<0||!ano)return ''; idx--; if(idx<0){idx=11;ano--;} return RH_MESES[idx]+'/'+ano; }
 function rhLiquidoExato(col,mesAno){ if(!col.sal||!mesAno||col.sal[mesAno]===undefined)return null; return +col.sal[mesAno]||0; }
 function rhCrescPct(atual,anterior){ if(anterior==null||anterior<=0||atual==null)return null; return (atual-anterior)/anterior*100; }
+/* [v284] deslocar um mês por N meses (N negativo = para trás) */
+function rhMesOffset(mesAno,delta){ if(!mesAno||mesAno.indexOf('/')<0)return ''; var p=mesAno.split('/'); var idx=RH_MESES.indexOf(p[0]); var ano=parseInt(p[1]); if(idx<0||!ano)return ''; var tot=idx+delta; ano+=Math.floor(tot/12); var mi=((tot%12)+12)%12; return RH_MESES[mi]+'/'+ano; }
+/* [v284] líquido definido nesse mês, ou o mais recente antes (procura até 36 meses atrás) */
+function rhLiquidoAteMes(col,mesAno){ if(!mesAno||!col||!col.sal)return null; var m=mesAno; for(var i=0;i<36;i++){ var v=col.sal[m]; if(v!==undefined&&v!==null&&v!=='')return +v||0; m=rhMesAnterior(m); if(!m)break; } return null; }
+/* [v284] crescimento nos últimos 12 meses: líquido atual vs. o de há 12 meses (ou o mais antigo dentro da janela) */
+function rhCresc12(col,mesEf){ if(!mesEf||!col||!col.sal)return null; var atual=rhLiquidoAteMes(col,mesEf); if(atual==null)return null; var ref=rhLiquidoAteMes(col,rhMesOffset(mesEf,-12)); if(ref==null){ var mm=mesEf,first=null; for(var i=0;i<12;i++){ var vv=col.sal[mm]; if(vv!==undefined&&vv!==null&&vv!=='')first=+vv||0; mm=rhMesAnterior(mm); if(!mm)break; } ref=first; } return rhCrescPct(atual,ref); }
 function rhBaseRawMes(col,mes){
   if(col.salBase&&mes&&col.salBase[mes]!==undefined&&col.salBase[mes]!==null&&col.salBase[mes]!=='')return +col.salBase[mes]||0;
   if(col.base!==undefined&&col.base!==null&&+col.base>0)return +col.base;
@@ -7668,15 +7674,26 @@ function rhEvolucaoHTML(col){
     if(v!=null){ if(prim==null)prim=v; ult=v;
       if(anterior!=null&&anterior>0){const cc=(v-anterior)/anterior*100; crTxt='<span style="color:'+(cc>=0?'var(--green)':'var(--red)')+'">'+(cc>=0?'+':'')+cc.toFixed(1)+'%</span>';}
       anterior=v; }
-    cells+='<tr><td style="padding:3px 8px">'+m+'</td><td style="padding:3px 8px;text-align:center"><input type="number" step="0.01" value="'+(v!=null?v:'')+'" placeholder="\u2014" onchange="rhSetLiquidoMesInline(\''+col.id+'\',\''+k+'\',this.value)" style="width:90px;text-align:right;padding:3px 5px;font-size:12px;border:1px solid var(--border);border-radius:5px"></td><td style="padding:3px 8px;text-align:center;font-size:11px">'+(crTxt||'\u2014')+'</td></tr>';
+    cells+='<tr><td style="padding:1px 8px;font-size:11px">'+m+'</td><td style="padding:1px 8px;text-align:center"><input type="number" step="0.01" class="rh-evo-inp" value="'+(v!=null?v:'')+'" placeholder="\u2014" onchange="rhSetLiquidoMesInline(\''+col.id+'\',\''+k+'\',this.value)" onkeydown="rhEvoEnter(event,this)" style="width:86px;text-align:right;padding:2px 5px;font-size:11px;border:1px solid var(--border);border-radius:5px"></td><td style="padding:1px 8px;text-align:center;font-size:10.5px">'+(crTxt||'\u2014')+'</td></tr>';
   });
   const crAno=(prim!=null&&ult!=null&&prim>0)?((ult-prim)/prim*100):null;
   const resumo=crAno!=null?'<div style="margin-top:6px;font-size:12px">Crescimento no ano '+ano+': <strong style="color:'+(crAno>=0?'var(--green)':'var(--red)')+'">'+(crAno>=0?'+':'')+crAno.toFixed(1)+'%</strong></div>':'';
-  return '<div style="border-top:1px solid var(--border);padding-top:10px">'
-    +'<div style="font-weight:600;font-size:13px;margin-bottom:6px">Evolução mensal '+ano+'</div>'
-    +'<div style="max-height:230px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
-    +'<thead><tr style="background:#eef2ff"><th style="padding:4px 8px;text-align:left">Mês</th><th style="padding:4px 8px;text-align:center">Líquido</th><th style="padding:4px 8px;text-align:center">% vs mês ant.</th></tr></thead>'
-    +'<tbody>'+cells+'</tbody></table></div>'+resumo+'</div>';
+  return '<div style="border-top:1px solid var(--border);padding-top:6px">'
+    +'<div style="font-weight:600;font-size:12px;margin-bottom:4px">Evolução mensal '+ano+' <span style="font-weight:400;color:var(--muted);font-size:10.5px">(Enter salta para o mês seguinte)</span></div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+    +'<thead><tr style="background:#eef2ff"><th style="padding:2px 8px;text-align:left">Mês</th><th style="padding:2px 8px;text-align:center">Líquido</th><th style="padding:2px 8px;text-align:center">% vs mês ant.</th></tr></thead>'
+    +'<tbody>'+cells+'</tbody></table>'+resumo+'</div>';
+}
+/* [v284] Enter no quadro de evolução mensal salta para o campo do mês seguinte */
+function rhEvoEnter(ev,el){
+  if(!ev||ev.key!=='Enter')return;
+  ev.preventDefault();
+  try{
+    var todos=[].slice.call(document.querySelectorAll('#col-evolucao .rh-evo-inp'));
+    var i=todos.indexOf(el);
+    if(i>=0&&i<todos.length-1){ var n=todos[i+1]; n.focus(); try{n.select();}catch(e){} }
+    else { el.blur(); } /* último mês: confirma e sai */
+  }catch(e){}
 }
 function centroPorNome(nome){return centrosCusto.find(c=>c.nome===nome);}
 function garantirCentro(nome,tipo){
@@ -7926,7 +7943,7 @@ function renderRHColab(){
   const linhaColab=(c)=>{
     const sal=rhSalarioMes(c,mes);const base=rhSalBaseMes(c,mes);const baseRaw=rhBaseRawMes(c,mesEf);const liqRaw=rhLiquidoExato(c,mesEf);
     const enc=rhEncargosMes(c,mes);const tot=sal+enc;
-    const liqAnt=rhLiquidoExato(c,mesAnt);const liqAt=rhLiquidoExato(c,mesEf);const cr=rhCrescPct(liqAt!=null?liqAt:sal,liqAnt);
+    const liqAnt=rhLiquidoExato(c,mesAnt);const cr=rhCresc12(c,mesEf); /* [v284] % = crescimento dos últimos 12 meses */
     const dist=(c.distrib||[]);
     const distTxt=dist.length?dist.map(d=>`${d.obraNum} ${d.pct}%`).join(', '):'<span style="color:var(--red)">por distribuir</span>';
     return `<tr onclick="abrirModalColab('${c.id}')" style="cursor:pointer" title="Clique na linha para abrir a ficha do colaborador">
@@ -7937,7 +7954,7 @@ function renderRHColab(){
       <td style="text-align:center"><input type="number" step="0.01" value="${baseRaw!=null?baseRaw:(base>0?base:'')}" placeholder="—" onclick="event.stopPropagation()" onchange="rhSetBaseInline('${c.id}',this.value)" style="width:82px;text-align:right;border:1px solid var(--border);border-radius:6px;padding:3px 5px;font-size:10.5px" title="Base do mês ${mesEf||'—'}"></td>
       <td style="text-align:center"><input type="number" step="0.01" value="${liqRaw!=null?liqRaw:(sal>0?sal:'')}" placeholder="—" onclick="event.stopPropagation()" onchange="rhSetLiquidoInline('${c.id}',this.value)" style="width:82px;text-align:right;border:1px solid var(--border);border-radius:6px;padding:3px 5px;font-size:10.5px" title="Líquido do mês ${mesEf||'—'}"></td>
       <td style="text-align:center;font-size:11px">${liqAnt!=null?fmt(liqAnt,2)+'€':'—'}</td>
-      <td style="text-align:center;font-size:11px${cr!=null?(cr>=0?';color:var(--green)':';color:var(--red)'):''}">${cr!=null?(cr>=0?'+':'')+cr.toFixed(1)+'%':'—'}</td>
+      <td style="text-align:center;font-size:11px${cr!=null?(cr>=0?';color:var(--green)':';color:var(--red)'):''}" title="Crescimento do salário líquido nos últimos 12 meses">${cr!=null?(cr>=0?'+':'')+cr.toFixed(1)+'%':'—'}</td>
       <td style="text-align:center;font-weight:600" title="Líquido + encargos (SS, seguro AT, outros) — detalhe na ficha do colaborador">${fmt(tot,2)}€</td>
       <td style="font-size:11px">${distTxt}</td>
       <td style="display:flex;gap:4px" onclick="event.stopPropagation()">
@@ -7960,12 +7977,12 @@ function renderRHColab(){
     const depEsc=dep.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     html+=`<tr draggable="true" ondragstart="rhDragStart(event,'${depEsc}')" ondragover="rhDragOver(event)" ondrop="rhDrop(event,'${depEsc}')" style="background:#eef2ff;cursor:grab">
       <td colspan="3" style="font-weight:700;color:var(--blue);text-align:left" onclick="toggleColapsoRHDep('${depEsc}')"><i class="ti ti-grip-vertical" style="color:var(--muted);margin-right:2px;cursor:grab" title="Arrastar para reordenar"></i><i class="ti ${colaps?'ti-chevron-right':'ti-chevron-down'}" style="margin-right:4px"></i>${dep} <span style="font-weight:400;color:var(--muted)">(${g.length})</span></td>
-      <td style="text-align:center;font-weight:700">${fmt(sBase,2)}€</td>
-      <td style="text-align:center;font-weight:700">${fmt(sSal,2)}€</td>
-      <td style="text-align:center;font-weight:700">${fmt(sLiqAnt,2)}€</td>
       <td></td>
-      <td style="text-align:center;font-weight:700;color:var(--purple)">${fmt(sEnc,2)}€</td>
-      <td style="text-align:center;font-weight:700">${fmt(sTot,2)}€</td>
+      <td style="text-align:center;font-weight:700" title="Soma dos salários base">${fmt(sBase,2)}€</td>
+      <td style="text-align:center;font-weight:700" title="Soma dos salários líquidos">${fmt(sSal,2)}€</td>
+      <td style="text-align:center;font-weight:700" title="Soma do líquido do mês anterior">${fmt(sLiqAnt,2)}€</td>
+      <td></td>
+      <td style="text-align:center;font-weight:700;color:var(--purple)" title="Soma do custo total (líquido + encargos ${fmt(sEnc,2)}€)">${fmt(sTot,2)}€</td>
       <td colspan="2"></td>
     </tr>`;
     if(!colaps)html+=g.map(linhaColab).join('');
@@ -8288,22 +8305,39 @@ function rhAtualizarEncBox(){
   var ss=m*t.ss/100, seg=m*t.seguro/100, out=m*t.outros/100, sa=saDia*dias;
   var totEnc=ss+seg+out, custo=liq+totEnc; // [v250] subsídio NÃO soma — já está no líquido
   function L(rot,pct,val,cor){return '<tr><td style="padding:3px 6px;font-size:12px">'+rot+'</td><td style="padding:3px 6px;font-size:11px;color:var(--muted);text-align:center">'+(pct!=null?pct+'%':'—')+'</td><td style="padding:3px 6px;font-size:12px;text-align:right;font-weight:600;color:'+(cor||'var(--text)')+'">'+fmt(val,2)+'€</td></tr>';}
+  /* [v284] linha com taxa EDITÁVEL — o utilizador altera o valor de cálculo e recalcula na hora */
+  function LE(rot,campo,pctVal,val,cor){return '<tr><td style="padding:3px 6px;font-size:12px">'+rot+'</td>'
+    +'<td style="padding:2px 6px;text-align:center;white-space:nowrap"><input type="number" step="0.01" min="0" value="'+(+pctVal)+'" onchange="rhSetTaxaEnc(\''+campo+'\',this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}" style="width:62px;text-align:right;padding:2px 4px;font-size:11px;border:1px solid var(--border);border-radius:5px">%</td>'
+    +'<td style="padding:3px 6px;font-size:12px;text-align:right;font-weight:600;color:'+(cor||'var(--text)')+'">'+fmt(val,2)+'€</td></tr>';}
   box.innerHTML=
-    '<div class="section-title" style="font-size:11.5px">Encargos mensais (sobre o salário base'+(t.f14>1?' ×14/12 — subsídios de férias e Natal mensualizados':'')+')</div>'
+    '<div class="section-title" style="font-size:11.5px">Encargos mensais (sobre o salário base'+(t.f14>1?' ×14/12 — subsídios de férias e Natal mensualizados':'')+') — pode alterar as taxas</div>'
     +'<table style="width:100%;border-collapse:collapse;background:#F7F9FC;border:1px solid var(--border);border-radius:8px">'
-    +L('Segurança Social — entidade patronal',(+t.ss).toFixed(2).replace('.',','),ss,'var(--blue)')
-    +L('Seguro de acidentes de trabalho',(+t.seguro).toFixed(2).replace('.',','),seg,'var(--orange)')
-    +L('Finanças / outros (FCT extinto · FGCT suspenso até 31/12/2026)',(+t.outros).toFixed(2).replace('.',','),out,'var(--purple)')
+    +'<thead><tr><th style="padding:2px 6px;font-size:10px;text-align:left;color:var(--muted)">Rubrica</th><th style="padding:2px 6px;font-size:10px;text-align:center;color:var(--muted)">Taxa</th><th style="padding:2px 6px;font-size:10px;text-align:right;color:var(--muted)">Valor / mês</th></tr></thead>'
+    +LE('Segurança Social — entidade patronal','ss',(+t.ss),ss,'var(--blue)')
+    +LE('Seguro de acidentes de trabalho','seguro',(+t.seguro),seg,'var(--orange)')
+    +LE('Finanças / outros (FCT extinto · FGCT suspenso até 31/12/2026)','outros',(+t.outros),out,'var(--purple)')
     +L('Subsídio de alimentação — informativo, já incluído no líquido ('+fmt(saDia,2)+'€ × '+dias+' dias; isento até 6,15€ dinheiro / 10,46€ cartão)',null,sa,'var(--muted)')
     +'<tr><td colspan="2" style="padding:5px 6px;font-size:12px;font-weight:700;border-top:1px solid var(--border)">Total de encargos</td><td style="padding:5px 6px;text-align:right;font-weight:800;border-top:1px solid var(--border)">'+fmt(totEnc,2)+'€</td></tr>'
     +'<tr><td colspan="2" style="padding:5px 6px;font-size:12px;font-weight:800;color:var(--navy)">CUSTO EMPRESA (líquido + encargos)</td><td style="padding:5px 6px;text-align:right;font-weight:800;font-size:13px;color:var(--navy)">'+fmt(custo,2)+'€</td></tr>'
-    +'</table>';
+    +'</table>'
+    +'<div style="font-size:10px;color:var(--muted);margin-top:3px">As taxas aplicam-se ao cálculo de encargos de todos os colaboradores.</div>';
 }
 window.rhAtualizarEncBox=rhAtualizarEncBox;
+/* [v284] alterar uma taxa de encargos (SS / seguro AT / outros) — atualiza a configuração e recalcula tudo */
+function rhSetTaxaEnc(campo,val){
+  var v=parseFloat(String(val).replace(',','.'));if(isNaN(v)||v<0)v=0;
+  rhConfig=rhConfig||{};rhConfig.encTaxas=rhConfig.encTaxas||{};
+  rhConfig.encTaxas[campo]=v;
+  try{guardarRH();}catch(e){}
+  try{rhAtualizarEncBox();}catch(e){}
+  try{renderRHColab();}catch(e){}
+}
+window.rhSetTaxaEnc=rhSetTaxaEnc;
 /* [v248] empresas no formulário do colaborador */
 function _rhPreencherEmpresas(id,valor){
   const el=document.getElementById(id);if(!el)return;
   let emps=[];try{emps=(typeof appEmpresasAtivas==='function')?appEmpresasAtivas():(typeof appEmpresas==='function'?appEmpresas():[]);}catch(e){}
+  emps=emps.filter(function(e){return e&&!e.fornecedor;}); /* [v284] só empresas executantes (próprias), não fornecedores/subempreiteiros/aluguer */
   const nomes=[...new Set(emps.map(e=>e&&(e.nome||e.name)).filter(Boolean))];
   if(valor&&nomes.indexOf(valor)<0)nomes.push(valor);
   el.innerHTML='<option value="">— escolher —</option>'+nomes.map(n=>'<option'+(n===valor?' selected':'')+'>'+n+'</option>').join('');
