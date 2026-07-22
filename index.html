@@ -390,7 +390,7 @@ table td{vertical-align:middle}
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
       <button class="btn sm" onclick="zoomAjustarLargura()" style="padding:2px 6px" title="Ajustar à largura — reduzir para caberem todas as colunas no ecrã"><i class="ti ti-arrows-horizontal"></i></button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v288</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v289</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -5189,12 +5189,14 @@ try{ window.AutosNat.validar = validar; }catch(e){}
     <button class="tab-inner-btn" id="rp-btn-idx" onclick="rpSub('idx')">Índices oficiais</button>
     <button class="tab-inner-btn" id="rp-btn-rel" onclick="rpSub('rel')">Relatório</button>
     <button class="tab-inner-btn" id="rp-btn-reg" onclick="rpSub('reg')">Registo / Pedidos</button>
+    <button class="tab-inner-btn" id="rp-btn-arq" onclick="rpSub('arq')"><i class="ti ti-archive"></i> Arquivo</button>
   </div>
   <div id="rp-sub-calc"></div>
   <div id="rp-sub-form" style="display:none"></div>
   <div id="rp-sub-idx" style="display:none"></div>
   <div id="rp-sub-rel" style="display:none"></div>
   <div id="rp-sub-reg" style="display:none"></div>
+  <div id="rp-sub-arq" style="display:none"></div>
 </div>
 
 <!-- ═══════════════════════════════ [v249] FOLHA DE CAIXA ═══════════════════════════════ -->
@@ -9046,8 +9048,8 @@ function editarCodigoObraGrupo(codigoAtual){
   renderCompras();
 }
 function toggleSelCompra(id,ck){if(ck)comprasSel.add(String(id));else comprasSel.delete(String(id));}
-function arquivarCompra(id){const c=compras.find(x=>String(x.id)===String(id));if(!c)return;c.arquivada=true;if(typeof guardarCompras==='function')guardarCompras();renderCompras();}
-function reporCompra(id){const c=compras.find(x=>String(x.id)===String(id));if(!c)return;c.arquivada=false;if(typeof guardarCompras==='function')guardarCompras();renderCompras();}
+function arquivarCompra(id){const c=compras.find(x=>String(x.id)===String(id));if(!c)return;c.arquivada=true;c._arqTs=Date.now();if(typeof guardarCompras==='function')guardarCompras();renderCompras();}
+function reporCompra(id){const c=compras.find(x=>String(x.id)===String(id));if(!c)return;c.arquivada=false;c._arqTs=Date.now();if(typeof guardarCompras==='function')guardarCompras();renderCompras();}
 function arquivarComprasSelecionadas(){
   if(comprasSel.size===0){alert('Seleciona pelo menos um contrato (caixa à esquerda).');return;}
   compras.forEach(c=>{if(comprasSel.has(String(c.id)))c.arquivada=true;});
@@ -13742,8 +13744,8 @@ function switchObrasTab(tab){
   if(mostraLista)filterObras();
   if(tab==='analise')renderObrasAnalise();
 }
-function arquivarObra(num){const o=obras.find(x=>x.num===num);if(!o)return;o.arquivada=true;compras.forEach(c=>{if(c.obra===num)c.arquivada=true;});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
-function reporObra(num){const o=obras.find(x=>x.num===num);if(!o)return;o.arquivada=false;compras.forEach(c=>{if(c.obra===num)c.arquivada=false;});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
+function arquivarObra(num){const o=obras.find(x=>x.num===num);if(!o)return;var _ts=Date.now();o.arquivada=true;o._arqTs=_ts;compras.forEach(c=>{if(c.obra===num){c.arquivada=true;c._arqTs=_ts;}});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
+function reporObra(num){const o=obras.find(x=>x.num===num);if(!o)return;var _ts=Date.now();o.arquivada=false;o._arqTs=_ts;compras.forEach(c=>{if(c.obra===num){c.arquivada=false;c._arqTs=_ts;}});if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
 function apagarObraArquivo(num){if(!confirm('Apagar definitivamente a obra '+num+', incluindo os seus contratos e custos? Esta ação não pode ser anulada.'))return;obras=obras.filter(x=>x.num!==num);compras=compras.filter(c=>c.obra!==num);if(typeof custos!=='undefined')custos=custos.filter(c=>c.obraNum!==num);try{if(window.AutosNat&&typeof window.AutosNat.tombObraApagada==='function')window.AutosNat.tombObraApagada(num);}catch(e){} /* [v262] apagar na app remove também dos Autos */if(typeof guardarCompras==='function')guardarCompras();if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}}
 // [v166->] #16 FUNDIR OBRAS — utilitario de consola, o Sergio corre uma vez: window.fundirObras('0380','0382')
 // A obra de ORIGEM e absorvida pela obra de DESTINO (fica tudo em destNum) e a origem e eliminada no fim.
@@ -18098,7 +18100,14 @@ function confirmarLancamento(){
         if(c.t==='num')return celNum(ch,c.k,(r[c.k]!=null?r[c.k]:''),'ccCellEl');
         var val=r[c.k]!=null?r[c.k]:'';
         if(c.t==='pct')val=(val!==''&&val!=null)?(num(val)*100):'';
-        if(c.t==='sel'){var _selV=val,_onch='ccCell(\''+ch+'\',\''+c.k+'\',this.value,\'sel\')';if(c.k==='estado'){var _ob=acharObra(r);var _ef=(_ob&&_ob.estado)?_ob.estado:(r.estado||'');_selV=_ef?(window.grpEstadoNorm?window.grpEstadoNorm(_ef):_ef):'';_onch='ccSetEstadoObra(\''+ch+'\',this.value)';}return '<td style="text-align:center"><select onclick="event.stopPropagation()" onchange="'+_onch+'" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center">'+c.op.map(function(o){return '<option'+(String(_selV)===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></td>';}
+        if(c.t==='sel'){var _selV=val,_onch='ccCell(\''+ch+'\',\''+c.k+'\',this.value,\'sel\')';var _ops=c.op.slice();
+          if(c.k==='estado'){var _ob=acharObra(r);var _ef=(_ob&&_ob.estado)?_ob.estado:(r.estado||'');_selV=_ef?(window.grpEstadoNorm?window.grpEstadoNorm(_ef):_ef):'';_onch='ccSetEstadoObra(\''+ch+'\',this.value)';}
+          if(c.k==='natureza'){ /* [v289] natureza sincroniza com o tipo de cliente da obra (Privado/Público…) */
+            var _obN=acharObra(r); if((_selV==null||_selV==='')&&_obN&&_obN.tipoCliente)_selV=_obN.tipoCliente;
+            try{(typeof tiposCliente!=='undefined'?tiposCliente:[]).forEach(function(t){if(t&&_ops.indexOf(t)<0)_ops.push(t);});}catch(e){}
+          }
+          if(_selV!=null&&_selV!==''&&_ops.indexOf(String(_selV))<0)_ops.push(String(_selV)); /* garante que o valor atual aparece na lista */
+          return '<td style="text-align:center"><select onclick="event.stopPropagation()" onchange="'+_onch+'" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center">'+_ops.map(function(o){return '<option'+(String(_selV)===String(o)?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></td>';}
         return '<td style="text-align:center"><input value="'+escA(val)+'" onclick="event.stopPropagation()" onchange="ccCell(\''+ch+'\',\''+c.k+'\',this.value,\''+c.t+'\')" style="width:100%;border:1px solid transparent;background:transparent;font-size:11.5px;padding:3px;text-align:center" '+(o&&c.k==='cod'?'title="Ligada à obra '+esc(o.num)+'"':'')+'></td>';
       }).join('')+'</tr>';
     }
@@ -18149,7 +18158,10 @@ function confirmarLancamento(){
   window.ccDataEl=function(val,el){var ch=el.getAttribute('data-ch'),campo=el.getAttribute('data-k');var r=cli[ch];if(!r)return;r[campo]=val;cliSave();renderCaucClientes();};
   /* edição de célula numérica (€) via elemento */
   window.ccCellEl=function(val,el){var ch=el.getAttribute('data-ch'),campo=el.getAttribute('data-k');var r=cli[ch];if(!r)return;r[campo]=num(val);cliSave();renderCaucClientes();};
-  window.ccCell=function(chave,campo,val,tipo){var r=cli[chave];if(!r)return;if(tipo==='num')r[campo]=num(val);else if(tipo==='pct')r[campo]=val===''?'':(num(val)/100);else r[campo]=val;cliSave();renderCaucClientes();};
+  window.ccCell=function(chave,campo,val,tipo){var r=cli[chave];if(!r)return;if(tipo==='num')r[campo]=num(val);else if(tipo==='pct')r[campo]=val===''?'':(num(val)/100);else r[campo]=val;
+    /* [v289] natureza/nome editados na tabela escrevem de volta na obra (sincronização bidirecional) */
+    try{var o=acharObra(r); if(o&&(campo==='natureza'||campo==='nome')){ if(campo==='natureza')o.tipoCliente=val; else o.nome=val; try{window._ccUltimaEdicaoLocal=Date.now();}catch(_){} if(typeof guardarTudo==='function')guardarTudo(); if(typeof window.obrasMudaram==='function')window.obrasMudaram(); }}catch(e){}
+    cliSave();renderCaucClientes();};
   window.ccArquivar=function(chave){var r=cli[chave];if(!r)return;r.arquivada=!r.arquivada;r._arqAuto=false;cliSave();renderCaucClientes();if(typeof regAudit==='function')regAudit('Cauções',(r.arquivada?'Arquivou':'Reabriu')+' caução cliente '+(r.cod||''));};
   window.ccApagar=function(chave){var r=cli[chave];if(!r)return;if(!r.arquivada){alert('Só é possível apagar obras arquivadas. Arquive primeiro.');return;}if(!confirm('Apagar definitivamente a obra "'+((r.cod||'')+' '+(r.nome||'')).trim()+'" das cauções?\n\nEsta ação não pode ser revertida.'))return;var cod=r.cod||'';delete cli[chave];cliSave();renderCaucClientes();if(typeof regAudit==='function')regAudit('Cauções','Apagou caução cliente '+cod);};
 
@@ -19233,7 +19245,21 @@ function confirmarLancamento(){
   function _ccUniao(pref,outro,rem){
     pref=Array.isArray(pref)?pref:[]; outro=Array.isArray(outro)?outro:[]; rem=rem||{};
     var mapa={},ordem=[];
-    function add(a){ for(var i=0;i<a.length;i++){ var o=a[i],k=_ccChave(o); if(rem[k])continue; if(!(k in mapa)){mapa[k]=o;ordem.push(k);} } }
+    function add(a){ for(var i=0;i<a.length;i++){ var o=a[i],k=_ccChave(o); if(rem[k])continue;
+      if(!(k in mapa)){mapa[k]=o;ordem.push(k);}
+      else {
+        /* [v289] o mesmo registo existe nos dois lados (ex.: obra ou compra) — o lado "pref" mantém-se,
+           MAS o estado de ARQUIVO é reconciliado: vence o mais recente (por _arqTs); sem carimbo,
+           "arquivado" é pegajoso (não volta a aparecer sozinho depois de arquivado noutro posto). */
+        try{ var ex=mapa[k];
+          if(o&&ex&&typeof o==='object'&&typeof ex==='object'&&(('arquivada' in o)||('arquivada' in ex)||('arquivado' in o)||('arquivado' in ex))){
+            var tsEx=+ex._arqTs||0, tsO=+o._arqTs||0;
+            if(tsO>tsEx){ if('arquivada' in o)ex.arquivada=o.arquivada; if('arquivado' in o)ex.arquivado=o.arquivado; ex._arqTs=tsO; }
+            else if(tsEx===tsO){ if(o.arquivada)ex.arquivada=true; if(o.arquivado)ex.arquivado=true; }
+          }
+        }catch(e){}
+      }
+    } }
     add(pref); add(outro);
     return ordem.map(function(k){return mapa[k];});
   }
@@ -21396,7 +21422,7 @@ function imprimirMapaObra(numObra){
   var subAtual='calc';
   window.rpSub=function(s){
     subAtual=s;
-    ['calc','form','idx','rel','reg'].forEach(function(x){
+    ['calc','form','idx','rel','reg','arq'].forEach(function(x){
       var b=g('rp-btn-'+x); if(b)b.classList.toggle('active',x===s);
       var dv=g('rp-sub-'+x); if(dv)dv.style.display=(x===s)?'':'none';
     });
@@ -21409,6 +21435,7 @@ function imprimirMapaObra(numObra){
       else if(subAtual==='idx')rpRenderIdx();
       else if(subAtual==='rel')rpRenderRel();
       else if(subAtual==='reg'){try{if(window.rpRenderRegisto)window.rpRenderRegisto();}catch(e){}}
+      else if(subAtual==='arq'){try{if(window.rpRenderArquivo)window.rpRenderArquivo();}catch(e){}}
     }catch(e){try{console.warn('rp render',e);}catch(_){}}
   }
   /* [v288] reordenar (arrastar) os sub-separadores da Revisão — guardado por utilizador */
@@ -22579,14 +22606,18 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
       pctPedido:revTotal>0?totPedido/revTotal:0, pctFat:revTotal>0?totFat/revTotal:0, pctPago:revTotal>0?totPago/revTotal:0 };
   }
 
-  window.rpRenderRegisto=function(){
-    var host=g('rp-sub-reg'); if(!host)return;
+  window.rpRenderRegisto=function(){ verArquivo=false; _rgRender('rp-sub-reg'); };
+  window.rpRenderArquivo=function(){ verArquivo=true; _rgRender('rp-sub-arq'); };
+  function _rgRender(hostId){
+    var host=g(hostId); if(!host)return;
+    var buscaId=verArquivo?'rg-busca-arq':'rg-busca';
     var lista=obrasLista();
-    var h='<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Registo de revisão por obra: <b>proposta</b> e <b>estado</b> vêm das Obras, o <b>valor da revisão (ordinária)</b> e o <b>% executado</b> vêm do cálculo/facturação. Preencha os <b>pedidos</b>, <b>facturas</b> e <b>pagamentos</b>. Tudo sincroniza automaticamente.</div>';
-    h+='<div class="toolbar" style="margin-bottom:8px"><input type="search" id="rg-busca" placeholder="Pesquisar obra…" oninput="rpRenderRegisto()" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px"><span style="flex:1"></span>'
-      +'<button class="btn'+(verArquivo?' primary':'')+'" onclick="_rgToggleArquivo()" title="Alternar entre obras ativas e arquivadas"><i class="ti ti-archive"></i> '+(verArquivo?'A ver arquivo':'Ver arquivo')+'</button>'
+    var h=verArquivo
+      ?'<div class="alert warn" style="margin-bottom:10px"><i class="ti ti-archive"></i> <b>Arquivo</b> da Revisão de Preços — obras arquivadas (acompanham o arquivo do separador Obras). Pode <b>repor</b> ou <b>apagar definitivamente</b>.</div>'
+      :'<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Registo de revisão por obra: <b>proposta</b> e <b>estado</b> vêm das Obras, o <b>valor da revisão (ordinária)</b> e o <b>% executado</b> vêm do cálculo/facturação. Preencha os <b>pedidos</b>, <b>facturas</b> e <b>pagamentos</b>. Tudo sincroniza automaticamente.</div>';
+    h+='<div class="toolbar" style="margin-bottom:8px"><input type="search" id="'+buscaId+'" placeholder="Pesquisar obra…" oninput="'+(verArquivo?'rpRenderArquivo':'rpRenderRegisto')+'()" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px"><span style="flex:1"></span>'
       +'<button class="btn" onclick="_rgExcel()"><i class="ti ti-file-spreadsheet"></i> Excel</button></div>';
-    var q=(g('rg-busca')?g('rg-busca').value:'').toLowerCase();
+    var q=(g(buscaId)?g(buscaId).value:'').toLowerCase();
     var tot={proposta:0,revOrd:0,extra:0,pedido:0,fat:0,pago:0,porPedir:0,porFat:0,porPagar:0};
     var rows='';
     lista.forEach(function(o){
@@ -22629,29 +22660,29 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
     host.innerHTML=h;
   };
 
-  window._rgSet=function(num,campo,val){ var d=rgLer(); var r=rgObra(d,num); r[campo]=val; rgGravar(d); rpRenderRegisto(); };
+  window._rgSet=function(num,campo,val){ var d=rgLer(); var r=rgObra(d,num); r[campo]=val; rgGravar(d); _rgReRender(verArquivo); };
+  function _rgReRender(modo){ try{ if(modo)window.rpRenderArquivo(); else window.rpRenderRegisto(); }catch(e){} }
 
-  /* [v288] arquivar / repor / apagar obras a partir do Registo — sincroniza com o separador Obras e todos os separadores */
-  window._rgToggleArquivo=function(){ verArquivo=!verArquivo; rpRenderRegisto(); };
+  /* [v289] arquivar / repor / apagar obras a partir do Registo/Arquivo — sincroniza com o separador Obras */
   function _rgEmObras(num){ return (typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(num);}); }
   window._rgArquivar=function(num){
     var o=_rgEmObras(num);
-    if(o){ if(typeof arquivarObra==='function')arquivarObra(num); else {o.arquivada=true; if(window.obrasMudaram)window.obrasMudaram();} }
+    if(o){ if(typeof arquivarObra==='function')arquivarObra(num); else {o.arquivada=true;o._arqTs=Date.now(); if(window.obrasMudaram)window.obrasMudaram();} }
     else { var d=rgLer(); var r=rgObra(d,num); r._arq=true; rgGravar(d); }
-    rpRenderRegisto();
+    _rgReRender(false); /* fica na lista ativa (a obra saiu para o arquivo) */
   };
   window._rgRepor=function(num){
     var o=_rgEmObras(num);
-    if(o){ if(typeof reporObra==='function')reporObra(num); else {o.arquivada=false; if(window.obrasMudaram)window.obrasMudaram();} }
+    if(o){ if(typeof reporObra==='function')reporObra(num); else {o.arquivada=false;o._arqTs=Date.now(); if(window.obrasMudaram)window.obrasMudaram();} }
     else { var d=rgLer(); var r=rgObra(d,num); r._arq=false; rgGravar(d); }
-    rpRenderRegisto();
+    _rgReRender(true); /* continua no separador Arquivo */
   };
   window._rgApagar=function(num){
     if(!confirm('Apagar definitivamente a obra '+num+' e tudo o que lhe está ligado (compras, custos, cauções e este registo)?\n\nEsta ação não pode ser anulada.'))return;
     var o=_rgEmObras(num);
     if(o){ if(typeof window.apagarObraCompleta==='function')window.apagarObraCompleta(num); }
     else { var d=rgLer(); if(d.registo&&d.registo[num]){delete d.registo[num];rgGravar(d);} }
-    rpRenderRegisto();
+    _rgReRender(true); /* continua no separador Arquivo */
   };
 
   /* editor de pedidos (overlay) */
