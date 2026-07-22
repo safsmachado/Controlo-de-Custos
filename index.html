@@ -159,6 +159,14 @@ table{width:100%;border-collapse:collapse;font-size:12px}
 th{text-align:center;padding:8px 10px;color:#6B727A;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap;font-size:10.5px;background:#F1F4F8}
 thead th, table th{text-align:center !important}
 td{padding:7px 10px;border-bottom:1px solid #f0f1f4;white-space:nowrap;vertical-align:middle;text-align:center}
+/* [v288] linha subtil no limite (direito) de cada coluna, para ver onde clicar e redimensionar */
+table th{border-right:1px solid #E4E8EE}
+table th:last-child{border-right:none}
+table td{border-right:1px solid #F2F4F8}
+table td:last-child{border-right:none}
+/* pega de redimensionamento: linha discreta que fica azul ao passar o rato/arrastar */
+.col-resize{border-right:2px solid transparent}
+.col-resize:hover,.col-resize.a-arrastar{background:rgba(37,99,235,.10);border-right:2px solid var(--blue)}
 .msf-wrap{position:relative;display:inline-block}
 .msf-btn{display:flex;align-items:center;gap:6px;white-space:nowrap;max-width:190px}
 .msf-btn .msf-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;display:inline-block}
@@ -380,8 +388,9 @@ table td{vertical-align:middle}
       <button class="btn sm" onclick="ajustarZoom(-10)" style="padding:2px 7px" title="Reduzir">−</button>
       <span id="zoom-val" onclick="ajustarZoom(0,true)" style="font-size:11px;min-width:34px;text-align:center;cursor:pointer" title="Repor 100%">100%</span>
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
+      <button class="btn sm" onclick="zoomAjustarLargura()" style="padding:2px 6px" title="Ajustar à largura — reduzir para caberem todas as colunas no ecrã"><i class="ti ti-arrows-horizontal"></i></button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v284</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v288</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -2439,7 +2448,7 @@ function popularSelectObrasContrato(valorAtual){
   const sel=document.getElementById('ct-obra');if(!sel)return;
   /* [v256] juntar as obras da app principal (controloObras_v4) às dos Autos — o selector estava vazio
      quando a obra ainda não existia (ou tinha sido removida) no registo dos Autos */
-  let listaSel=obrasReg.slice();
+  let listaSel=obrasReg.filter(function(o){return o&&!o.arquivada;}); /* [v286] não listar obras arquivadas */
   try{
     var _dApp=JSON.parse(localStorage.getItem('controloObras_v4')||'{}');
     ((_dApp&&_dApp.obras)||[]).forEach(function(o){
@@ -4137,10 +4146,12 @@ function sincronizarObrasRecebidas(arr){
         estado:o.estado||'Em curso',adj:+o.adj||0,orcamentoCusto:0,revPrecos:+o.revPrecos||0,
         trabalhosMais:+o.trabalhosMais||0,errosOmissoes:+o.errosOmissoes||0,autos:0,custos:0,
         estaleiroPct:+o.estaleiroPct||5,prazoMeses:+o.prazoMeses||12,prazoAtualMeses:+o.prazoAtualMeses||12,
-        consignacao:o.consignacao||'',gastosGerais:0,mesesPassados:0,_daApp:true};
+        consignacao:o.consignacao||'',gastosGerais:0,mesesPassados:0,arquivada:!!o.arquivada,_daApp:true};
       obrasReg.push(ex); mudou=true;
     } else {
       ['nome','dono','tipoObra','tipoCliente','estado'].forEach(function(k){ if(o[k]!=null&&o[k]!==''&&ex[k]!==o[k]){ex[k]=o[k];mudou=true;} });
+      /* [v286] o estado de arquivo da obra acompanha o módulo de Autos (booleano, propagado sempre) */
+      if(ex.arquivada!==!!o.arquivada){ex.arquivada=!!o.arquivada;mudou=true;}
     }
     var jaTem=contratos.some(function(c){return c._autoLista&&(String(c.obra)===String(ex.nome)||String(c.obra)===String(ex.num));});
     if(o.listaQtdB64 && !ex._listaImportada && !jaTem){
@@ -6834,7 +6845,7 @@ function agendarGravacao(){
 window.obrasMudaram=function(){
   try{ agendarGravacao(); }catch(e){}
   var renders=['filterObras','renderCustos','renderFacturacao','renderCompras',
-    'renderPagamentos','cauAutoSync','renderGestao','renderIndiretos','renderDashboard','renderRHColab'];
+    'renderPagamentos','cauAutoSync','renderGestao','renderIndiretos','renderDashboard','renderRHColab','rpRenderRegisto'];
   renders.forEach(function(fn){ try{ if(typeof window[fn]==='function') window[fn](); }catch(e){} });
   try{ if(typeof sincronizarAutos==='function') sincronizarAutos(); }catch(e){}
 };
@@ -7970,8 +7981,9 @@ function renderRHColab(){
   let html='';
   deps.forEach(dep=>{
     const g=grupos[dep];
-    let sBase=0,sSal=0,sEnc=0,sTot=0,sLiqAnt=0;
-    g.forEach(c=>{const s=rhSalarioMes(c,mes);const b=rhSalBaseMes(c,mes);const e=rhEncargosMes(c,mes);sBase+=b;sSal+=s;sEnc+=e;sTot+=s+e;const la=rhLiquidoExato(c,mesAnt);if(la!=null)sLiqAnt+=la;});
+    let sBase=0,sSal=0,sEnc=0,sTot=0,sLiqAnt=0;const _crVals=[];
+    g.forEach(c=>{const s=rhSalarioMes(c,mes);const b=rhSalBaseMes(c,mes);const e=rhEncargosMes(c,mes);sBase+=b;sSal+=s;sEnc+=e;sTot+=s+e;const la=rhLiquidoExato(c,mesAnt);if(la!=null)sLiqAnt+=la;const _cc=rhCresc12(c,mesEf);if(_cc!=null)_crVals.push(_cc);});
+    const crMed=_crVals.length?(_crVals.reduce((a,b)=>a+b,0)/_crVals.length):null; /* [v285] média do crescimento 12m do grupo */
     const _rhBusca=!!(q||(fd&&fd.length)||(fo&&fo.length)); /* [v282] a pesquisa/filtro expande os grupos para ver os resultados */
     const colaps=_rhBusca?false:((rhDepColaps[dep]!==undefined)?!!rhDepColaps[dep]:((rhColapseAll!==null)?rhColapseAll:false));
     const depEsc=dep.replace(/'/g,"\\'").replace(/"/g,'&quot;');
@@ -7981,7 +7993,7 @@ function renderRHColab(){
       <td style="text-align:center;font-weight:700" title="Soma dos salários base">${fmt(sBase,2)}€</td>
       <td style="text-align:center;font-weight:700" title="Soma dos salários líquidos">${fmt(sSal,2)}€</td>
       <td style="text-align:center;font-weight:700" title="Soma do líquido do mês anterior">${fmt(sLiqAnt,2)}€</td>
-      <td></td>
+      <td style="text-align:center;font-weight:700;font-size:11px${crMed!=null?(crMed>=0?';color:var(--green)':';color:var(--red)'):''}" title="Média do crescimento (12 meses) dos colaboradores do grupo">${crMed!=null?(crMed>=0?'+':'')+crMed.toFixed(1)+'%':'—'}</td>
       <td style="text-align:center;font-weight:700;color:var(--purple)" title="Soma do custo total (líquido + encargos ${fmt(sEnc,2)}€)">${fmt(sTot,2)}€</td>
       <td colspan="2"></td>
     </tr>`;
@@ -13794,12 +13806,47 @@ function esvaziarArquivo(){
   obras=obras.filter(o=>!o.arquivada);
   compras=compras.filter(c=>!c.arquivada && !nums.has(c.obra));
   if(typeof custos!=='undefined')custos=custos.filter(c=>!nums.has(c.obraNum));
+  /* [v286] apagar a obra apaga também as suas cauções e marca tombstone para os Autos não a ressuscitarem */
+  try{
+    var _cli=JSON.parse(localStorage.getItem('caucoes_clientes_v1')||'{}');var _mudCli=false;
+    Object.keys(_cli).forEach(function(k){var r=_cli[k]||{};var cod=String(r._obraNum||r.nobra||r.cod||k);if(nums.has(cod)||nums.has(k)){delete _cli[k];_mudCli=true;}});
+    if(_mudCli){localStorage.setItem('caucoes_clientes_v1',JSON.stringify(_cli));}
+    var _forn=JSON.parse(localStorage.getItem('caucoes_forn_v1')||'{}');var _mudF=false;
+    Object.keys(_forn).forEach(function(k){var r=_forn[k]||{};var cod=String(r._obraNum||r.nobra||r.obra||'');if(cod&&nums.has(cod)){delete _forn[k];_mudF=true;}});
+    if(_mudF){localStorage.setItem('caucoes_forn_v1',JSON.stringify(_forn));}
+    if(_mudCli||_mudF){try{window._ccUltimaEdicaoLocal=Date.now();}catch(_){}try{if(window._syncAgendar)window._syncAgendar();}catch(_){}}
+  }catch(e){}
   if(typeof guardarCompras==='function')guardarCompras();
   agendarGravacao();filterObras();
   if(typeof renderCompras==='function')renderCompras();
   if(typeof renderCustos==='function')renderCustos();
+  try{if(window.cauAutoSync)window.cauAutoSync(false);}catch(e){}
+  try{if(typeof renderCaucClientes==='function')renderCaucClientes();}catch(e){}
   alert('Arquivo esvaziado.');
 }
+/* [v288] apagar UMA obra e tudo o que lhe está ligado (compras, custos, cauções, registo de revisão).
+   Usado pelo Registo da Revisão de Preços; propaga a todos os separadores. */
+window.apagarObraCompleta=function(num){
+  try{
+    num=String(num);
+    obras=obras.filter(function(o){return String(o.num)!==num;});
+    if(typeof compras!=='undefined')compras=compras.filter(function(c){return String(c.obra)!==num;});
+    if(typeof custos!=='undefined')custos=custos.filter(function(c){return String(c.obraNum)!==num;});
+    try{
+      var _cli=JSON.parse(localStorage.getItem('caucoes_clientes_v1')||'{}');var _m1=false;
+      Object.keys(_cli).forEach(function(k){var r=_cli[k]||{};var cod=String(r._obraNum||r.nobra||r.cod||k);if(cod===num||k===num){delete _cli[k];_m1=true;}});
+      if(_m1)localStorage.setItem('caucoes_clientes_v1',JSON.stringify(_cli));
+      var _forn=JSON.parse(localStorage.getItem('caucoes_forn_v1')||'{}');var _m2=false;
+      Object.keys(_forn).forEach(function(k){var r=_forn[k]||{};var cod=String(r._obraNum||r.nobra||r.obra||'');if(cod===num){delete _forn[k];_m2=true;}});
+      if(_m2)localStorage.setItem('caucoes_forn_v1',JSON.stringify(_forn));
+    }catch(e){}
+    /* registo da revisão de preços */
+    try{ var _d=JSON.parse(localStorage.getItem('revisao_precos_v1')||'{}'); if(_d&&_d.registo&&_d.registo[num]){delete _d.registo[num];localStorage.setItem('revisao_precos_v1',JSON.stringify(_d));} }catch(e){}
+    if(typeof guardarCompras==='function')guardarCompras();
+    try{window._ccUltimaEdicaoLocal=Date.now();}catch(_){}
+    if(typeof window.obrasMudaram==='function')window.obrasMudaram();else{agendarGravacao();filterObras();}
+  }catch(e){}
+};
 function renderObrasAnalise(){
   const metrica=document.getElementById('ob-an-metrica').value;
   const agrup=document.getElementById('ob-an-agrup').value;
@@ -15269,6 +15316,8 @@ function renderCustos(resetPag){
   if(fm)lista=lista.filter(c=>String(c.mesNum)===fm);
   if(ffor.length)lista=lista.filter(c=>ffor.includes(c.fornecedor||''));
   if(feo.length){const _ne=new Set(obras.filter(o=>feo.includes(o.estado)).map(o=>o.num));lista=lista.filter(c=>_ne.has(c.obraNum));}
+  /* [v286] os custos de obras arquivadas acompanham o arquivo da obra (não aparecem na lista ativa) */
+  try{const _arqNums=new Set(obras.filter(o=>o.arquivada).map(o=>String(o.num)));if(_arqNums.size)lista=lista.filter(c=>!_arqNums.has(String(c.obraNum)));}catch(e){}
   // ordenação
   const dir=custosOrd.dir==='asc'?1:-1;
   lista.sort((a,b)=>{const va=valorOrdenacao(a,custosOrd.campo),vb=valorOrdenacao(b,custosOrd.campo);
@@ -16223,7 +16272,7 @@ function instalarObservadoresColunas(){
 
 carregarColPrefs();
 function aplicarZoom(){ try{
-  var z=parseInt((typeof uiLer==='function'?uiLer('crm_zoom'):localStorage.getItem('crm_zoom'))||'100',10); if(!(z>=70&&z<=150))z=100;
+  var z=parseInt((typeof uiLer==='function'?uiLer('crm_zoom'):localStorage.getItem('crm_zoom'))||'100',10); if(!(z>=40&&z<=150))z=100;
   // limpar quaisquer restos de versoes anteriores (wrapper/transform/width/--zf)
   var wrap=document.getElementById('zoomwrap');
   if(wrap){ try{ var par=wrap.parentNode; while(wrap.firstChild){ par.insertBefore(wrap.firstChild, wrap); } par.removeChild(wrap); }catch(e){} }
@@ -16239,7 +16288,31 @@ function _ajustarIframeAutos(){ try{
   var f=document.getElementById('frame-autosmed'); if(f) f.style.height='';
 }catch(e){} }
 try{ window.addEventListener('resize', function(){ try{_ajustarIframeAutos();}catch(e){} }); }catch(e){}
-function ajustarZoom(delta,repor){ try{ var z=parseInt(uiLer('crm_zoom')||'100',10); if(!(z>=70&&z<=150))z=100; if(repor)z=100; else z=Math.min(150,Math.max(70,z+delta)); uiGravar('crm_zoom',String(z)); aplicarZoom(); }catch(e){} }
+function ajustarZoom(delta,repor){ try{ var z=parseInt(uiLer('crm_zoom')||'100',10); if(!(z>=40&&z<=150))z=100; if(repor)z=100; else z=Math.min(150,Math.max(40,z+delta)); uiGravar('crm_zoom',String(z)); aplicarZoom(); }catch(e){} }
+/* [v287] Ajustar à largura: escolhe o zoom (calculado pela LARGURA) para caberem todas as colunas do separador ativo no ecrã.
+   Mede a 100% para obter as larguras reais, compara a maior tabela/área com a largura disponível e reduz só o necessário. */
+function zoomAjustarLargura(){
+  try{
+    var b=document.body, zPrev=b.style.zoom;
+    b.style.zoom=1; /* medir a 100% para ter as larguras reais */
+    /* procurar o pior "overflow" horizontal entre os contentores/tabelas VISÍVEIS do separador atual
+       (scrollWidth = largura precisa de todas as colunas; clientWidth = largura visível no ecrã) */
+    var ratio=1;
+    var els=[].slice.call(document.querySelectorAll('.table-wrap, table, .cauc-wrap, .an7-wrap'));
+    els.forEach(function(el){
+      if(!el || el.offsetParent===null) return; /* ignorar separadores escondidos */
+      var cw=el.clientWidth||0, sw=el.scrollWidth||0;
+      if(cw>60 && sw>cw+2){ var r=cw/sw; if(r<ratio)ratio=r; }
+    });
+    b.style.zoom=zPrev; /* repor antes de aplicar o cálculo */
+    var z=Math.floor(ratio*100);
+    z=Math.min(100,Math.max(40,z));
+    uiGravar('crm_zoom',String(z)); aplicarZoom();
+    var el=document.getElementById('zoom-val');
+    if(el)el.title=(z<100?('Ajustado à largura ('+z+'%) — todas as colunas cabem. Clique para repor 100%'):'Já cabem todas as colunas a 100%. Clique para repor 100%');
+  }catch(e){ try{aplicarZoom();}catch(_){} }
+}
+window.zoomAjustarLargura=zoomAjustarLargura;
 aplicarZoom();
 carregarConfigGraficos();
 carregarCustomCharts();
@@ -18102,7 +18175,18 @@ function confirmarLancamento(){
       +cronHTML(r,chave);
     openModal('modal-cauc-cli');
   };
-  window.ccSet=function(chave,campo,val){var r=cli[chave];if(!r)return;var pctF=['cauPct','retPct'].indexOf(campo)>=0,numF=['cauEstim','garValor','retEstim','retValor','libertar'].indexOf(campo)>=0;r[campo]=pctF&&val!==''?(num(val)>1?num(val)/100:num(val)):(numF?num(val):val);if(campo==='retValor')r.retValorManual=(val!==''&&val!=null);/* [v276] valor manual deixa de ser apagado pela auto-sincronização */cliSave();renderCaucClientes();};
+  window.ccSet=function(chave,campo,val){var r=cli[chave];if(!r)return;var pctF=['cauPct','retPct'].indexOf(campo)>=0,numF=['cauEstim','garValor','retEstim','retValor','libertar'].indexOf(campo)>=0;r[campo]=pctF&&val!==''?(num(val)>1?num(val)/100:num(val)):(numF?num(val):val);if(campo==='retValor')r.retValorManual=(val!==''&&val!=null);/* [v276] valor manual deixa de ser apagado pela auto-sincronização */
+    /* [v285] sincronização BIDIRECIONAL: campos partilhados com a obra escrevem de volta na obra
+       e atualizam todos os separadores (antes a edição na caução era revertida pela sincronização). */
+    try{var _o=acharObra(r);
+      if(_o&&(campo==='natureza'||campo==='nome')){
+        if(campo==='natureza')_o.tipoCliente=val; else _o.nome=val;
+        try{window._ccUltimaEdicaoLocal=Date.now();}catch(_){}
+        if(typeof guardarTudo==='function')guardarTudo();
+        if(typeof window.obrasMudaram==='function')window.obrasMudaram();
+      }
+    }catch(e){}
+    cliSave();renderCaucClientes();};
   window.ccSetConsignacao=function(chave,val){var r=cli[chave];if(!r)return;var o=acharObra(r);r.consignacao=val;if(o){o.consignacao=val;try{if(typeof guardarTudo==='function')guardarTudo();}catch(e){}try{if(typeof renderObrasTable==='function')renderObrasTable();}catch(e){}}cliSave();renderCaucClientes();if(detAberto&&detAberto.tipo==='cli'&&detAberto.chave===chave)abrirCaucCli(chave);};
   window.ccAno=function(chave,tipo,i,campo,val){var r=cli[chave];if(!r)return;var arr=arrLib(r,tipo);if(!arr[i])arr[i]={};arr[i][campo]=val;cliSave();renderCaucClientes();};
   window.ccProgramar=function(chave,tipo){var r=cli[chave];if(!r)return;if(tipo)programarT(r,tipo);else programar(r);cliSave();abrirCaucCli(chave);renderCaucClientes();};
@@ -18143,8 +18227,10 @@ function confirmarLancamento(){
       var arr=obrasArr();
       function g3(e){e=e||'';return (e==='Pós-Venda'||e==='Pós-venda')?'Pós-Venda':((e==='Concluída'||e==='Concluído'||e==='Cancelada')?'Concluída':'Em Curso');}
       arr.forEach(function(o){
-        if(o.arquivada)return;
         var ex=Object.keys(cli).find(function(k){return acharObra(cli[k])===o;});
+        /* [v286] arquivar/eliminar a obra propaga para a caução (e não é revertido); reabrir a obra reabre só as cauções que a obra arquivou */
+        if(o.arquivada){ if(ex){cli[ex].arquivada=true;cli[ex]._arqPelaObra=true;} return; }
+        if(ex&&cli[ex]._arqPelaObra){cli[ex].arquivada=false;cli[ex]._arqPelaObra=false;}
         if(ex){var r=cli[ex];if(!r.retValorManual)r.retValor=+retidoObra(o).toFixed(2);/* [v276] não apaga o valor efetivo introduzido à mão */r._obraNum=String(o.num);r.estado=(window.grpEstadoNorm?window.grpEstadoNorm(o.estado):g3(o.estado));if(o.nome)r.nome=o.nome;if(o.tipoCliente)r.natureza=o.tipoCliente;r.nobra=String(o.num);if(o.cauTipo)r.tipoCaucao=o.cauTipo;if(o.cauPct!=null&&o.cauPct!=='')r.retPct=(+o.cauPct)/100;}
         else{var _rp=(o.cauPct!=null&&o.cauPct!==''?(+o.cauPct)/100:(o.retencaoPct||0.05));cli[String(o.num)]={cod:String(o.num),nobra:String(o.num),nome:o.nome||'',natureza:o.tipoCliente||'',estado:g3(o.estado),tipoCaucao:(o.cauTipo||''),retPct:_rp,retEstim:+((+o.adj||0)*_rp).toFixed(2),retValor:+retidoObra(o).toFixed(2),prazo:'5 anos',anos:[{},{},{},{},{}],_obraNum:String(o.num)};}
       });
@@ -21325,7 +21411,28 @@ function imprimirMapaObra(numObra){
       else if(subAtual==='reg'){try{if(window.rpRenderRegisto)window.rpRenderRegisto();}catch(e){}}
     }catch(e){try{console.warn('rp render',e);}catch(_){}}
   }
-  window.renderRevisao=function(){ rpRender(); };
+  /* [v288] reordenar (arrastar) os sub-separadores da Revisão — guardado por utilizador */
+  function _rpAplicarOrdemSub(){
+    try{
+      var nav=g('rp-subnav'); if(!nav)return;
+      var ordem=null; try{ordem=JSON.parse((typeof uiLer==='function'?uiLer('rpSubOrdem_v1'):localStorage.getItem('rpSubOrdem_v1'))||'null');}catch(e){}
+      if(ordem&&ordem.length){ ordem.forEach(function(id){var b=g(id); if(b)nav.appendChild(b);}); }
+    }catch(e){}
+  }
+  function _rpGravarOrdemSub(){
+    try{var nav=g('rp-subnav'); if(!nav)return; var ids=[].slice.call(nav.querySelectorAll('.tab-inner-btn')).map(function(b){return b.id;}); if(typeof uiGravar==='function')uiGravar('rpSubOrdem_v1',JSON.stringify(ids)); else localStorage.setItem('rpSubOrdem_v1',JSON.stringify(ids));}catch(e){}
+  }
+  function _rpSubDragSetup(){
+    var nav=g('rp-subnav'); if(!nav||nav._dragOn)return; nav._dragOn=true;
+    var dragEl=null;
+    [].slice.call(nav.querySelectorAll('.tab-inner-btn')).forEach(function(b){
+      b.draggable=true; b.style.cursor='grab'; b.title=(b.title||b.textContent)+' — arraste para reordenar';
+      b.addEventListener('dragstart',function(e){dragEl=b;try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','x');}catch(_){} b.style.opacity='.5';});
+      b.addEventListener('dragend',function(){b.style.opacity='';dragEl=null;_rpGravarOrdemSub();});
+      b.addEventListener('dragover',function(e){e.preventDefault(); if(!dragEl||dragEl===b)return; var r=b.getBoundingClientRect(); var antes=(e.clientX<r.left+r.width/2); nav.insertBefore(dragEl, antes?b:b.nextSibling);});
+    });
+  }
+  window.renderRevisao=function(){ try{_rpAplicarOrdemSub();_rpSubDragSetup();}catch(e){} rpRender(); };
 
   /* ═══════════ SUB: CÁLCULO POR OBRA ═══════════ */
   var rpObraSel='';
@@ -22432,12 +22539,13 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
   function rgGravar(d){try{localStorage.setItem(RP_KEY,JSON.stringify(d));}catch(e){alert('Sem espaço para gravar o registo.');}try{if(window._syncAgendar)window._syncAgendar();}catch(e){}}
   function rgObra(d,num){ d.registo=d.registo||{}; if(!d.registo[num])d.registo[num]={estados:'',valorRevisto:'',extra:'',dataActualiz:'',pedidos:[]}; if(!Array.isArray(d.registo[num].pedidos))d.registo[num].pedidos=[]; return d.registo[num]; }
 
+  var verArquivo=false; /* [v288] alternar entre obras ativas e arquivadas no registo */
   function obrasLista(){
-    var base=(typeof obras!=='undefined'?obras:[]).filter(function(o){return o&&!o.arquivada;});
+    var base=(typeof obras!=='undefined'?obras:[]).filter(function(o){return o&&(verArquivo?!!o.arquivada:!o.arquivada);});
     var vistos={}; base.forEach(function(o){vistos[String(o.num)]=1;});
     /* inclui obras que só existem no registo importado (Excel) — para nada ficar escondido */
     try{ var d=rgLer(); var reg=d.registo||{};
-      Object.keys(reg).forEach(function(num){ if(!vistos[String(num)]){ var r=reg[num]||{}; base=base.concat([{num:num,nome:(r.nomeObra||''),estado:'',tipoCliente:(r.tipoObra||''),_soRegisto:true}]); vistos[String(num)]=1; } });
+      Object.keys(reg).forEach(function(num){ if(!vistos[String(num)]){ var r=reg[num]||{}; var arq=!!r._arq; vistos[String(num)]=1; if(arq===verArquivo){ base=base.concat([{num:num,nome:(r.nomeObra||''),estado:'',tipoCliente:(r.tipoObra||''),_soRegisto:true,_arq:arq}]); } } });
     }catch(e){}
     return base.sort(function(a,b){return String(a.num).localeCompare(String(b.num),'pt',{numeric:true});});
   }
@@ -22475,7 +22583,9 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
     var host=g('rp-sub-reg'); if(!host)return;
     var lista=obrasLista();
     var h='<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Registo de revisão por obra: <b>proposta</b> e <b>estado</b> vêm das Obras, o <b>valor da revisão (ordinária)</b> e o <b>% executado</b> vêm do cálculo/facturação. Preencha os <b>pedidos</b>, <b>facturas</b> e <b>pagamentos</b>. Tudo sincroniza automaticamente.</div>';
-    h+='<div class="toolbar" style="margin-bottom:8px"><input type="search" id="rg-busca" placeholder="Pesquisar obra…" oninput="rpRenderRegisto()" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px"><span style="flex:1"></span><button class="btn" onclick="_rgExcel()"><i class="ti ti-file-spreadsheet"></i> Excel</button></div>';
+    h+='<div class="toolbar" style="margin-bottom:8px"><input type="search" id="rg-busca" placeholder="Pesquisar obra…" oninput="rpRenderRegisto()" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px"><span style="flex:1"></span>'
+      +'<button class="btn'+(verArquivo?' primary':'')+'" onclick="_rgToggleArquivo()" title="Alternar entre obras ativas e arquivadas"><i class="ti ti-archive"></i> '+(verArquivo?'A ver arquivo':'Ver arquivo')+'</button>'
+      +'<button class="btn" onclick="_rgExcel()"><i class="ti ti-file-spreadsheet"></i> Excel</button></div>';
     var q=(g('rg-busca')?g('rg-busca').value:'').toLowerCase();
     var tot={proposta:0,revOrd:0,extra:0,pedido:0,fat:0,pago:0,porPedir:0,porFat:0,porPagar:0};
     var rows='';
@@ -22500,7 +22610,12 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
         +'<td class="num">'+eur(c.totPedido)+'</td>'
         +'<td class="num">'+eur(c.totFat)+'</td>'
         +'<td class="num" style="color:var(--green)">'+eur(c.totPago)+'</td>'
-        +'<td style="white-space:nowrap"><button class="btn sm primary" onclick="_rgAbrirPedidos(\''+escA(o.num)+'\')"><i class="ti ti-list-details"></i> Pedidos'+(np?(' ('+np+')'):'')+'</button></td>'
+        +'<td style="white-space:nowrap"><button class="btn sm primary" onclick="_rgAbrirPedidos(\''+escA(o.num)+'\')"><i class="ti ti-list-details"></i> Pedidos'+(np?(' ('+np+')'):'')+'</button>'
+          +(verArquivo
+             ?(' <button class="btn sm" onclick="_rgRepor(\''+escA(o.num)+'\')" title="Repor (tirar do arquivo)"><i class="ti ti-archive-off"></i></button>'
+              +'<button class="btn sm danger" onclick="_rgApagar(\''+escA(o.num)+'\')" title="Apagar definitivamente"><i class="ti ti-trash"></i></button>')
+             :(' <button class="btn sm" onclick="_rgArquivar(\''+escA(o.num)+'\')" title="Passar para arquivo"><i class="ti ti-archive"></i></button>'))
+          +'</td>'
         +'</tr>';
     });
     h+='<div class="card" style="padding:0"><div class="table-wrap" style="overflow:auto;max-height:66vh"><table class="an7-tbl" style="font-size:11.5px;min-width:1500px"><thead><tr>'
@@ -22515,6 +22630,29 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
   };
 
   window._rgSet=function(num,campo,val){ var d=rgLer(); var r=rgObra(d,num); r[campo]=val; rgGravar(d); rpRenderRegisto(); };
+
+  /* [v288] arquivar / repor / apagar obras a partir do Registo — sincroniza com o separador Obras e todos os separadores */
+  window._rgToggleArquivo=function(){ verArquivo=!verArquivo; rpRenderRegisto(); };
+  function _rgEmObras(num){ return (typeof obras!=='undefined'?obras:[]).find(function(x){return String(x.num)===String(num);}); }
+  window._rgArquivar=function(num){
+    var o=_rgEmObras(num);
+    if(o){ if(typeof arquivarObra==='function')arquivarObra(num); else {o.arquivada=true; if(window.obrasMudaram)window.obrasMudaram();} }
+    else { var d=rgLer(); var r=rgObra(d,num); r._arq=true; rgGravar(d); }
+    rpRenderRegisto();
+  };
+  window._rgRepor=function(num){
+    var o=_rgEmObras(num);
+    if(o){ if(typeof reporObra==='function')reporObra(num); else {o.arquivada=false; if(window.obrasMudaram)window.obrasMudaram();} }
+    else { var d=rgLer(); var r=rgObra(d,num); r._arq=false; rgGravar(d); }
+    rpRenderRegisto();
+  };
+  window._rgApagar=function(num){
+    if(!confirm('Apagar definitivamente a obra '+num+' e tudo o que lhe está ligado (compras, custos, cauções e este registo)?\n\nEsta ação não pode ser anulada.'))return;
+    var o=_rgEmObras(num);
+    if(o){ if(typeof window.apagarObraCompleta==='function')window.apagarObraCompleta(num); }
+    else { var d=rgLer(); if(d.registo&&d.registo[num]){delete d.registo[num];rgGravar(d);} }
+    rpRenderRegisto();
+  };
 
   /* editor de pedidos (overlay) */
   window._rgAbrirPedidos=function(num){
