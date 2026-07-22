@@ -390,7 +390,7 @@ table td{vertical-align:middle}
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
       <button class="btn sm" onclick="zoomAjustarLargura()" style="padding:2px 6px" title="Ajustar à largura — reduzir para caberem todas as colunas no ecrã"><i class="ti ti-arrows-horizontal"></i></button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v290</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v291</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -8060,7 +8060,7 @@ function saveCentro(){
   guardarRH();closeModal('modal-centro');renderRHCentros();
 }
 function toggleCentro(id){const cc=centrosCusto.find(x=>String(x.id)===String(id));if(cc){cc.ativo=!cc.ativo;guardarRH();renderRHCentros();}}
-function removeCentro(id){if(!confirm('Eliminar este centro de custo?'))return;centrosCusto=centrosCusto.filter(x=>String(x.id)!==String(id));guardarRH();renderRHCentros();}
+function removeCentro(id){if(!confirm('Eliminar este centro de custo?'))return;centrosCusto=centrosCusto.filter(x=>String(x.id)!==String(id));try{if(window.ccMarcarApagado)window.ccMarcarApagado(id);}catch(e){}guardarRH();renderRHCentros();}
 
 // ══════ DISTRIBUIÇÃO ══════
 let distColabId=null;
@@ -8311,7 +8311,7 @@ function saveColab(){
   guardarRH();closeModal('modal-colab');renderRHColab();
 }
 function removeColab(id){if(!confirm('Eliminar este colaborador? Os custos RH associados também serão removidos.'))return;
-  rhColab=rhColab.filter(x=>String(x.id)!==String(id));guardarRH();aplicarCustosRH();renderRHColab();}
+  rhColab=rhColab.filter(x=>String(x.id)!==String(id));try{if(window.ccMarcarApagado)window.ccMarcarApagado(id);}catch(e){}guardarRH();aplicarCustosRH();renderRHColab();}
 /* [v248] arquivo de colaboradores */
 function rhArquivarColab(id){
   const c=rhColab.find(x=>String(x.id)===String(id));if(!c)return;
@@ -9840,7 +9840,7 @@ async function cpAnexoVer(qual){
   }catch(_){}
 }
 
-function removeCompra(id){if(!confirm('Eliminar este processo?'))return;compras=compras.filter(x=>String(x.id)!==String(id));guardarCompras();renderCompras();}
+function removeCompra(id){if(!confirm('Eliminar este processo?'))return;compras=compras.filter(x=>String(x.id)!==String(id));try{if(window.ccMarcarApagado)window.ccMarcarApagado(id);}catch(e){}guardarCompras();renderCompras();}
 
 // ---- exportar ----
 function exportComprasCSV(){
@@ -12752,6 +12752,7 @@ function removeIndireto(id){
   if(!confirm('Eliminar este custo indireto?'))return;
   const idx=indiretos.findIndex(i=>i.id===id);
   if(idx>=0){indiretos.splice(idx,1);
+    try{if(window.ccMarcarApagado)window.ccMarcarApagado(id);}catch(e){} /* [v291] marca imediata — a cloud não o ressuscita */
     if(typeof agregarCustosNasObras==='function')agregarCustosNasObras();
     renderIndiretos();
     if(typeof agendarGravacao==='function')agendarGravacao();}
@@ -13820,6 +13821,13 @@ function esvaziarArquivo(){
   const nums=new Set(obrasArq.map(o=>o.num));
   if(obrasArq.length===0&&comprasArq.length===0){alert('O arquivo está vazio.');return;}
   if(!confirm('Apagar definitivamente TUDO o que está em arquivo?\n\n- '+obrasArq.length+' obra(s) arquivada(s) (com os seus contratos e custos)\n- '+comprasArq.length+' contrato(s) arquivado(s)\n\nEsta ação não pode ser anulada.'))return;
+  try{ /* [v291] tombstones imediatos para tudo o que vai ser apagado — a cloud não ressuscita */
+    if(window.ccMarcarApagadoObra)obrasArq.forEach(function(o){window.ccMarcarApagadoObra(o.num);});
+    if(window.ccMarcarApagado){
+      compras.forEach(function(c){ if(c.arquivada||nums.has(c.obra))window.ccMarcarApagado(c.id); });
+      if(typeof custos!=='undefined')custos.forEach(function(c){ if(nums.has(c.obraNum))window.ccMarcarApagado(c.id); });
+    }
+  }catch(e){}
   obras=obras.filter(o=>!o.arquivada);
   compras=compras.filter(c=>!c.arquivada && !nums.has(c.obra));
   if(typeof custos!=='undefined')custos=custos.filter(c=>!nums.has(c.obraNum));
@@ -13847,6 +13855,8 @@ window.apagarObraCompleta=function(num){
   try{
     num=String(num);
     obras=obras.filter(function(o){return String(o.num)!==num;});
+    try{if(window.ccMarcarApagadoObra)window.ccMarcarApagadoObra(num);}catch(e){} /* [v291] a cloud não a ressuscita */
+    try{if(typeof compras!=='undefined'&&window.ccMarcarApagado)compras.forEach(function(c){if(String(c.obra)===num)window.ccMarcarApagado(c.id);});}catch(e){}
     if(typeof compras!=='undefined')compras=compras.filter(function(c){return String(c.obra)!==num;});
     if(typeof custos!=='undefined')custos=custos.filter(function(c){return String(c.obraNum)!==num;});
     try{
@@ -14402,7 +14412,7 @@ function _novoIdCusto(i){ /* [v276] id único e à prova de colisões (o antigo 
 function removeCusto(id){
   if(!confirm('Eliminar este custo?'))return;
   const idx=custos.findIndex(c=>String(c.id)===String(id));
-  if(idx>=0){custos.splice(idx,1);aplicarCustos();}
+  if(idx>=0){custos.splice(idx,1);try{if(window.ccMarcarApagado)window.ccMarcarApagado(id);}catch(e){}aplicarCustos();}
 }
 // recalcula tudo após mudança em custos
 function aplicarCustos(){
@@ -19317,6 +19327,12 @@ function confirmarLancamento(){
   var _CC_TOMB_KEY='cc_tomb_v1', _CC_TOMB_DIAS=60;
   function _ccTombLer(){ try{var t=JSON.parse(localStorage.getItem(_CC_TOMB_KEY)||'{}');return (t&&typeof t==='object'&&!Array.isArray(t))?t:{};}catch(e){return {};} }
   function _ccTombGravar(t){ try{localStorage.setItem(_CC_TOMB_KEY,JSON.stringify(t));}catch(e){} }
+  /* [v291] tombstone IMEDIATO ao apagar: antes, a marca de "apagado" só era registada quando uma
+     sincronização corria e comparava com o instantâneo da sessão (_syncSnap). Se se apagava um registo
+     antes da 1ª sincronização (ou offline), não ficava marca nenhuma e a cópia da cloud RESSUSCITAVA o
+     registo (era isto que fazia os custos indiretos apagados voltarem a aparecer). */
+  window.ccMarcarApagado=function(id){ try{ var t=_ccTombLer(); t['#'+String(id)]=Date.now(); _ccTombGravar(t); }catch(e){} };
+  window.ccMarcarApagadoObra=function(num){ try{ var t=_ccTombLer(); t['num#'+String(num)]=Date.now(); _ccTombGravar(t); }catch(e){} };
   function _ccTombJuntar(){
     var out={},agora=Date.now(),lim=_CC_TOMB_DIAS*86400000;
     for(var i=0;i<arguments.length;i++){var m=arguments[i];if(!m||typeof m!=='object')continue;
@@ -23007,6 +23023,52 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
     try{ var mo=new MutationObserver(function(){ clearTimeout(window.__acT); window.__acT=setTimeout(varrer,120); }); mo.observe(host,{childList:true,subtree:true}); }catch(e){ setInterval(varrer,1500); }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(ligar,400);}); else setTimeout(ligar,400);
+})();
+</script>
+<script>
+/* [v291] Barras de filtros/botões reordenáveis por arrasto em TODOS os separadores.
+   Arraste um botão/filtro para outra posição da barra; a ordem fica guardada por utilizador.
+   (Os campos de pesquisa não se arrastam — para se poder selecionar o texto — mas mudam de
+   posição quando se arrastam os outros à volta.) */
+(function(){
+  var KEY='tbOrdem_v1';
+  function lerMapa(){try{return JSON.parse((typeof uiLer==='function'?uiLer(KEY):localStorage.getItem(KEY))||'{}')||{};}catch(e){return{};}}
+  function gravarMapa(m){try{var s=JSON.stringify(m);if(typeof uiGravar==='function')uiGravar(KEY,s);else localStorage.setItem(KEY,s);}catch(e){}}
+  function chaveDe(tb){
+    var tab=tb.closest('.tab');var tabId=tab&&tab.id?tab.id:'x';var idx=0;
+    if(tab){var all=tab.querySelectorAll('.toolbar');for(var i=0;i<all.length;i++){if(all[i]===tb){idx=i;break;}}}
+    return tabId+':'+idx;
+  }
+  function aplicar(tb){
+    try{var ord=lerMapa()[chaveDe(tb)];if(!ord||!ord.length)return;
+      var mapa={};[].slice.call(tb.children).forEach(function(el){if(el.dataset.tbi!==undefined)mapa[el.dataset.tbi]=el;});
+      ord.forEach(function(k){var el=mapa[k];if(el)tb.appendChild(el);});}catch(e){}
+  }
+  function guardar(tb){
+    try{var m=lerMapa();m[chaveDe(tb)]=[].slice.call(tb.children).map(function(el){return el.dataset.tbi;}).filter(function(x){return x!==undefined;});gravarMapa(m);}catch(e){}
+  }
+  function setup(tb){
+    if(!tb||tb._movOn)return;tb._movOn=true;
+    var kids=[].slice.call(tb.children);
+    kids.forEach(function(el,i){if(el.dataset.tbi===undefined)el.dataset.tbi=String(i);});
+    aplicar(tb);
+    var dragEl=null;
+    kids.forEach(function(el){
+      var ehTexto=(el.tagName==='INPUT'&&(el.type==='search'||el.type==='text'||el.type===''));
+      if(ehTexto)return; /* pesquisa mantém a seleção de texto */
+      el.draggable=true;
+      if(!/arraste/i.test(el.title||''))el.title=(el.title?el.title+' · ':'')+'arraste para mudar a posição';
+      el.addEventListener('dragstart',function(e){dragEl=el;try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','x');}catch(_){}el.style.opacity='.45';});
+      el.addEventListener('dragend',function(){el.style.opacity='';dragEl=null;guardar(tb);});
+      el.addEventListener('dragover',function(e){e.preventDefault();if(!dragEl||dragEl===el||dragEl.parentNode!==tb)return;var r=el.getBoundingClientRect();var antes=(e.clientX<r.left+r.width/2);tb.insertBefore(dragEl,antes?el:el.nextSibling);});
+    });
+    tb.addEventListener('dragover',function(e){e.preventDefault();});
+  }
+  function varrer(){try{document.querySelectorAll('.tab .toolbar').forEach(setup);}catch(e){}}
+  try{var _st=window.showTab;
+    if(typeof _st==='function'){window.showTab=function(id,btn){var r;try{r=_st.apply(this,arguments);}catch(e){}try{setTimeout(varrer,400);}catch(e){}return r;};}
+  }catch(e){}
+  setTimeout(varrer,1500);
 })();
 </script>
 </body>
