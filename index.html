@@ -390,7 +390,7 @@ table td{vertical-align:middle}
       <button class="btn sm" onclick="ajustarZoom(10)" style="padding:2px 7px" title="Aumentar">+</button>
       <button class="btn sm" onclick="zoomAjustarLargura()" style="padding:2px 6px" title="Ajustar à largura — reduzir para caberem todas as colunas no ecrã"><i class="ti ti-arrows-horizontal"></i></button>
     </div>
-    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v289</span>
+    <span id="hd-versao" style="font-family:monospace;font-size:11px;color:#2563eb;background:rgba(37,99,235,.12);padding:3px 8px;border-radius:6px">v290</span>
     <div style="position:relative" id="user-menu-wrap">
       <button class="btn" id="user-menu" onclick="toggleUserMenu(event)" title="Conta" style="display:none;align-items:center;gap:6px"><i class="ti ti-user-circle"></i><span id="login-user-name"></span><i class="ti ti-chevron-down" style="font-size:13px"></i></button>
       <div id="user-dropdown" class="user-dropdown">
@@ -4895,6 +4895,8 @@ try{ window.AutosNat.validar = validar; }catch(e){}
       <option value="fornecedor">Agrupar por fornecedor</option>
       <option value="familia">Agrupar por família</option>
       <option value="obra">Agrupar por obra</option>
+      <option value="mesobra">Agrupar por mês/ano › obra</option>
+      <option value="mesfornecedor">Agrupar por mês/ano › fornecedor</option>
     </select>
   </div>
   <div style="font-size:11px;color:var(--muted);margin:-4px 0 10px"><i class="ti ti-info-circle"></i> Edição rápida na tabela: faça <strong>duplo-clique</strong> em Fornecedor, Documento, Descrição, Valor ou IVA para alterar sem abrir o formulário.</div>
@@ -6297,6 +6299,18 @@ try{ window.AutosNat.validar = validar; }catch(e){}
             <option>Seguros</option><option>Garantias bancárias e comissões</option><option>Juros e encargos financeiros</option>
             <option>Licenças e alvarás (IMPIC etc.)</option><option>Impostos e taxas</option><option>Quotas e associações</option>
           </optgroup>
+          <optgroup label="Estaleiro e obra">
+            <option>Estaleiro — montagem e desmontagem</option><option>Instalações sociais (contentores/escritório de obra)</option>
+            <option>Vedações, tapumes e sinalização</option><option>Água/energia/telecom. provisórias de obra</option>
+            <option>Segurança e saúde (plano SS / coordenação)</option><option>EPC / EPI de obra</option>
+            <option>Ensaios e controlo de qualidade (laboratório)</option><option>Topografia e piquetagem</option>
+            <option>Limpeza de obra e remoção de entulhos (RCD)</option><option>Vigilância / guarda de obra</option>
+            <option>Gruas e meios de elevação</option><option>Andaimes e cofragens de apoio</option>
+            <option>Equipamento de apoio (geradores/compressores/betoneiras)</option><option>Manutenção de acessos e caminhos</option>
+            <option>Direção de obra e encarregado (indireto)</option><option>Fiscalização / coord. de segurança</option>
+            <option>Seguro de obra (Todos os Riscos Construção - CAR)</option><option>Consumíveis e ferramentas de desgaste</option>
+            <option>Transporte de equipamento a/da obra</option>
+          </optgroup>
           <optgroup label="Outros">
             <option>Estaleiro</option><option>Transportes</option><option>Marketing e publicidade</option>
             <option>Software e informática</option><option>Alojamento e refeições</option><option>Amortizações</option><option>Outro</option>
@@ -7322,7 +7336,8 @@ function fmtPct(v){if(!isFinite(v))return'—';return(v*100).toFixed(2)+'%';}
 function valorObra(o){return o.adj+(o.revPrecos||0)+(o.trabalhosMais||0)-(o.errosOmissoes||0);}
 function margem(o){return o.autos-o.custos-o.gastosGerais;}
 function rentab(o){const ct=o.custos+o.gastosGerais;return ct>0?margem(o)/ct:0;}
-function pctExec(o){const vo=valorObra(o);return vo>0?o.autos/vo:0;}
+function obraConcluida(o){try{return (window.grpEstadoNorm?window.grpEstadoNorm(o&&o.estado):'')==='Concluída';}catch(e){return false;}}
+function pctExec(o){if(obraConcluida(o))return 1;/* [v290] obra concluída = 100% executada */const vo=valorObra(o);return vo>0?o.autos/vo:0;}
 // ── FINANCEIRO MENSAL / FATURAÇÃO / RETENÇÕES / LIQUIDEZ ──────────────
 // Garante que uma obra tem os campos financeiros e a estrutura mensal coerente.
 function ensureFin(o){
@@ -15376,6 +15391,9 @@ function renderCustos(resetPag){
       if(agr==='fornecedor')return c.fornecedor||'(sem fornecedor)';
       if(agr==='familia')return familiaCodigo(c.familiaId);
       if(agr==='obra'){const o=obras.find(x=>x.num===c.obraNum);return `${c.obraNum}|${c.obraNum}${o?' — '+o.nome:''}`;}
+      /* [v290] agrupar por mês/ano + obra ou mês/ano + fornecedor */
+      if(agr==='mesobra'){const o=obras.find(x=>x.num===c.obraNum);return `${c.ano||'0000'}-${String(c.mesNum).padStart(2,'0')}-${c.obraNum||''}|${mesNomeDe(c.mesNum)}/${c.ano||'—'} · ${c.obraNum||'(sem obra)'}${o?' — '+o.nome:''}`;}
+      if(agr==='mesfornecedor')return `${c.ano||'0000'}-${String(c.mesNum).padStart(2,'0')}-${(c.fornecedor||'~').toLowerCase()}|${mesNomeDe(c.mesNum)}/${c.ano||'—'} · ${c.fornecedor||'(sem fornecedor)'}`;
       return '';
     };
     const grupos={};
@@ -22567,6 +22585,9 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
   function rgObra(d,num){ d.registo=d.registo||{}; if(!d.registo[num])d.registo[num]={estados:'',valorRevisto:'',extra:'',dataActualiz:'',pedidos:[]}; if(!Array.isArray(d.registo[num].pedidos))d.registo[num].pedidos=[]; return d.registo[num]; }
 
   var verArquivo=false; /* [v288] alternar entre obras ativas e arquivadas no registo */
+  var rgEstadoColaps={}, rgColapseAll=false; /* [v290] grupos por estado colapsáveis */
+  window._rgToggleEstado=function(est){ var k=String(est); var cur=(rgEstadoColaps[k]!==undefined)?!!rgEstadoColaps[k]:rgColapseAll; rgEstadoColaps[k]=!cur; _rgReRender(verArquivo); };
+  window._rgExpandTodos=function(ab){ rgColapseAll=!ab; rgEstadoColaps={}; _rgReRender(verArquivo); };
   function obrasLista(){
     var base=(typeof obras!=='undefined'?obras:[]).filter(function(o){return o&&(verArquivo?!!o.arquivada:!o.arquivada);});
     var vistos={}; base.forEach(function(o){vistos[String(o.num)]=1;});
@@ -22590,6 +22611,7 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
     var extra=nnum(r.extra);
     var revisto=r.valorRevisto!==''&&r.valorRevisto!=null?nnum(r.valorRevisto):(proposta+revOrd+extra);
     var execPct=proposta>0?(producao/proposta):0;
+    if((window.grpEstadoNorm?window.grpEstadoNorm(o.estado):'')==='Concluída')execPct=1; /* [v290] obra concluída = 100% */
     var peds=r.pedidos||[];
     var totPedido=0,totAprov=0,totFat=0,totPago=0;
     peds.forEach(function(pd){
@@ -22616,16 +22638,14 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
       ?'<div class="alert warn" style="margin-bottom:10px"><i class="ti ti-archive"></i> <b>Arquivo</b> da Revisão de Preços — obras arquivadas (acompanham o arquivo do separador Obras). Pode <b>repor</b> ou <b>apagar definitivamente</b>.</div>'
       :'<div class="alert ok" style="margin-bottom:10px"><i class="ti ti-info-circle"></i> Registo de revisão por obra: <b>proposta</b> e <b>estado</b> vêm das Obras, o <b>valor da revisão (ordinária)</b> e o <b>% executado</b> vêm do cálculo/facturação. Preencha os <b>pedidos</b>, <b>facturas</b> e <b>pagamentos</b>. Tudo sincroniza automaticamente.</div>';
     h+='<div class="toolbar" style="margin-bottom:8px"><input type="search" id="'+buscaId+'" placeholder="Pesquisar obra…" oninput="'+(verArquivo?'rpRenderArquivo':'rpRenderRegisto')+'()" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px"><span style="flex:1"></span>'
+      +'<button class="btn sm" onclick="_rgExpandTodos(true)" title="Expandir todos os estados"><i class="ti ti-chevrons-down"></i></button>'
+      +'<button class="btn sm" onclick="_rgExpandTodos(false)" title="Minimizar todos os estados"><i class="ti ti-chevrons-up"></i></button>'
       +'<button class="btn" onclick="_rgExcel()"><i class="ti ti-file-spreadsheet"></i> Excel</button></div>';
     var q=(g(buscaId)?g(buscaId).value:'').toLowerCase();
     var tot={proposta:0,revOrd:0,extra:0,pedido:0,fat:0,pago:0,porPedir:0,porFat:0,porPagar:0};
-    var rows='';
-    lista.forEach(function(o){
-      if(q){var t=((o.num||'')+' '+(o.nome||'')).toLowerCase(); if(t.indexOf(q)<0)return;}
-      var c=rgCalc(o.num);
-      tot.proposta+=c.proposta;tot.revOrd+=c.revOrd;tot.extra+=c.extra;tot.pedido+=c.totPedido;tot.fat+=c.totFat;tot.pago+=c.totPago;tot.porPedir+=c.porPedir;tot.porFat+=c.porFaturar;tot.porPagar+=c.porPagar;
+    function linhaRegisto(o,c){
       var np=(c.r.pedidos||[]).filter(function(p){return p&&(p.valor||p.data||p.factura);}).length;
-      rows+='<tr>'
+      return '<tr>'
         +'<td style="white-space:nowrap">'+esc(o.num||'')+'</td>'
         +'<td style="min-width:160px">'+esc((o.nome||'').substring(0,40))+'</td>'
         +'<td style="white-space:nowrap">'+esc(o.estado||'')+'</td>'
@@ -22646,15 +22666,43 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
              ?(' <button class="btn sm" onclick="_rgRepor(\''+escA(o.num)+'\')" title="Repor (tirar do arquivo)"><i class="ti ti-archive-off"></i></button>'
               +'<button class="btn sm danger" onclick="_rgApagar(\''+escA(o.num)+'\')" title="Apagar definitivamente"><i class="ti ti-trash"></i></button>')
              :(' <button class="btn sm" onclick="_rgArquivar(\''+escA(o.num)+'\')" title="Passar para arquivo"><i class="ti ti-archive"></i></button>'))
-          +'</td>'
-        +'</tr>';
+          +'</td></tr>';
+    }
+    /* [v290] agrupar por ESTADO (com minimizar/maximizar) */
+    var ORDEM=(window.GRUPOS_ORDEM&&window.GRUPOS_ORDEM.length)?window.GRUPOS_ORDEM.slice():['Em Curso','Pós-Venda','Concluída'];
+    if(ORDEM.indexOf('Adjudicada')<0)ORDEM.unshift('Adjudicada');
+    var grupos={}; ORDEM.forEach(function(e){grupos[e]=[];});
+    lista.forEach(function(o){
+      if(q){var t=((o.num||'')+' '+(o.nome||'')).toLowerCase(); if(t.indexOf(q)<0)return;}
+      var est=(window.grpEstadoNorm?window.grpEstadoNorm(o.estado):(o.estado||'Em Curso'))||'Em Curso';
+      if(!grupos[est])grupos[est]=[];
+      grupos[est].push(o);
+    });
+    var corpo='';
+    ORDEM.forEach(function(est){
+      var arr=grupos[est]||[]; if(!arr.length)return;
+      var sg={proposta:0,revOrd:0,extra:0,pedido:0,fat:0,pago:0,porPedir:0,porFat:0,porPagar:0};
+      var linhas='';
+      arr.forEach(function(o){ var c=rgCalc(o.num);
+        tot.proposta+=c.proposta;tot.revOrd+=c.revOrd;tot.extra+=c.extra;tot.pedido+=c.totPedido;tot.fat+=c.totFat;tot.pago+=c.totPago;tot.porPedir+=c.porPedir;tot.porFat+=c.porFaturar;tot.porPagar+=c.porPagar;
+        sg.proposta+=c.proposta;sg.revOrd+=c.revOrd;sg.extra+=c.extra;sg.pedido+=c.totPedido;sg.fat+=c.totFat;sg.pago+=c.totPago;sg.porPedir+=c.porPedir;sg.porFat+=c.porFaturar;sg.porPagar+=c.porPagar;
+        linhas+=linhaRegisto(o,c);
+      });
+      var colaps=q?false:((rgEstadoColaps[est]!==undefined)?!!rgEstadoColaps[est]:rgColapseAll);
+      corpo+='<tr style="background:#eef2ff;cursor:pointer" onclick="_rgToggleEstado(\''+est.replace(/'/g,"\\'")+'\')">'
+        +'<td colspan="3" style="font-weight:700;color:var(--blue);text-align:left"><i class="ti '+(colaps?'ti-chevron-right':'ti-chevron-down')+'" style="margin-right:5px"></i>'+esc(est)+' <span style="font-weight:400;color:var(--muted)">('+arr.length+')</span></td>'
+        +'<td class="num" style="font-weight:700">'+eur(sg.proposta)+'</td><td></td><td></td>'
+        +'<td class="num" style="font-weight:700">'+eur(sg.revOrd)+'</td><td class="num" style="font-weight:700">'+eur(sg.extra)+'</td><td class="num" style="font-weight:700">'+eur(sg.revOrd+sg.extra)+'</td>'
+        +'<td class="num" style="font-weight:700;color:#C77A2E">'+eur(sg.porPedir)+'</td><td class="num" style="font-weight:700;color:#C77A2E">'+eur(sg.porFat)+'</td><td class="num" style="font-weight:700;color:#c0392b">'+eur(sg.porPagar)+'</td>'
+        +'<td class="num" style="font-weight:700">'+eur(sg.pedido)+'</td><td class="num" style="font-weight:700">'+eur(sg.fat)+'</td><td class="num" style="font-weight:700;color:var(--green)">'+eur(sg.pago)+'</td><td></td></tr>';
+      if(!colaps)corpo+=linhas;
     });
     h+='<div class="card" style="padding:0"><div class="table-wrap" style="overflow:auto;max-height:66vh"><table class="an7-tbl" style="font-size:11.5px;min-width:1500px"><thead><tr>'
       +'<th>Cód.</th><th>Obra</th><th>Estado</th><th style="text-align:right">Proposta</th><th style="text-align:right">Revisto</th><th style="text-align:right">% Exec.</th>'
       +'<th style="text-align:right">Revisão</th><th style="text-align:right">Extraord.</th><th style="text-align:right">Rev. Total</th>'
       +'<th style="text-align:right">Por pedir</th><th style="text-align:right">Por facturar</th><th style="text-align:right">Por pagar</th>'
       +'<th style="text-align:right">T. Pedido</th><th style="text-align:right">T. Facturado</th><th style="text-align:right">T. Pago</th><th></th></tr></thead><tbody>'
-      +(rows||'<tr><td colspan="16" style="text-align:center;color:var(--muted);padding:14px">Sem obras.</td></tr>')
+      +(corpo||'<tr><td colspan="16" style="text-align:center;color:var(--muted);padding:14px">Sem obras.</td></tr>')
       +'<tr style="font-weight:800;border-top:2px solid var(--border);background:#f1f4f8"><td colspan="3">TOTAIS</td><td class="num">'+eur(tot.proposta)+'</td><td></td><td></td><td class="num">'+eur(tot.revOrd)+'</td><td class="num">'+eur(tot.extra)+'</td><td class="num">'+eur(tot.revOrd+tot.extra)+'</td><td class="num">'+eur(tot.porPedir)+'</td><td class="num">'+eur(tot.porFat)+'</td><td class="num">'+eur(tot.porPagar)+'</td><td class="num">'+eur(tot.pedido)+'</td><td class="num">'+eur(tot.fat)+'</td><td class="num">'+eur(tot.pago)+'</td><td></td></tr>'
       +'</tbody></table></div></div>';
     host.innerHTML=h;
@@ -22802,10 +22850,13 @@ var caixaCfg={};   try{caixaCfg=JSON.parse(localStorage.getItem('caixa_cfg_v1')|
     var fs=Math.min(cw/8.2, ch*0.42); if(fs<20)fs=20;
     o.fillStyle='#000'; o.textAlign='center'; o.textBaseline='middle';
     o.font='800 '+fs+"px 'Helvetica Neue',Helvetica,Arial,sans-serif";
-    o.fillText('SÁ MACHADO', cw/2, ch/2);
-    o.font='800 '+(fs*0.34)+"px 'Helvetica Neue',Helvetica,Arial,sans-serif";
-    var wTxt=o.measureText('SÁ MACHADO').width;
-    o.fillText('®', cw/2 + wTxt/2*0.0 + (wTxt/2)+fs*0.10, ch/2 - fs*0.30);
+    var wTxt=o.measureText('SÁ MACHADO').width; /* [v290] medir com a fonte GRANDE (antes media com a pequena e o ® caía a meio) */
+    o.fillText('SÁ MACHADO', cw/2, ch/2); /* texto centrado no cartão */
+    /* [v290] ® no canto superior direito do último O */
+    o.textAlign='left';
+    o.font='800 '+(fs*0.28)+"px 'Helvetica Neue',Helvetica,Arial,sans-serif";
+    o.fillText('®', cw/2 + wTxt/2 + fs*0.03, ch/2 - fs*0.32);
+    o.textAlign='center';
     var data;
     try{ data=o.getImageData(0,0,cw,ch).data; }catch(e){ return false; }
     var step=Math.max(3, Math.round(fs/34)); // densidade [v281] mais denso
