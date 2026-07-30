@@ -4,10 +4,130 @@
 # Fonte 2: Diário da República (site) via Playwright — dias mais recentes.
 import json, gzip, datetime, urllib.request, sys, os, re, asyncio
 
-VERSAO = "7.9"          # versão da app/dados (aparece na página)
+VERSAO = "9.4"          # versão da app/dados (aparece na página)
 DATASET_ID = "66d72fbc58cd7a63dae28712"
 JANELA_DIAS = 120
+CTR_DATASET = "66d72d488ca4b7cb2de28712"   # Contratos Públicos - Portal BASE - IMPIC (contratos{ano}.zip)
+JANELA_CTR = 30                             # janela de contratos (dias) — ~800-1100/dia
 KEEP = {"Anúncio de procedimento", "Anúncio de concurso urgente", "Anúncio de Alteração"}
+
+import unicodedata as _ud
+GAZ={
+  "abrantes":"Santarém","agueda":"Aveiro","aguiar da beira":"Guarda","alandroal":"Évora",
+  "albergaria-a-velha":"Aveiro","albufeira":"Faro","alcacer do sal":"Setúbal","alcanena":"Santarém",
+  "alcobaca":"Leiria","alcochete":"Setúbal","alcoutim":"Faro","alenquer":"Lisboa",
+  "alfandega da fe":"Bragança","alijo":"Vila Real","aljezur":"Faro","aljustrel":"Beja","almada":"Setúbal",
+  "almeida":"Guarda","almeirim":"Santarém","almodovar":"Beja","alpiarca":"Santarém",
+  "alter do chao":"Portalegre","alvaiazere":"Leiria","alvito":"Beja","amadora":"Lisboa","amarante":"Porto",
+  "amares":"Braga","anadia":"Aveiro","angra do heroismo":"Açores","ansiao":"Leiria",
+  "arcos de valdevez":"Viana do Castelo","arganil":"Coimbra","armamar":"Viseu","arouca":"Aveiro",
+  "arraiolos":"Évora","arronches":"Portalegre","arruda dos vinhos":"Lisboa","aveiro":"Aveiro",
+  "avis":"Portalegre","azambuja":"Lisboa","baiao":"Porto","barcelos":"Braga","barrancos":"Beja",
+  "barreiro":"Setúbal","batalha":"Leiria","beja":"Beja","belmonte":"Castelo Branco","benavente":"Santarém",
+  "bombarral":"Leiria","borba":"Évora","boticas":"Vila Real","braga":"Braga","braganca":"Bragança",
+  "cabeceiras de basto":"Braga","cadaval":"Lisboa","caldas da rainha":"Leiria","calheta":"Madeira",
+  "calheta de sao jorge":"Açores","camara de lobos":"Madeira","caminha":"Viana do Castelo",
+  "campo maior":"Portalegre","cantanhede":"Coimbra","carrazeda de ansiaes":"Bragança",
+  "carregal do sal":"Viseu","cartaxo":"Santarém","cascais":"Lisboa","castanheira de pera":"Leiria",
+  "castelo branco":"Castelo Branco","castelo de paiva":"Aveiro","castelo de vide":"Portalegre",
+  "castro daire":"Viseu","castro marim":"Faro","castro verde":"Beja","celorico da beira":"Guarda",
+  "celorico de basto":"Braga","chamusca":"Santarém","chaves":"Vila Real","cinfaes":"Viseu",
+  "coimbra":"Coimbra","condeixa-a-nova":"Coimbra","constancia":"Santarém","coruche":"Santarém",
+  "corvo":"Açores","covilha":"Castelo Branco","crato":"Portalegre","cuba":"Beja","elvas":"Portalegre",
+  "entroncamento":"Santarém","espinho":"Aveiro","esposende":"Braga","estarreja":"Aveiro","estremoz":"Évora",
+  "evora":"Évora","fafe":"Braga","faro":"Faro","felgueiras":"Porto","ferreira do alentejo":"Beja",
+  "ferreira do zezere":"Santarém","figueira da foz":"Coimbra","figueira de castelo rodrigo":"Guarda",
+  "figueiro dos vinhos":"Leiria","fornos de algodres":"Guarda","freixo de espada a cinta":"Bragança",
+  "fronteira":"Portalegre","funchal":"Madeira","fundao":"Castelo Branco","gaviao":"Portalegre",
+  "gois":"Coimbra","golega":"Santarém","gondomar":"Porto","gouveia":"Guarda","grandola":"Setúbal",
+  "guarda":"Guarda","guimaraes":"Braga","horta":"Açores","idanha-a-nova":"Castelo Branco","ilhavo":"Aveiro",
+  "lagoa":"Faro","lagoa (acores)":"Açores","lagos":"Faro","lajes das flores":"Açores",
+  "lajes do pico":"Açores","lamego":"Viseu","leiria":"Leiria","lisboa":"Lisboa","loule":"Faro",
+  "loures":"Lisboa","lourinha":"Lisboa","lousa":"Coimbra","lousada":"Porto","macao":"Santarém",
+  "macedo de cavaleiros":"Bragança","machico":"Madeira","madalena":"Açores","mafra":"Lisboa","maia":"Porto",
+  "mangualde":"Viseu","manteigas":"Guarda","marco de canaveses":"Porto","marinha grande":"Leiria",
+  "marvao":"Portalegre","matosinhos":"Porto","mealhada":"Aveiro","meda":"Guarda","melgaco":"Viana do Castelo",
+  "mertola":"Beja","mesao frio":"Vila Real","mira":"Coimbra","miranda do corvo":"Coimbra",
+  "miranda do douro":"Bragança","mirandela":"Bragança","mogadouro":"Bragança","moimenta da beira":"Viseu",
+  "moita":"Setúbal","moncao":"Viana do Castelo","monchique":"Faro","mondim de basto":"Vila Real",
+  "monforte":"Portalegre","montalegre":"Vila Real","montemor-o-novo":"Évora","montemor-o-velho":"Coimbra",
+  "montijo":"Setúbal","mora":"Évora","mortagua":"Viseu","moura":"Beja","mourao":"Évora","murca":"Vila Real",
+  "murtosa":"Aveiro","nazare":"Leiria","nelas":"Viseu","nisa":"Portalegre","nordeste":"Açores",
+  "obidos":"Leiria","odemira":"Beja","odivelas":"Lisboa","oeiras":"Lisboa","oleiros":"Castelo Branco",
+  "olhao":"Faro","oliveira de azemeis":"Aveiro","oliveira de frades":"Viseu","oliveira do bairro":"Aveiro",
+  "oliveira do hospital":"Coimbra","ourem":"Santarém","ourique":"Beja","ovar":"Aveiro",
+  "pacos de ferreira":"Porto","palmela":"Setúbal","pampilhosa da serra":"Coimbra","paredes":"Porto",
+  "paredes de coura":"Viana do Castelo","pedrogao grande":"Leiria","penacova":"Coimbra","penafiel":"Porto",
+  "penalva do castelo":"Viseu","penamacor":"Castelo Branco","penedono":"Viseu","penela":"Coimbra",
+  "peniche":"Leiria","peso da regua":"Vila Real","pinhel":"Guarda","pombal":"Leiria","ponta delgada":"Açores",
+  "ponta do sol":"Madeira","ponte da barca":"Viana do Castelo","ponte de lima":"Viana do Castelo",
+  "ponte de sor":"Portalegre","portalegre":"Portalegre","portel":"Évora","portimao":"Faro","porto":"Porto",
+  "porto de mos":"Leiria","porto moniz":"Madeira","porto santo":"Madeira","povoa de lanhoso":"Braga",
+  "povoa de varzim":"Porto","povoacao":"Açores","praia da vitoria":"Açores","proenca-a-nova":"Castelo Branco",
+  "redondo":"Évora","reguengos de monsaraz":"Évora","resende":"Viseu","ribeira brava":"Madeira",
+  "ribeira de pena":"Vila Real","ribeira grande":"Açores","rio maior":"Santarém","sabrosa":"Vila Real",
+  "sabugal":"Guarda","salvaterra de magos":"Santarém","santa comba dao":"Viseu","santa cruz":"Madeira",
+  "santa cruz da graciosa":"Açores","santa cruz das flores":"Açores","santa maria da feira":"Aveiro",
+  "santa marta de penaguiao":"Vila Real","santana":"Madeira","santarem":"Santarém",
+  "santiago do cacem":"Setúbal","santo tirso":"Porto","sao bras de alportel":"Faro",
+  "sao joao da madeira":"Aveiro","sao joao da pesqueira":"Viseu","sao pedro do sul":"Viseu",
+  "sao roque do pico":"Açores","sao vicente":"Madeira","sardoal":"Santarém","satao":"Viseu","seia":"Guarda",
+  "seixal":"Setúbal","sernancelhe":"Viseu","serpa":"Beja","serta":"Castelo Branco","sesimbra":"Setúbal",
+  "setubal":"Setúbal","sever do vouga":"Aveiro","silves":"Faro","sines":"Setúbal","sintra":"Lisboa",
+  "sobral de monte agraco":"Lisboa","soure":"Coimbra","sousel":"Portalegre","tabua":"Coimbra",
+  "tabuaco":"Viseu","tarouca":"Viseu","tavira":"Faro","terras de bouro":"Braga","tomar":"Santarém",
+  "tondela":"Viseu","torre de moncorvo":"Bragança","torres novas":"Santarém","torres vedras":"Lisboa",
+  "trancoso":"Guarda","trofa":"Porto","vagos":"Aveiro","vale de cambra":"Aveiro","valenca":"Viana do Castelo",
+  "valongo":"Porto","valpacos":"Vila Real","velas":"Açores","vendas novas":"Évora",
+  "viana do alentejo":"Évora","viana do castelo":"Viana do Castelo","vidigueira":"Beja",
+  "vieira do minho":"Braga","vila de rei":"Castelo Branco","vila do bispo":"Faro","vila do conde":"Porto",
+  "vila do porto":"Açores","vila flor":"Bragança","vila franca de xira":"Lisboa",
+  "vila franca do campo":"Açores","vila nova da barquinha":"Santarém",
+  "vila nova de cerveira":"Viana do Castelo","vila nova de famalicao":"Braga","vila nova de foz coa":"Guarda",
+  "vila nova de gaia":"Porto","vila nova de paiva":"Viseu","vila nova de poiares":"Coimbra",
+  "vila pouca de aguiar":"Vila Real","vila real":"Vila Real","vila real de santo antonio":"Faro",
+  "vila velha de rodao":"Castelo Branco","vila verde":"Braga","vila vicosa":"Évora","vimioso":"Bragança",
+  "vinhais":"Bragança","viseu":"Viseu","vizela":"Braga","vouzela":"Viseu",
+}
+# concelhos ordenados por comprimento (nomes longos primeiro) para casar "vila nova de gaia" antes de "gaia"
+_CONC=sorted(GAZ.keys(), key=len, reverse=True)
+def _na(s):
+    s=_ud.normalize("NFKD", s or "").encode("ascii","ignore").decode().lower()
+    return re.sub(r"\s+"," ", s).strip()
+_CONC_RE=re.compile(r"\b(" + "|".join(re.escape(c) for c in _CONC) + r")\b")
+# entidade que é autarquia (para essas, o local de execução = o próprio concelho)
+_AUT_RE=re.compile(r"munic[íi]pio|c[âa]mara municipal|servi[çc]os municipaliz|freguesia|junta de freguesia", re.I)
+_CUE_RE=re.compile(r"(?:concelho|munic[íi]pio|freguesia|cidade|vila)\s+d[eoa]s?\s+([a-zâãáàéêíóôõúç\- ]{3,40})", re.I)
+
+def _conc_para_zona(nome_norm):
+    m=_CONC_RE.search(nome_norm)
+    if m: return m.group(1), GAZ[m.group(1)]
+    return None, None
+
+def local_execucao(ent, obj, dr_text=None):
+    """Devolve (concelho, zona/distrito) do LOCAL DE EXECUÇÃO — nunca a morada da entidade.
+    Prioridade: campo 'Local de execução' do DR (dias ao vivo) > autarquia dona (o concelho é o local)
+    > menção explícita no objeto ('concelho de X'). Caso contrário, vazio."""
+    # 1) detalhe do DR ao vivo: campo Local de execução / prestação / NUTS
+    if dr_text:
+        m=re.search(r"Local\s+(?:principal\s+)?d[ea]\s+(?:execu[çc][ãa]o|presta[çc][ãa]o)[^:\n]*:\s*([^\n]+)", dr_text, re.I)
+        if m:
+            c,z=_conc_para_zona(_na(m.group(1)))
+            if z: return _titulo(c), z
+    # 2) entidade autárquica → o concelho dessa autarquia é o local
+    if ent and _AUT_RE.search(ent):
+        c,z=_conc_para_zona(_na(ent))
+        if z: return _titulo(c), z
+    # 3) menção no objeto ("...no concelho de X", "município de Y")
+    if obj:
+        for mm in _CUE_RE.finditer(obj):
+            c,z=_conc_para_zona(_na(mm.group(1)))
+            if z: return _titulo(c), z
+    return "", ""
+
+def _titulo(conc_norm):
+    if not conc_norm: return ""
+    return " ".join(w.capitalize() for w in conc_norm.replace("-"," - ").split())
 
 def log(*a): print(*a, file=sys.stderr, flush=True)
 
@@ -90,12 +210,13 @@ def oficial(ano):
             cat="Serviços de projeto"
         else:
             cat=cat_base
+        loc,dist=local_execucao(r.get("designacaoEntidade"), r.get("descricaoAnuncio"))
         out.append({"n":r.get("nAnuncio"),"data":dp,"ent":r.get("designacaoEntidade"),"nif":r.get("nifEntidade"),
             "obj":r.get("descricaoAnuncio"),"preco":preco,"cpv":r.get("CPVs"),"proc":r.get("modeloAnuncio"),
             "prazo":r.get("PrazoPropostas"),"dlim":iso(r.get("DataLimitePropostas","") or ""),
             "plat":r.get("PecasProcedimento"),"lotes":r.get("Lotes"),"amb":r.get("CriterAmbient"),
             "urg":1 if ta=="Anúncio de concurso urgente" else 0, "alt":1 if ta=="Anúncio de Alteração" else 0,
-            "cat":cat,"pdf":r.get("url")})
+            "cat":cat,"local":loc,"dist":dist,"pdf":r.get("url")})
     return out
 
 # ---------- Fonte 2: DR ao vivo (Playwright) ----------
@@ -116,7 +237,13 @@ def extrair(t, href):
         "plat":g(r"Plataforma eletr[óo]nica[^:\n]*:\s*([^\n]+)"),
         "lotes":["Sim"] if re.search(r"Procedimento com lotes\s*\?\s*Sim",t,re.I) else None,"amb":"",
         "urg":1 if re.search(r"concurso p[úu]blico urgente",t,re.I) else 0,
-        "cat":_cat_dr(obj, [g(r"Vocabul[áa]rio [Pp]rincipal:\s*([^\n]+)")], tc),"pdf":"https://diariodarepublica.pt"+href}
+        "cat":_cat_dr(obj, [g(r"Vocabul[áa]rio [Pp]rincipal:\s*([^\n]+)")], tc),
+        "local":_loc_dr(t,obj)[0],"dist":_loc_dr(t,obj)[1],
+        "pdf":"https://diariodarepublica.pt"+href}
+
+def _loc_dr(t, obj):
+    ent=re.search(r"Designa[çc][ãa]o da entidade adjudicante:\s*([^\n]+)", t, re.I)
+    return local_execucao(ent.group(1) if ent else "", obj, dr_text=t)
 
 def _cat_dr(obj, cpvs, tc):
     base=categoria(tc)
@@ -244,6 +371,293 @@ async def dr_ao_vivo(dias):
         await b.close()
     return recs
 
+# ---------- CONTRATOS (Portal BASE) ----------
+_DISTS_OK={"aveiro","beja","braga","braganca","castelo branco","coimbra","evora","faro","guarda","leiria",
+           "lisboa","portalegre","porto","santarem","setubal","viana do castelo","vila real","viseu"}
+
+def ctr_local(le):
+    """localExecucao ['Portugal, Distrito, Concelho', ...] -> (local, distrito/zona)."""
+    if not le: return "", ""
+    lst = le if isinstance(le, list) else [le]
+    for s in lst:
+        parts=[p.strip() for p in str(s).split(",") if p.strip()]
+        if not parts: continue
+        if _na(parts[0])!="portugal":
+            continue
+        if len(parts)<2:
+            return "Portugal", ""
+        d=_na(parts[1]); loc=", ".join(parts[1:])
+        if d in _DISTS_OK: return loc, parts[1]
+        if "madeira" in d or "porto santo" in d: return loc, "Madeira"
+        if "acores" in d or d.startswith("ilha"): return loc, "Açores"
+        return loc, ""
+    return str(lst[0]).strip()[:90], ""
+
+import html as _html
+def _txt(s):
+    """Descodifica entidades HTML (&amp; → &) e limpa caracteres de controlo."""
+    return re.sub(r"[\x7f-\x9f]"," ", _html.unescape(str(s or ""))).strip()
+
+def _ent_limpa(lst, max_n=2):
+    """['600052737 - Nome', ...] -> 'Nome | Nome2 (+N)'."""
+    out=[]
+    for s in (lst or []):
+        s=_txt(s)
+        m=re.match(r"^\s*\d{9}\s*-\s*(.+)$", s)
+        out.append((m.group(1) if m else s).strip())
+    if not out: return ""
+    extra=f" (+{len(out)-max_n})" if len(out)>max_n else ""
+    return " | ".join(out[:max_n])+extra
+
+def _conc_lista(lst, max_n=30):
+    """Lista de concorrentes -> nomes limpos. Aceita strings 'NIF-Nome' (ficheiro oficial)
+    ou dicts {'nif','description'} (API base.gov)."""
+    out=[]
+    for c in (lst or []):
+        if isinstance(c, dict):
+            s=_txt(c.get("description"))
+        else:
+            s=_txt(c)
+            m=re.match(r"^\s*\d{9}\s*-\s*(.+)$", s)
+            if m: s=m.group(1).strip()
+        if s: out.append(s[:70])
+    if len(out)>max_n:
+        resto=len(out)-max_n
+        out=out[:max_n]+[f"… e mais {resto}"]
+    return out
+
+def _preco_eur(s):
+    if s in (None,""): return None
+    try: return float(str(s).replace("€","").replace(".","").replace("\xa0","").replace(" ","").replace(",","."))
+    except Exception: return None
+
+def _ctr_cat(obj, cpvs, tipos):
+    cat_base=categoria(tipos)
+    if is_fisc(obj, cpvs): return "Serviços de fiscalização"
+    if is_proj(obj, cpvs, cat_base): return "Serviços de projeto"
+    return cat_base
+
+def _ctr_url(cid): return f"https://www.base.gov.pt/Base4/pt/detalhe/?type=contratos&id={cid}"
+
+def contratos_oficial(ano, corte):
+    """Ficheiro anual contratos{ano}.zip do dados.gov.pt (atualizado diariamente, dados até D-1)."""
+    import zipfile, io
+    meta=json.loads(http_get(f"https://dados.gov.pt/api/1/datasets/{CTR_DATASET}/"))
+    url=None
+    for r in meta["resources"]:
+        if r.get("title","").lower()==f"contratos{ano}.zip":
+            url=r.get("latest") or r["url"]; break
+    if not url:
+        log(f"contratos: contratos{ano}.zip não encontrado"); return []
+    raw=http_get(url, timeout=600)
+    zf=zipfile.ZipFile(io.BytesIO(raw))
+    recs=json.loads(zf.read(zf.namelist()[0]).decode("utf-8"))
+    out=[]
+    for r in recs:
+        dp=iso(r.get("dataPublicacao",""))
+        if not dp or dp<corte: continue
+        obj=_txt(r.get("objectoContrato") or r.get("descContrato"))
+        cpvs=r.get("cpv") or []
+        tipos=r.get("tipoContrato") or []
+        loc,dist=ctr_local(r.get("localExecucao"))
+        try: preco=float(r.get("precoContratual")) if r.get("precoContratual") not in (None,"") else None
+        except Exception: preco=None
+        out.append({"n":r.get("idcontrato"),"data":dp,
+            "ent":_ent_limpa(r.get("adjudicante"),1),"adj":_ent_limpa(r.get("adjudicatarios")),
+            "obj":obj[:300],"preco":preco,"cpv":[str(c)[:80] for c in cpvs[:2]],
+            "tipo":" / ".join(str(t) for t in tipos)[:80],"proc":r.get("tipoprocedimento"),
+            "prazo":r.get("prazoExecucao"),"cel":iso(r.get("dataCelebracaoContrato","") or "") or "",
+            "cat":_ctr_cat(obj,cpvs,tipos),"local":loc[:90],"dist":dist,
+            "conc":_conc_lista(r.get("concorrentes")),"url":_ctr_url(r.get("idcontrato"))})
+    return out
+
+CTR_DIAG=[]                      # notas de diagnóstico que vão para dentro do contratos.json.gz
+def _diag(msg):
+    CTR_DIAG.append(str(msg)[:180]); log("diag contratos:", msg)
+
+_UA_REAL=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+          "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+# cabeçalhos como os de um browser real (o base.gov.pt pode recusar pedidos "nus")
+_H_SIMPLES={"User-Agent":"Mozilla/5.0","Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}
+_H_BROWSER={"User-Agent":_UA_REAL,
+    "Content-Type":"application/x-www-form-urlencoded; charset=UTF-8",
+    "Accept":"application/json, text/javascript, */*; q=0.01",
+    "Accept-Language":"pt-PT,pt;q=0.9,en;q=0.8",
+    "X-Requested-With":"XMLHttpRequest",
+    "Origin":"https://www.base.gov.pt",
+    "Referer":"https://www.base.gov.pt/Base4/pt/pesquisa/",
+    "Connection":"keep-alive"}
+
+def _base_post(data, timeout=30, headers=None, tentativas=2):
+    import urllib.parse, time
+    body=urllib.parse.urlencode(data).encode()
+    last=None
+    for t in range(tentativas):
+        try:
+            req=urllib.request.Request("https://www.base.gov.pt/Base4/pt/resultados/", data=body,
+                headers=headers or _H_SIMPLES)
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            last=e
+            if t+1<tentativas: time.sleep(2*(t+1))
+    raise last
+
+# O base.gov.pt pode bloquear pedidos diretos vindos dos servidores do GitHub (como o DR).
+# Fallback: fazer o mesmo pedido DENTRO de um browser (Playwright/Chromium), que não é bloqueado.
+_PW=None; _PW_PG=None; _MODO_BASE="simples"
+def _pw_pagina():
+    global _PW,_PW_PG
+    if _PW_PG is None:
+        from playwright.sync_api import sync_playwright
+        _PW=sync_playwright().start()
+        opts={"args":["--disable-blink-features=AutomationControlled"]}
+        prox=os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+        if prox: opts["proxy"]={"server":prox}     # ambientes com proxy (no GitHub não há)
+        nav=_PW.chromium.launch(**opts)
+        pg=nav.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                        ignore_https_errors=bool(prox))
+        pg.goto("https://www.base.gov.pt/Base4/pt/pesquisa/", wait_until="domcontentloaded", timeout=90000)
+        pg.wait_for_timeout(1500)
+        _PW_PG=pg
+    return _PW_PG
+
+def _pw_fechar():
+    global _PW,_PW_PG
+    try:
+        if _PW: _PW.stop()
+    except Exception: pass
+    _PW=None; _PW_PG=None
+
+def _base_post_pw(data, timeout=60):
+    import urllib.parse
+    pg=_pw_pagina()
+    body=urllib.parse.urlencode(data)
+    txt=pg.evaluate("""async (arg)=>{
+        const [body,tmo]=arg;
+        const ctl=new AbortController(); setTimeout(()=>ctl.abort(), tmo);
+        const r=await fetch('/Base4/pt/resultados/',{method:'POST',signal:ctl.signal,
+          headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},body});
+        return await r.text();
+    }""", [body, timeout*1000])
+    return json.loads(txt)
+
+_MODOS=[("simples", lambda d,t: _base_post(d,t,_H_SIMPLES)),
+        ("browser-headers", lambda d,t: _base_post(d,t,_H_BROWSER)),
+        ("chromium", lambda d,t: _base_post_pw(d,t))]
+_MODO_I=0
+def _base_call(data, timeout=30):
+    """Tenta cada transporte por ordem até um funcionar; guarda o que funcionou.
+    (No GitHub o base.gov.pt pode recusar pedidos diretos, como acontece com o DR.)"""
+    global _MODO_I,_MODO_BASE
+    erros=[]
+    for i in range(_MODO_I, len(_MODOS)):
+        nome,fn=_MODOS[i]
+        try:
+            r=fn(data, timeout)
+            if _MODO_I!=i or _MODO_BASE!=nome:
+                _diag(f"transporte «{nome}» OK"+(f" (falharam: {'; '.join(erros)})" if erros else ""))
+            _MODO_I=i; _MODO_BASE=nome
+            return r
+        except Exception as e:
+            erros.append(f"{nome}={type(e).__name__} {str(e)[:60]}")
+    _diag("todos os transportes falharam: "+" | ".join(erros))
+    raise RuntimeError("base.gov.pt inacessível: "+" | ".join(erros))
+
+def contratos_vivo(desde, max_det=500, max_pag=200, seg_busca=600, seg_det=780):
+    """Contratos publicados a partir de «desde» (dias em falta depois do ficheiro oficial),
+    via pesquisa do base.gov.pt SEM filtro de datas (com filtro o servidor demora ~20-30s por página;
+    sem filtro demora ~1-2s). Varre por ordem -publicationDate e pára ao chegar a dias já cobertos.
+    Para cada contrato pede o detalhe (local de execução, CPV, tipo) — limitado a max_det pedidos."""
+    import time
+    t0=time.time()
+    out=[]; ndet=0; vistos_1a=[]
+    q="tipo=0&tipocontrato=0&pais=187&distrito=0&concelho=0"
+    # 1ª fase — varrer as páginas de resultados (rápido); sem detalhes, para nunca ficar sem contratos
+    for page in range(max_pag):
+        if time.time()-t0>seg_busca:
+            _diag(f"busca ao vivo parada por tempo ({int(time.time()-t0)}s) na página {page}"); break
+        d=_base_call({"type":"search_contratos","version":"91.0","query":q,"sort":"-publicationDate","page":page,"size":50})
+        items=d.get("items") or []
+        if page==0:
+            vistos_1a=[iso2(x.get("publicationDate","")) or "?" for x in items[:3]]
+            _diag(f"base.gov respondeu: total={d.get('total')}, 1ª página começa em {', '.join(vistos_1a) or '(vazia)'} (procuro >= {desde})")
+        if not items: break
+        antigos=0
+        for it in items:
+            dp=iso2(it.get("publicationDate",""))
+            if not dp or dp<desde:
+                antigos+=1; continue
+            cid=it.get("id")
+            out.append({"n":cid,"data":dp,
+               "ent":_txt(it.get("contracting")),"adj":_txt(it.get("contracted")),
+               "obj":_txt(it.get("objectBriefDescription"))[:300],
+               "preco":_preco_eur(it.get("initialContractualPrice")),
+               "cpv":[],"tipo":"","proc":it.get("contractingProcedureType"),
+               "prazo":"","cel":iso2(it.get("signingDate","") or ""),
+               "cat":_ctr_cat(_txt(it.get("objectBriefDescription")), [], []),
+               "local":"","dist":"","conc":[],"url":_ctr_url(cid)})
+        if page%10==0: log(f"contratos vivo: página {page}, acumulado {len(out)}")
+        if antigos==len(items): break    # página inteira já antes de «desde» ⇒ terminámos
+    # 2ª fase — detalhes (local de execução, CPV, tipo, CONCORRENTES), do mais recente para trás
+    for b in sorted(out, key=lambda x:(x["data"], str(x["n"])), reverse=True):
+        if ndet>=max_det or time.time()-t0>seg_det: break
+        try:
+            det=_base_call({"type":"detail_contratos","version":"91.0","id":b["n"]}); ndet+=1
+            if det.get("cpvs"): b["cpv"]=[f"{det.get('cpvs')} - {det.get('cpvsDesignation') or ''}".strip(" -")[:80]]
+            b["tipo"]=(det.get("contractTypes") or "")[:80]
+            b["prazo"]=re.sub(r"\D","",str(det.get("executionDeadline") or "")) or ""
+            loc,dist=ctr_local([det.get("executionPlace") or ""])
+            b["local"]=loc[:90]; b["dist"]=dist
+            b["conc"]=_conc_lista(det.get("contestants") or det.get("invitees"))
+            b["cat"]=_ctr_cat(b["obj"], b["cpv"], [b["tipo"]] if b["tipo"] else [])
+        except Exception as e:
+            if ndet==0: _diag(f"detalhes indisponíveis: {type(e).__name__}")
+            break
+    _diag(f"ao vivo: +{len(out)} contratos desde {desde} ({ndet} com detalhe, {int(time.time()-t0)}s)")
+    return out
+
+def gerar_contratos(hoje):
+    corte_prov=(hoje-datetime.timedelta(days=JANELA_CTR+7)).isoformat()
+    anos=sorted({(hoje-datetime.timedelta(days=JANELA_CTR+7)).year, hoje.year})
+    ctr=[]
+    for ano in anos:
+        log(f"A obter contratos {ano}…")
+        try:
+            parte=contratos_oficial(ano, corte_prov)
+            log(f"contratos oficial {ano}: {len(parte)}")
+            ctr+=parte
+        except Exception as e:
+            log(f"contratos oficial {ano} falhou:", repr(e))
+    maxof=max((r["data"] for r in ctr if r.get("data")), default=None)
+    if maxof: _diag(f"ficheiro oficial IMPIC vai até {maxof}")
+    # complemento ao vivo para os dias em falta (normalmente só hoje; até 10 dias se o oficial parar)
+    try:
+        ini=(datetime.date.fromisoformat(maxof)+datetime.timedelta(days=1)) if maxof else (hoje-datetime.timedelta(days=2))
+        if ini<=hoje:
+            ctr+=contratos_vivo(max(ini,hoje-datetime.timedelta(days=10)).isoformat())
+        else:
+            _diag("oficial já está em dia — sem complemento ao vivo")
+    except Exception as e:
+        _diag(f"complemento ao vivo indisponível: {type(e).__name__} {str(e)[:100]}")
+    finally:
+        _pw_fechar()
+    log(f"contratos: transporte base.gov = {_MODO_BASE}")
+    if not ctr:
+        log("contratos: nada obtido — contratos.json.gz não escrito"); return
+    ultimo=max(r["data"] for r in ctr if r["data"])
+    corte=(datetime.date.fromisoformat(ultimo)-datetime.timedelta(days=JANELA_CTR)).isoformat()
+    porN={}
+    for r in ctr:                # o oficial vem primeiro ⇒ prioridade sobre o «vivo»
+        if r.get("data") and r["data"]>=corte: porN.setdefault(r["n"], r)
+    jan=sorted(porN.values(), key=lambda x:(x["data"], str(x["n"])))
+    de=min(r["data"] for r in jan); ate=max(r["data"] for r in jan)
+    obj={"ver":VERSAO,"gerado":hoje.isoformat(),"hora":hora_lisboa(),"de":de,"ate":ate,"janela":JANELA_CTR,
+         "diag":" | ".join(CTR_DIAG[-8:]),"regs":jan}
+    with gzip.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),"contratos.json.gz"),"wb") as f:
+        f.write(json.dumps(obj, ensure_ascii=False).encode("utf-8"))
+    log(f"Escrito contratos.json.gz: {len(jan)} contratos, {de}..{ate}")
+
 def hora_lisboa():
     try:
         from zoneinfo import ZoneInfo
@@ -297,6 +711,12 @@ def main():
     with gzip.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),"dados.json.gz"),"wb") as f:
         f.write(data)
     log(f"Escrito dados.json.gz: {len(janela)} anúncios, {de}..{ate}")
+
+    # ---------- separador CONTRATOS (nunca pode estragar os anúncios) ----------
+    try:
+        gerar_contratos(hoje)
+    except Exception as e:
+        log("CONTRATOS falharam (anúncios não afetados):", repr(e))
 
 if __name__=="__main__":
     main()
